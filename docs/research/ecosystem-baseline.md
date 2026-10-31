@@ -129,7 +129,7 @@ These are the cases that justify "coherence is not uniformity". A system that re
 | U2 | A PR in `chat` changes `VISION_MODEL`. The system reports that `homelab apps/ollama/application.yaml` does not pull the new tag, and that the manifest comment naming the consumer becomes false. | R7 |
 | U3 | A PR in `homelab` claims `192.168.1.244` for a new service. The system reports the collision with `chat k8s/service.yaml`. | R8, H3 |
 | U4 | A PR in `adt` renames an ADR file. The system lists the URL in `adl docs/autonomy-levels.md` that will break. | R9 |
-| U5 | A new pattern is added to `ap`. The system reports that the profile count is now stale, and that the profile rule (R1) makes it a defect there, not in `ap`. | R1, D1 |
+| U5 | A new pattern is added to `ap` after the profile count has been corrected. The system reports that the profile count is stale again, and that the profile rule (R1) makes it a defect there, not in `ap`. Before that correction, the same PR leaves D1 in place and the finding is `pre-existing`, not introduced by the PR. | R1, D1 |
 
 ## Unanswered questions
 

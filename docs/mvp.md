@@ -22,7 +22,7 @@ The first release is a **read-only, on-demand analyzer** of a small, declared se
 |---|---|---|
 | **M0 Design** (this repository today) | Documentation, eight Proposed ADRs | ADRs reviewed; open questions Q1–Q6 answered or explicitly deferred |
 | **M1 Deterministic baseline** | C1, C2 (declared relationships only), C3 with P1–P6, W1, report, run store with fingerprints | Evaluation set (below) passes: 100% recall on seeded and mutation cases for P1–P6, zero findings on negative controls, deterministic rerun produces an identical report |
-| **M2 PR impact** | C4, W2 with base/head comparison | Mutation cases U1–U5 replayed as PRs yield the expected affected repository, impact class and `introduced` label; no pre-existing finding blamed on a PR |
+| **M2 PR impact** | C4, W2 with base/head comparison | Mutation cases U1–U5 replayed as PRs against a coherent base yield the expected affected repository, impact class and `introduced` label; U5 replayed against the raw baseline (D1 already present) yields `pre-existing`, so no pre-existing finding is blamed on a PR |
 | **M3 Bounded investigation** | LangGraph spike and gate ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)); C5; P7; quote verification; interrupts | Spike criteria met (or fallback chosen); H2 resolved into `supported` or `insufficient_evidence` with verified quotes; zero `confirmed` findings with an unverified quote; LLM cost per run reported |
 | **M4 Remediation plans** | C6, W5, prevention steps, regression detection | D1/D2 plans name the correct fix sites and order; a plan contradicting `ai-dev-tools` ADR-018 (N3) is flagged as such; a reintroduced mutation reopens its finding as a regression |
 
@@ -52,7 +52,7 @@ The evaluation design is part of the MVP, not an afterthought. Nothing below exi
 | Seeded positives | D1, D2 at the baseline revisions | One `confirmed`, `verified` finding each; D2 names `autonomous-dev-loop README.md` as the first fix site |
 | Negative controls | C1–C8 | No finding |
 | Look-alikes | N1, N2, N3, N4 | No finding; N2 yields a policy clarification question; N3 yields no opportunity, or one marked as contradicting `ai-dev-tools` ADR-018 |
-| Mutations | U1–U5, applied in memory to the pinned snapshots (version bump, model tag change, IP collision, renamed ADR, added pattern) | Exactly the expected finding, impact class and affected repository |
+| Mutations | U1–U5, applied in memory to the pinned snapshots (version bump, model tag change, IP collision, renamed ADR, added pattern). U1–U4 mutate relationships that are coherent at the baseline (C3, C5, C6, C7). U5's relationship is not (D1): its base is first normalized in memory (profile count set to 20), and U5 is also run once on the raw baseline | Exactly the expected finding, impact class and affected repository; `introduced` on a coherent base, `pre-existing` for U5 on the raw baseline (same fingerprint as D1) |
 | Undecidable | H1 (plugin scope), H2 (qualitative claim) | H1: `undetermined` intent or policy question, never `confirmed` until Q1 is answered; H2: `supported` with verified quotes, or `insufficient_evidence` |
 | History replay | Past commits of `koydas` README against past commits of the described repositories | Detection at the first commit where the drift existed; measures what a scheduled scan would have caught |
 
