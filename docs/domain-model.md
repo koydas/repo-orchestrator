@@ -18,7 +18,7 @@ Conceptual model, not a schema. Field lists name what each concept must carry to
 | **Evidence** | A quote pinned to `(repository, SHA, path, locator)` with its hash and producer ([ADR-0006](adr/0006-evidence-provenance-uncertainty-and-reproducibility.md)). | Produced |
 | **Impact Assessment** | For a change set (a PR or a commit range), the relationships it touches and, per affected repository, what can happen: `breaks`, `falsifies`, `outdates`. | Produced |
 | **Remediation Plan** | Ordered steps per repository to resolve one or more findings, with ADR compatibility and a prevention step. | Produced, approved by a human |
-| **Opportunity** | A consolidation or propagation suggestion; never a finding. States the ADRs it is compatible with or contradicts. | Produced |
+| **Opportunity** | An improvement across related repositories that is not a policy violation: propagate a proven guardrail, consolidate a shared contract, remove duplicated maintenance. Own lifecycle, benefit evidence, cost/risk assessment, human decision ([§ Opportunity lifecycle](#opportunity-lifecycle), [ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)). Never a finding. | Produced, decided by a human |
 | **Run** | One execution: pinned snapshots, declaration revision, budgets, Run Record. | Produced |
 
 ## Entity relationships
@@ -45,6 +45,10 @@ erDiagram
     IMPACT_ASSESSMENT }o--|{ RELATIONSHIP : traverses
     REMEDIATION_PLAN }o--|{ FINDING : resolves
     REMEDIATION_PLAN }o--o{ ARCHITECTURAL_DECISION : "checked against"
+    OPPORTUNITY }o--|{ REPOSITORY : spans
+    OPPORTUNITY ||--|{ EVIDENCE : "benefit evidence"
+    OPPORTUNITY }o--o{ ARCHITECTURAL_DECISION : "checked against"
+    OPPORTUNITY |o--o| REMEDIATION_PLAN : "realized by"
 ```
 
 Cardinality notes:
@@ -71,19 +75,23 @@ Cardinality notes:
 ## Invariants
 
 1. Every Evidence references a snapshot pinned by its Run. No evidence refers to a moving branch.
-2. A Finding in state `confirmed` has verification status `verified` or `supported`.
+2. A Finding in state `confirmed` has evidence status `verified` or `supported` **and** a validation other than `not_validated`. Quote verification is necessary, never sufficient ([ADR-0006](adr/0006-evidence-provenance-uncertainty-and-reproducibility.md)).
 3. A Finding never changes verification status because of an LLM output alone; status changes come from code checks or from a human.
 4. An Intentional Exception without an authority, an owner or a review date is invalid and not applied.
 5. Only relationships with origin `declared` (or `observed` and confirmed) are traversed by impact analysis or evaluated by policies.
-6. A Remediation Plan lists every accepted ADR it contradicts. A plan that contradicts one cannot be approved without a superseding decision in the owning repository.
+6. A Remediation Plan or Opportunity reports ADR compatibility in three tiers: formalized constraints checked, candidate semantic conflicts, ADRs not examined ([coherence model](coherence-model.md#adr-compatibility)). An unresolved candidate conflict blocks approval (fail-closed). "No conflict detected" is never reported as "compatible".
 7. Accepted ADRs are point-in-time records: a policy comparing current state reads living documents (README, docs, manifests), not accepted ADRs, unless the ADR is explicitly cited as current (baseline N4).
+8. An Opportunity is proposed only with pinned benefit evidence; a declined one keeps its fingerprint and reason and is not proposed again unless its evidence changes.
 
 ## Finding lifecycle
 
 ```mermaid
 stateDiagram-v2
     [*] --> candidate: pre-filter or check flags a divergence
-    candidate --> confirmed: verified (check) or supported (quotes verified)
+    candidate --> confirmed: deterministic check fails (verified, validated_by_check)
+    candidate --> needs_validation: reasoning claim, all quotes verified (supported)
+    needs_validation --> confirmed: entailment check passes, or human validates
+    needs_validation --> dismissed: entailment check fails, or human rejects the inference
     candidate --> insufficient_evidence: unverified, cannot_evaluate, or budget exhausted
     candidate --> dismissed: refuted, or investigation shows no divergence
     insufficient_evidence --> candidate: next run or human adds evidence
@@ -101,21 +109,47 @@ stateDiagram-v2
 ```
 
 - State is per **fingerprint** (policy + relationship + normalized locators), so a finding keeps its history across runs.
+- `needs_validation` findings are reported in their own section. A `breaks` claim in this state is never presented as a confirmed break.
 - `resolved` is only ever set by a check passing on a newer snapshot, never by a human closing it.
 - A regression reopens the same finding with `regression_count` incremented; the report shows its history and the prevention step of the plan that resolved it.
 
 ## Uncertainty model
 
-Two independent axes, both categorical ([ADR-0006](adr/0006-evidence-provenance-uncertainty-and-reproducibility.md)):
+Three independent axes, all categorical ([ADR-0006](adr/0006-evidence-provenance-uncertainty-and-reproducibility.md)):
 
 | Axis | Values | Set by |
 |---|---|---|
-| **Verification** — how the claim was established | `verified` · `supported` · `unverified` · `refuted` | Code (check result, quote verification) |
+| **Evidence** — is the cited text authentic at the pinned revision? | `verified` · `supported` · `unverified` · `refuted` | Code (extractor, quote verification) |
+| **Validation** — does the conclusion follow from the evidence? | `validated_by_check` · `validated_by_human` · `not_validated` | Code (deterministic check, or an entailment check the policy declares); human |
 | **Intent** — whether the divergence is meant | `accidental` · `intentional` · `undetermined` | Exception lookup (code); Investigator proposal; human decision |
+
+Authentic evidence is not a correct claim: verified quotes can be misread or support an invalid inference. An **entailment check** is a deterministic test a policy declares for a reasoning claim (the Investigator locates a value, code compares it). Without one, validation is human.
 
 The Investigator may **propose** `intentional` with a quoted justification (for example a `CLAUDE.md` line documenting the divergence, baseline N2); the proposal is shown as such and becomes `intentional` only through an exception recorded by a human.
 
 A check that cannot run (file missing, parse failure, locator ambiguous) yields `cannot_evaluate` with a reason. It is reported, counted, and never silently treated as `pass`.
+
+## Opportunity lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> discovered: signal (finding history, shared contract, guardrail in a source repo)
+    discovered --> evidenced: pinned benefit evidence attached
+    discovered --> discarded: no benefit evidence
+    evidenced --> assessed: benefit, cost, risk, new coupling, ADR compatibility
+    assessed --> proposed: passes the anti-uniformity test, no unresolved ADR conflict
+    assessed --> discarded: fails the test or conflicts with an accepted ADR
+    proposed --> accepted: human
+    proposed --> declined: human, reason kept
+    proposed --> deferred: human, review date
+    deferred --> proposed: review date reached or evidence changed
+    declined --> evidenced: evidence changed materially
+    accepted --> realized: change verified on a later snapshot
+    realized --> [*]
+    discarded --> [*]
+```
+
+The anti-uniformity test and assessment rules are in the [coherence model](coherence-model.md#optimization-opportunities).
 
 ## Questions the model answers
 
@@ -126,5 +160,6 @@ A check that cannot run (file missing, parse failure, locator ambiguous) yields 
 | Is a divergence intentional or accidental? | Finding intent: a matching valid exception → `intentional`; otherwise `undetermined` until a human decides, `accidental` when the policy's authority leaves no room (for example a contract version mismatch). |
 | What evidence supports a finding? | Its Evidence records, each checkable with `git show <sha>:<path>`. |
 | Which repositories would be affected by a proposed change? | Impact Assessment: relationships anchored to the changed artifacts, ranked by type semantics (`breaks` > `falsifies` > `outdates`). |
-| Is the proposed correction compatible with existing ADRs? | Remediation Plan's ADR check: accepted ADRs of each touched repository whose decisions the plan contradicts (baseline N3 against `ai-dev-tools` ADR-018). |
+| Is the proposed correction compatible with existing ADRs? | Only partially decidable. The plan reports formalized constraints checked in code, candidate semantic conflicts with quotes, and ADRs not examined; an unresolved conflict blocks approval (baseline N3 against `ai-dev-tools` ADR-018). |
+| Which improvement is worth carrying from one repository to a related one, and at what cost? | Opportunity: benefit evidence, cost, risk, coupling it creates, ADR compatibility, human decision. |
 | How can a resolved inconsistency be prevented from recurring? | Every plan carries a prevention step: a deterministic policy here, or a recommended check in the owning repository (for example a consumer test pinning `schema_version`); recurrence is detected by fingerprint. |

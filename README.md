@@ -22,9 +22,10 @@ This is not hypothetical. Reading six public `koydas` repositories at fixed comm
 | Relationship model | Typed edges between repositories (runtime contract, deployment, shared resource, tooling adoption, documentary, conceptual), declared by humans, with optional proposals from observers |
 | Coherence policies | A divergence is a finding only if a policy with a named authority says it matters; intentional divergence is recorded as an expiring exception |
 | Deterministic checks first | Versions, tags, addresses, counts and references are compared in code; an LLM investigates only what code cannot decide |
-| Evidence | Every finding cites both repositories at pinned commits, with quotes verified in code and an explicit verification status |
+| Evidence | Every finding cites both repositories at pinned commits, with quotes verified in code; authentic evidence and a validated conclusion are separate statuses, so a verified quote never confirms a claim on its own |
 | PR impact | For a pull request, which other repositories it can break, falsify or outdate, and whether it introduces or resolves a finding |
-| Remediation plans | Ordered steps per repository, checked against existing ADRs, with a prevention step; approved by a human, never merged by the system |
+| Remediation plans | Ordered steps per repository with a prevention step; ADR conflicts reported as checked, candidate or not examined, and an unresolved conflict blocks approval; approved by a human, never merged by the system |
+| Optimization opportunities | Improvements that are not violations (propagate a proven guardrail, consolidate a genuinely shared contract, remove duplicated maintenance), each with pinned benefit evidence, cost, risk and the coupling it creates, decided by a human; never "make it uniform" |
 
 **Not a code reviewer.** A reviewer reads one diff in one repository. This system reads the relationships between repositories and asks whether a claim on one side is still true on the other. It does not lint, test, or review code quality, and it does not enforce identical conventions where nothing depends on them.
 
@@ -47,7 +48,7 @@ flowchart LR
     gate --> report["Report<br/>Markdown + JSON"]
 ```
 
-One Python process, one SQLite file, no services. The Investigator is the only component that calls an LLM, and its output is verified in code before it can become a finding. LangGraph is the candidate engine for the investigation and approval workflow only, subject to a spike. Details: [architecture](docs/architecture.md), [workflows](docs/workflows.md).
+One Python process, one SQLite file, no services. The Investigator is the only component that calls an LLM, and its output is verified in code before it can become a finding. LangGraph is the candidate engine for the investigation and approval workflow only; an isolated spike validates it as the first implementation activity, without coupling the core to it. Details: [architecture](docs/architecture.md), [workflows](docs/workflows.md).
 
 ## Example scenarios
 
@@ -59,13 +60,14 @@ Grounded in the [baseline](docs/research/ecosystem-baseline.md); all are **inten
 | A PR in `ollama-chat` changes `VISION_MODEL` | `gitops-homelab` does not pull the new tag (breaks); the manifest comment naming the consumer becomes false |
 | A PR in `gitops-homelab` claims `192.168.1.244` | Collision with `ollama-chat` `k8s/service.yaml` (shared resource) |
 | Baseline scan of the profile | Pattern count drift reported against the profile; ADR count drift attributed to `autonomous-dev-loop`'s README first |
-| A consolidation of the five `new-adr` skills is suggested | Listed as an opportunity that contradicts `ai-dev-tools` ADR-018, not as a finding |
+| `status.json` is kept "same shape" by convention in two repositories | Opportunity (M5): a shared schema artifact, with the runtime-only detection risk as benefit evidence and the new cross-repository artifact as cost |
+| A consolidation of the five `new-adr` skills is considered | Discarded at opportunity assessment: it contradicts `ai-dev-tools` ADR-018, which keeps skills per repository |
 
 ## Principles
 
 - Deterministic checks before LLM reasoning; the LLM never decides a verdict.
 - Every finding has evidence on both sides, pinned to commits, and a categorical verification status.
-- Uncertainty is explicit: `verified`, `supported`, `unverified`, `refuted`; intent `accidental`, `intentional`, `undetermined`.
+- Uncertainty is explicit: evidence `verified`, `supported`, `unverified`, `refuted`; validation of the conclusion as a separate status; intent `accidental`, `intentional`, `undetermined`.
 - Relationships and policies are declared and reviewed in Git; inferred ones are proposals.
 - Read-only first; every write, when it exists, is approved per item by a human. No merges.
 - Stateful, resumable investigations, with budgets as code constants.
@@ -76,10 +78,12 @@ Grounded in the [baseline](docs/research/ecosystem-baseline.md); all are **inten
 | Milestone | Scope | Status |
 |---|---|---|
 | M0 Design | Documentation and ADRs | **In review** |
+| S0 LangGraph validation spike | Isolated, throwaway: checkpoints, interrupts, fan-out, budget guard; before or alongside M1 | Not started |
 | M1 Deterministic baseline | Six repositories, six deterministic policies, local report, evaluation set | Not started |
 | M2 PR impact | Cross-repository impact of a PR, base/head comparison | Not started |
-| M3 Bounded investigation | LangGraph spike and gate, Investigator, quote verification, human interrupts | Not started |
-| M4 Remediation plans | Ordered plans, ADR compatibility, regression detection | Not started |
+| M3 Bounded investigation | LangGraph-backed Investigator, quote verification, claim validation, human interrupts | Not started |
+| M4 Remediation plans | Ordered plans, three-tier ADR compatibility, regression detection | Not started |
+| M5 Optimization opportunities | Opportunity lifecycle, benefit/cost/risk assessment, human decision | Not started |
 
 Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated issues and PRs, automatic relationship discovery, longitudinal metrics. See [MVP](docs/mvp.md).
 
@@ -94,7 +98,7 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [Workflows](docs/workflows.md) | Baseline scan, PR analysis, LangGraph workflow, failure handling, human intervention |
 | [MVP](docs/mvp.md) | Scope, milestones, deferred capabilities, evaluation design |
 | [Ecosystem baseline](docs/research/ecosystem-baseline.md) | Verified relationships and inconsistencies, hypotheses, open questions, with revisions |
-| [ADRs](docs/adr/README.md) | Eight Proposed decisions |
+| [ADRs](docs/adr/README.md) | Nine Proposed decisions |
 
 ## Relation to the rest of the ecosystem
 

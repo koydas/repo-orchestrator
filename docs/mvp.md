@@ -20,11 +20,13 @@ The first release is a **read-only, on-demand analyzer** of a small, declared se
 
 | Milestone | Delivers | Exit criteria |
 |---|---|---|
-| **M0 Design** (this repository today) | Documentation, eight Proposed ADRs | ADRs reviewed; open questions Q1–Q6 answered or explicitly deferred |
+| **M0 Design** (this repository today) | Documentation, nine Proposed ADRs | ADRs reviewed; open questions Q1–Q6 answered or explicitly deferred |
+| **S0 LangGraph validation spike** (first implementation activity, before or alongside M1) | Time-boxed, throwaway spike outside the core package, scripted Investigator stand-in, synthetic candidates ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5) | Resume after `interrupt()` across restarts, isolated fan-out, budget guard holding across resume, generated diagram matching the docs, pinned dependencies; outcome (adopt or fallback) recorded in ADR-0005 before M1 completes. No core code depends on it |
 | **M1 Deterministic baseline** | C1, C2 (declared relationships only), C3 with P1–P6, W1, report, run store with fingerprints | Evaluation set (below) passes: 100% recall on seeded and mutation cases for P1–P6, zero findings on negative controls, deterministic rerun produces an identical report |
 | **M2 PR impact** | C4, W2 with base/head comparison | Mutation cases U1–U5 replayed as PRs against a coherent base yield the expected affected repository, impact class and `introduced` label; U5 replayed against the raw baseline (D1 already present) yields `pre-existing`, so no pre-existing finding is blamed on a PR |
-| **M3 Bounded investigation** | LangGraph spike and gate ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)); C5; P7; quote verification; interrupts | Spike criteria met (or fallback chosen); H2 resolved into `supported` or `insufficient_evidence` with verified quotes; zero `confirmed` findings with an unverified quote; LLM cost per run reported |
-| **M4 Remediation plans** | C6, W5, prevention steps, regression detection | D1/D2 plans name the correct fix sites and order; a plan contradicting `ai-dev-tools` ADR-018 (N3) is flagged as such; a reintroduced mutation reopens its finding as a regression |
+| **M3 Bounded investigation** | LangGraph-backed Investigator on the S0-validated design (or the S0 fallback); C5; P7; quote verification; validation status and entailment checks; interrupts | H2 ends in `needs_validation` with verified quotes (a human decides) or `insufficient_evidence`; zero `confirmed` findings with an unverified quote or without validation; every `breaks` reasoning claim without an entailment check routed to a human; LLM cost per run reported |
+| **M4 Remediation plans** | C6, W5, prevention steps, regression detection | D1/D2 plans name the correct fix sites and order; a plan for N3 surfaces `ai-dev-tools` ADR-018 as a conflict and cannot be approved until resolved; no report states "compatible"; a reintroduced mutation reopens its finding as a regression |
+| **M5 Optimization opportunities** | Opportunity lifecycle and W6 ([ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)): discovery from findings history, shared contracts and recorded guardrails; benefit/cost/risk assessment; human decision | Every proposed opportunity has pinned benefit evidence; N3 consolidations discarded against ADR-018; the R3 `status.json` schema candidate assessed with H4 as benefit evidence; declined opportunities never re-proposed |
 
 M1 alone is useful: it would have caught D1 and D2 with no LLM.
 
@@ -51,9 +53,9 @@ The evaluation design is part of the MVP, not an afterthought. Nothing below exi
 |---|---|---|
 | Seeded positives | D1, D2 at the baseline revisions | One `confirmed`, `verified` finding each; D2 names `autonomous-dev-loop README.md` as the first fix site |
 | Negative controls | C1–C8 | No finding |
-| Look-alikes | N1, N2, N3, N4 | No finding; N2 yields a policy clarification question; N3 yields no opportunity, or one marked as contradicting `ai-dev-tools` ADR-018 |
+| Look-alikes | N1, N2, N3, N4 | No finding; N2 yields a policy clarification question; N3 yields no proposed opportunity: if discovered, it is discarded at assessment as contradicting `ai-dev-tools` ADR-018 |
 | Mutations | U1–U5, applied in memory to the pinned snapshots (version bump, model tag change, IP collision, renamed ADR, added pattern). U1–U4 mutate relationships that are coherent at the baseline (C3, C5, C6, C7). U5's relationship is not (D1): its base is first normalized in memory (profile count set to 20), and U5 is also run once on the raw baseline | Exactly the expected finding, impact class and affected repository; `introduced` on a coherent base, `pre-existing` for U5 on the raw baseline (same fingerprint as D1) |
-| Undecidable | H1 (plugin scope), H2 (qualitative claim) | H1: `undetermined` intent or policy question, never `confirmed` until Q1 is answered; H2: `supported` with verified quotes, or `insufficient_evidence` |
+| Undecidable | H1 (plugin scope), H2 (qualitative claim) | H1: `undetermined` intent or policy question, never `confirmed` until Q1 is answered; H2: `needs_validation` with verified quotes, or `insufficient_evidence`, never `confirmed` without a human |
 | History replay | Past commits of `koydas` README against past commits of the described repositories | Detection at the first commit where the drift existed; measures what a scheduled scan would have caught |
 
 ### Metrics
@@ -67,6 +69,8 @@ The evaluation design is part of the MVP, not an afterthought. Nothing below exi
 | Evidence validity | Evidence records whose quote exists at the cited SHA and locator (checked by code) | 1.0 |
 | Attribution | Findings whose named fix site is correct (D2-type) | 1.0 on the evaluation set |
 | Insufficient-evidence ratio | `insufficient_evidence` / reasoning candidates | Reported; rising ratio is a signal to add declarations, not to relax verification |
+| Validation backlog | Count and age of `needs_validation` findings | Reported; a growing backlog calls for entailment checks, not for relaxing validation |
+| Opportunity quality (M5) | Proposed with pinned benefit evidence / proposed; accepted / proposed; declined as noise; re-proposals of declined ones | 1.0; reported; reported; 0 |
 | Reproducibility | Identical report hash on rerun (deterministic) or replay (with recorded LLM responses) | 100% |
 | Operational cost | GitHub API calls, wall time, LLM tokens and list-price cost per run and per investigation | Reported per run; budget constants set from M3 measurements |
 
@@ -85,15 +89,16 @@ If 3 fails after a reasonable period, the product boundary ([ADR-0001](adr/0001-
 
 ## Future evolution
 
-In order, each gated by the previous one's measurements: PR comments (level 2) → scheduled scans with a shared run store → observed-relationship proposals with measured precision → coordinated issue drafts → coordinated draft PRs (level 3) → longitudinal coherence metrics. Each step that adds a write or a new autonomy level gets its own ADR.
+In order, each gated by the previous one's measurements: optimization opportunities (M5) → PR comments (level 2) → scheduled scans with a shared run store → observed-relationship proposals with measured precision → coordinated issue drafts → coordinated draft PRs (level 3) → longitudinal coherence metrics. Each step that adds a write or a new autonomy level gets its own ADR.
 
 ## Overengineering risks
 
 | Risk | Mitigation in this design |
 |---|---|
-| LangGraph adopted before it has a job | Not used in M1–M2; adoption gated by a spike at M3 ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)) |
+| LangGraph adopted before it has a job, or validated too late | Not used in M1–M2; validated early by the isolated S0 spike, built only at M3 ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)) |
 | A policy framework larger than seven policies need | Python functions with metadata; no DSL ([ADR-0003](adr/0003-policy-driven-coherence-with-scoped-exceptions.md)) |
 | Generic multi-agent design | One Investigator; everything else deterministic ([ADR-0004](adr/0004-deterministic-checks-before-agentic-reasoning.md)) |
 | Graph DB, vector store, services | Explicitly excluded with revisit triggers ([architecture](architecture.md#complexity-budget)) |
 | Seven relationship types too fine for six repositories | Types are kept because fix order and severity differ by type; `build_dependency` has no verified MVP instance and is the first candidate to drop if it stays unused |
+| Opportunities become a uniformity linter | Anti-uniformity test: benefit evidence required, "same as elsewhere" never counts, declined ones never re-proposed ([ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)) |
 | Exceptions and precedence rules unused in practice | P6 exercises them on real data (N2, H1); if they stay unused after M4, simplify |

@@ -25,7 +25,7 @@ A system that flags every divergence trains its users to ignore it.
    2. A valid exception suppresses the matching finding (state `excepted`, still listed).
    3. Otherwise, the narrowest applicable policy wins over wider ones on the same subject.
    4. Ties between policies of the same scope are a configuration error, reported at load time.
-6. **Opportunities** (consolidation, propagation of an improvement) are a separate output kind, never a finding. Each opportunity must state which accepted ADRs it is compatible with or contradicts (N3 contradicts `ai-dev-tools` ADR-018 and must say so).
+6. **Opportunities** (consolidation, propagation of an improvement) are a separate output kind, never a finding. Each opportunity must state which accepted ADRs it is compatible with or contradicts (N3 contradicts `ai-dev-tools` ADR-018 and must say so). Their lifecycle and evaluation are defined in [ADR-0009](0009-optimization-opportunities-as-first-class-output.md).
 
 ## Rationale
 

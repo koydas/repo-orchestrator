@@ -16,6 +16,7 @@ Format: `NNNN-kebab-title.md`, sections Context / Decision / Rationale / Alterna
 | [ADR-0006](./0006-evidence-provenance-uncertainty-and-reproducibility.md) | Evidence is pinned to revisions, findings carry an explicit verification status, and every run is reproducible | Proposed |
 | [ADR-0007](./0007-read-only-operation-and-human-gated-remediation.md) | Read-only operation first; remediation is planned by the system and approved by a human | Proposed |
 | [ADR-0008](./0008-git-declarations-and-local-sqlite-state.md) | Declarations live in Git; runtime state lives in one local SQLite file | Proposed |
+| [ADR-0009](./0009-optimization-opportunities-as-first-class-output.md) | Optimization opportunities are a first-class output with their own lifecycle | Proposed |
 
 ## Dependencies between records
 
@@ -31,4 +32,7 @@ flowchart LR
     A5 --> A8["0008 Persistence"]
     A6 --> A8
     A7 --> A8
+    A3 --> A9["0009 Opportunities"]
+    A6 --> A9
+    A7 --> A9
 ```

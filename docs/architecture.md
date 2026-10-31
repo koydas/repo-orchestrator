@@ -74,7 +74,7 @@ No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007
 ### C3 Policy engine
 
 - **Does:** resolve applicable policies per relationship with the precedence rules ([coherence model](coherence-model.md#precedence)), run deterministic checks, run reasoning pre-filters, apply exceptions, compute fingerprints and lifecycle transitions, verify Investigator quotes.
-- **Outputs:** findings (`candidate` → `confirmed` / `insufficient_evidence` / `dismissed` / `excepted`), policy conflicts, `cannot_evaluate` records.
+- **Outputs:** findings (`candidate` → `confirmed` / `needs_validation` / `insufficient_evidence` / `dismissed` / `excepted`), policy conflicts, `cannot_evaluate` records.
 - **Boundary:** the only component that sets a finding's verification status. Policies are Python functions with declared metadata; no policy DSL.
 - **Deterministic.**
 
@@ -94,7 +94,7 @@ No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007
 ### C6 Remediation planner
 
 - **Does:** for confirmed findings, propose ordered steps per repository (fix site, order constraints such as "consumer first" for a version bump), check them against the accepted ADRs of each touched repository, and add a prevention step.
-- **Boundary:** produces text in the report. Uses the LLM only through C5 for drafting wording, never for ordering or ADR compatibility, which are computed from relationship semantics and ADR status. MVP milestone M4.
+- **Boundary:** produces text in the report. Ordering is computed from relationship semantics. ADR compatibility is reported in three tiers ([coherence model](coherence-model.md#adr-compatibility)): formalized constraints checked in code; candidate semantic conflicts proposed by C5 with verified quotes; ADRs not examined. "No conflict detected" is never reported as "compatible", and an unresolved candidate conflict blocks approval of the plan (fail-closed). MVP milestone M4; from M5 it assesses Optimization Opportunities under the same rules ([ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)).
 
 ### C7 Review gate
 
@@ -120,10 +120,11 @@ SQLite file plus snapshot cache ([ADR-0008](adr/0008-git-declarations-and-local-
 
 ## Orchestration strategy
 
+- **S0** (first implementation activity, before or alongside M1): an isolated, throwaway LangGraph design-validation spike outside the core package ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5). The core never imports it.
 - **M1–M2:** a plain function pipeline: `collect → build_graph → evaluate → (impact) → report`. One command, no framework.
-- **M3:** the investigation and approval part becomes a LangGraph graph whose nodes call the same functions ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)), subject to the adoption gate in that ADR. The graph is specified in [workflows.md](workflows.md#langgraph-workflow).
+- **M3:** the investigation and approval part becomes a LangGraph graph whose nodes call the same functions, on the design S0 validated (or the hand-written fallback if S0 failed). The graph is specified in [workflows.md](workflows.md#langgraph-workflow).
 
-Why not a simpler pipeline throughout: once investigations exist, the run must survive LLM failures per candidate, budget exhaustion, and human pauses of arbitrary length. Written by hand, that is a resumable state machine with a persisted status per candidate; LangGraph provides it. Before investigations exist, it provides nothing the pipeline needs.
+Why not a simpler pipeline throughout: once investigations exist, the run must survive LLM failures per candidate, budget exhaustion, and human pauses of arbitrary length. Written by hand, that is a resumable state machine with a persisted status per candidate; LangGraph provides it. Before investigations exist, it provides nothing the pipeline needs, which is why S0 tests it in isolation instead of in the core.
 
 ## Security boundaries
 

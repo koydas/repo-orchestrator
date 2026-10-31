@@ -11,6 +11,7 @@ Operational workflows, the LangGraph graph proposed for milestone M3, failure ha
 | W3 | Bounded investigation | Inside W1/W2, for reasoning candidates | M3 |
 | W4 | Triage and exceptions | Human, on a report | M1 (manual), M3 (in-graph) |
 | W5 | Remediation planning | Inside W1/W2, for confirmed findings | M4 |
+| W6 | Opportunity assessment | Human runs it, from findings history and declared relationships | M5 |
 | — | Scheduled scans, PR comments, coordinated issues/PRs | — | Deferred ([mvp.md](mvp.md#deferred)) |
 
 ## W1 Baseline scan
@@ -70,7 +71,7 @@ Notes:
 
 ## LangGraph workflow
 
-Proposed for M3, adopted only if the spike in [ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) passes. Nodes call the core functions of C1–C7; the graph adds routing, fan-out, checkpoints and interrupts.
+Validated first by the isolated S0 spike ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5), built at M3. Nodes call the core functions of C1–C7; the graph adds routing, fan-out, checkpoints and interrupts.
 
 ```mermaid
 flowchart TD
@@ -103,13 +104,17 @@ flowchart TD
     end
     investigate --> verify
     verify --> outcome{verification}
-    outcome -- "supported" --> classify
+    outcome -- "supported" --> entail{"entailment check<br/>declared by policy?"}
+    entail -- "yes, passes" --> classify
+    entail -- "yes, fails" --> dismiss
+    entail -- "no" --> needsVal["mark_needs_validation"]
+    needsVal --> classify
     outcome -- "unverified /<br/>budget exhausted" --> insufficient["mark_insufficient_evidence"]
     outcome -- "refuted" --> dismiss["mark_dismissed"]
     insufficient --> classify
     dismiss --> classify
 
-    classify["classify_intent<br/>exceptions · precedence"] --> triageQ{"high severity with<br/>undetermined intent?"}
+    classify["classify_intent<br/>exceptions · precedence"] --> triageQ{"breaks claim needing validation,<br/>or high severity with<br/>undetermined intent?"}
     triageQ -- yes --> triage[["human_triage<br/>interrupt()"]]
     triageQ -- no --> plan
     triage --> plan["plan_remediation<br/>C6 · M4"]
@@ -129,7 +134,7 @@ flowchart TD
 | Fan-out | `Send` per candidate, capped by `MAX_INVESTIGATIONS`. Investigations are independent: one failure does not affect the others. Justified because candidates read disjoint evidence; the deterministic stages are not fanned out (they are fast and sequential). |
 | Retries | Transient GitHub errors: in `pin_snapshots`, bounded backoff, 3 attempts. Malformed Investigator output: 1 retry, then `insufficient_evidence`. No retry on a refuted quote. |
 | Checkpoints | After inputs are pinned, after deterministic evaluation, after each investigation, at each interrupt. A resumed run never re-pins snapshots. |
-| Human points | `human_triage` (only for high-severity findings whose intent is undetermined), `approve_report` (always). In the MVP, approval records decisions and marks the run reviewed; in a future level ≥ 2 it gates any GitHub write ([ADR-0007](adr/0007-read-only-operation-and-human-gated-remediation.md)). |
+| Human points | `human_triage` (`breaks` claims in `needs_validation`, and high-severity findings whose intent is undetermined), `approve_report` (always; a plan with an unresolved candidate ADR conflict cannot be approved). In the MVP, approval records decisions and marks the run reviewed; in a future level ≥ 2 it gates any GitHub write ([ADR-0007](adr/0007-read-only-operation-and-human-gated-remediation.md)). |
 | Termination | Routing checks budgets before every fan-out; `investigate` re-checks them before spending (two checks, as in `autonomous-dev-loop` ADR-0039). A loop from `approve_report` back to `classify_intent` re-uses existing investigations; it cannot start new ones. |
 
 ## Insufficient evidence
@@ -144,6 +149,7 @@ A candidate ends in `insufficient_evidence` when: a quote cannot be verified (`u
 
 | Human action | Effect |
 |---|---|
+| Validate a reasoning claim | `needs_validation` → `confirmed` (`validated_by_human`) or `dismissed` with reason |
 | Acknowledge | `confirmed` → `acknowledged` |
 | Dismiss with reason | `candidate` / `insufficient_evidence` → `dismissed`; the reason is stored and counts as a false positive in evaluation |
 | Request an exception | Produces an exception draft in the report; the human adds it to the declarations by pull request; the next run marks the finding `excepted` |
@@ -155,9 +161,13 @@ For each confirmed finding (or group sharing a relationship):
 
 1. **Fix site** from the policy: for D2-type findings, the upstream repository first, then the describing one.
 2. **Order** from relationship semantics: `runtime_contract` version bumps change the consumer to accept both versions first, then the producer, then remove the old version; `deployment` changes publish the artifact before the manifest points to it.
-3. **ADR compatibility**: list accepted ADRs of each touched repository that the step contradicts; such a plan cannot be approved without a superseding decision in that repository.
+3. **ADR compatibility**, in three tiers ([coherence model](coherence-model.md#adr-compatibility)): formalized constraints checked in code; candidate semantic conflicts proposed by C5 with verified quotes; ADRs not examined, listed by name. The report says "no conflict detected among …", never "compatible". A plan with an unresolved candidate conflict cannot be approved (fail-closed): the human dismisses the conflict with a reason, or the owning repository records a superseding decision.
 4. **Prevention**: a deterministic policy here and/or a recommended check in the owning repository.
 5. Output: text in the report. Nothing is created on GitHub.
+
+## W6 Opportunity assessment (M5)
+
+Follows the lifecycle of [ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md): discover candidates from findings history, declared shared contracts and guardrails recorded in source repositories → attach pinned benefit evidence (discard if none) → assess benefit, cost, risk and new coupling → check ADR compatibility in the same three tiers as W5 → propose → human accepts, declines (reason kept, not re-proposed) or defers. Read-only; an accepted opportunity becomes a plan like W5.
 
 ## Failure handling
 

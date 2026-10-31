@@ -16,11 +16,12 @@ The result is drift that no single-repository tool can see. In the [ecosystem ba
 4. **Assess** the cross-repository impact of a pull request before it merges.
 5. **Plan** remediation across repositories, ordered and checked against existing ADRs, for a human to approve.
 6. **Respect intentional divergence**: coherence is not uniformity.
+7. **Surface optimization opportunities** that are not violations: propagate a proven guardrail, consolidate a genuinely shared contract, remove duplicated maintenance where it pays. Each needs pinned evidence of benefit, a cost and risk assessment (including any coupling it creates) and a human decision, through a lifecycle separate from findings ([ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)). Not in M1.
 
 ## Non-goals
 
 - Single-repository code review, linting or testing.
-- Enforcing identical conventions without a relationship that requires them.
+- Enforcing identical conventions without a relationship that requires them. "The other repositories do it this way" is never a reason for a finding or an opportunity.
 - Executing builds, deployments or migrations across repositories.
 - Autonomous merges, or any write to GitHub without per-item human approval.
 - Ranking repositories or engineers.
@@ -52,8 +53,8 @@ The MVP's measurable criteria are in [mvp.md](mvp.md#validation-criteria-for-the
 | Org-wide linters and "golden path" templates | Enforce uniformity | Intentional divergence; produce noise where no relationship exists |
 | Multi-repository batch-change tools | Apply the same change across repositories | Whether the change is needed, and in what order |
 
-What is specific here: typed relationships with impact semantics, policies with authorities and expiring exceptions, deterministic checks before LLM reasoning, quote-verified evidence pinned to commits, and a human at every write.
+What is specific here: typed relationships with impact semantics, policies with authorities and expiring exceptions, deterministic checks before LLM reasoning, evidence pinned to commits with authenticity and validated conclusions kept apart, opportunities admitted on evidence of benefit rather than sameness, and a human at every write.
 
 ## Naming
 
-The repository and project are named `repo-orchestrator`. The product is **cross-repository coherence**; it does not orchestrate builds or tasks across repositories ([ADR-0001](adr/0001-cross-repository-coherence-as-product-boundary.md)). Whether to rename is an open question in that ADR.
+The repository and project are named `repo-orchestrator`. The product is **cross-repository coherence**; it does not orchestrate builds or tasks across repositories ([ADR-0001](adr/0001-cross-repository-coherence-as-product-boundary.md)). The name is settled.

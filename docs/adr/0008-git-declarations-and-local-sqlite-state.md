@@ -21,7 +21,7 @@ No requirement calls for concurrent writers, multiple users, or a network servic
 ## Decision
 
 1. **Declarations** (repositories, relationships, contracts, policies' parameters, exceptions) are versioned files in this repository, changed by pull request. Their revision is recorded in every Run Record.
-2. **Runtime state** (findings and history, Run Records, LangGraph checkpoints) is a **single local SQLite file**. The LangGraph SQLite checkpointer uses the same file, or a sibling file, if the M3 spike adopts LangGraph ([ADR-0005](0005-langgraph-for-investigation-workflows-only.md)).
+2. **Runtime state** (findings and history, Run Records, LangGraph checkpoints) is a **single local SQLite file**. The LangGraph SQLite checkpointer uses the same file, or a sibling file, if the S0 spike leads to adopting LangGraph ([ADR-0005](0005-langgraph-for-investigation-workflows-only.md)).
 3. **Snapshots** are a content-addressed cache on disk keyed by `(repository, SHA, path)`; deleting the cache loses nothing.
 4. **Reports** are files (Markdown for humans, JSON for machines) written per run.
 5. No server, no hosted database, no vector store in the MVP.

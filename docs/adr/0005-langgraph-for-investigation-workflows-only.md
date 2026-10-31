@@ -23,18 +23,20 @@ The workflow ([workflows.md](../workflows.md)) has two very different halves:
    - caps are module constants, checked in code at the routing function **and** in the node that spends the budget;
    - the graph's input schema exposes only the run request (scope, PR reference), so a resumed thread cannot reset its budget or outcome through `invoke`;
    - no node lets an LLM decide a verdict.
-5. **Adoption gate.** LangGraph is adopted for M3 only if a spike on the baseline cases shows all of:
+5. **Early, isolated validation spike (S0).** The first implementation activity, before or alongside M1, is a time-boxed, throwaway design-validation spike in a directory separate from the core package and never imported by it. It uses a scripted Investigator stand-in (no provider call, as `autonomous-dev-loop` ADR-0039 does) on synthetic candidates shaped like the baseline cases, and must show all of:
    - resume after an `interrupt()` across process restarts, with the checkpoint as the only state;
    - fan-out of at least 5 investigations with per-investigation failure isolation;
+   - the budget guard of §4 holding across a resume (a resumed thread cannot buy extra investigations);
    - a generated diagram that matches the documented workflow;
    - pinned dependency set and checkpoint schema stable across the spike.
-   If the spike fails, the fallback is a hand-written state machine over the same SQLite store (the M1/M2 pipeline extended with a `status` column and a resume command).
+   The outcome is recorded in this ADR before M1 completes. If it passes, the LangGraph-backed Investigator is built at M3 on the validated design. If it fails, the fallback is a hand-written state machine over the same SQLite store (the M1/M2 pipeline extended with a `status` column and a resume command). Either way, no M1/M2 code depends on the outcome.
 
 ## Rationale
 
 - The value LangGraph offers (durable interrupts, checkpointed fan-out, explicit routing) matches the investigation half exactly and the deterministic half not at all.
 - Keeping the core framework-free contains the lock-in and keeps M1/M2 shippable with no orchestration dependency.
 - A distinct use from ADR-0039 (read-only, multi-repository, human-paused) produces evidence that ADR-0039 cannot.
+- Demonstrating real LangGraph use is an explicit goal of this repository. Discovering checkpoint, interrupt or fan-out limits at M3 would force late rework; S0 moves that risk to the start, at the cost of a throwaway spike.
 
 ## Alternatives considered
 
@@ -46,12 +48,13 @@ The workflow ([workflows.md](../workflows.md)) has two very different halves:
 
 ## Consequences
 
-- ✅ M1 and M2 ship without LangGraph; the framework decision is taken on evidence at M3.
+- ✅ M1 and M2 ship without LangGraph; the framework decision is taken on S0 evidence before M1 completes, and M3 builds on a validated design.
+- ⚠️ S0 is spent before the product's first value (M1) is shown; it is time-boxed and throwaway.
 - ✅ Human pauses are durable and resumable.
 - ⚠️ A second Python dependency surface (LangGraph, checkpointer) with its own release cadence; pinned.
 - ⚠️ Two ways of running code (core functions directly, the graph for investigations) must stay consistent; the graph is the only entry point that writes finding state.
 
 ## Open questions
 
-- Is the Investigator's own tool loop a LangGraph subgraph or a single node wrapping an SDK tool loop? Decided by the M3 spike.
+- Is the Investigator's own tool loop a LangGraph subgraph or a single node wrapping an SDK tool loop? Decided by S0.
 - Should insufficient-evidence candidates interrupt for a human immediately, or be batched into the final report? Default proposed: batched ([workflows.md](../workflows.md#insufficient-evidence)).

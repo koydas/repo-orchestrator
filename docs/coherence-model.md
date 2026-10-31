@@ -78,17 +78,52 @@ Severity derives from the impact class of the policy and the relationship type, 
 | **Low** | `outdates`: a `conceptual` relationship lags its source | `agent-patterns` "Running in" claims after a renamed feature |
 | *(not a severity)* | Opportunities, policy conflicts, inferred relationships | Listed in separate report sections |
 
-Within a severity, order by: verification (`verified` before `supported`), then blast radius (number of affected repositories), then age (`first_seen`).
+Within a severity, order by: validation (`validated_by_check` before `validated_by_human`; `needs_validation` findings are listed in their own section, never ranked as confirmed), then blast radius (number of affected repositories), then age (`first_seen`).
 
 ## Evidence requirements
 
 | Check kind | A finding needs | Otherwise |
 |---|---|---|
 | `deterministic` | Evidence on **both sides** of the relationship, from a named extractor version, at pinned SHAs; the comparator and its result | `cannot_evaluate` (with reason) |
-| `reasoning_assisted` | Everything above, plus every Investigator quote verified in code at its cited location, plus the quoted policy authority | `unverified` → `insufficient_evidence`; a failing quote → `refuted` |
+| `reasoning_assisted` | Everything above, plus every Investigator quote verified in code at its cited location (evidence `supported`), plus the quoted policy authority; **then** validation by the policy's entailment check or a human before `confirmed` | `unverified` → `insufficient_evidence`; a failing quote → `refuted`; quotes verified but not validated → `needs_validation` |
 | Any | The policy authority artifact resolved at its pinned revision | The policy is not evaluated in this run |
 
 A finding that cites only one repository is out of scope ([ADR-0001](adr/0001-cross-repository-coherence-as-product-boundary.md) §4), with one allowance: an upstream root cause (D2) is reported **inside** the cross-repository finding that exposed it, as its fix site.
+
+## ADR compatibility
+
+Whether a remediation plan or an opportunity is compatible with the accepted ADRs of the repositories it touches is **not generally computable**: most ADR constraints are prose. It is reported in three tiers, never as a single verdict:
+
+| Tier | Source | What it can say |
+|---|---|---|
+| 1. Formalized constraints | ADR decisions encoded as policies or declared constraints (for example P6 encodes `ai-dev-tools` ADR-018's two-key rule) | Checked in code: pass or conflict |
+| 2. Candidate semantic conflicts | The bounded Investigator reads the prose of accepted ADRs in the touched repositories ([ADR-0004](adr/0004-deterministic-checks-before-agentic-reasoning.md) §7) | A candidate conflict with verified quotes; never "compatible" |
+| 3. Not examined | ADRs outside budget, unreadable, or not in a touched repository | Listed by name |
+
+Rules:
+
+- The report states "no conflict detected among N formalized constraints and M ADRs reviewed; K not examined", never "compatible".
+- **Fail-closed.** A plan or opportunity with an unresolved tier-1 conflict or tier-2 candidate cannot be approved. A human resolves it by dismissing the candidate with a reason, or by a superseding decision in the owning repository.
+- Tier-3 ADRs do not block, but approval requires the human to see their list.
+
+## Optimization opportunities
+
+Improvements that are not violations ([ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)). Kinds: `guardrail_propagation`, `contract_consolidation`, `maintenance_deduplication`.
+
+**Anti-uniformity test**: an opportunity is proposed only if all hold:
+
+1. The repositories are related by a declared relationship, or share a concern evidenced in both.
+2. Pinned **benefit evidence** exists: an incident, a recurring finding, an ADR in the source repository recording why a guardrail exists, repeated maintenance. "The other repositories do it this way" is never benefit evidence.
+3. Cost and risk are stated, including the **coupling** the change creates (a consolidated contract is a new `runtime_contract` with an owner).
+4. ADR compatibility passes the fail-closed rule above.
+
+| Candidate (illustrative, from the [baseline](research/ecosystem-baseline.md)) | Outcome under the test |
+|---|---|
+| A shared schema artifact for `status.json`, kept "same shape" by convention in two repositories (R3) | Assessable: benefit evidence is the H4 risk (a shape change caught only at runtime); cost is a new cross-repository artifact and its owner (H5) |
+| Consolidating the duplicated plugin declaration or the per-repository `new-adr` skills (N3) | Discarded: `ai-dev-tools` ADR-018 accepts that duplication and keeps skills per repository |
+| Carrying a "never shrink a test file" guardrail to a related repository that lacks it | Assessable only with the incident behind the guardrail (`autonomous-dev-loop` ADR-0009) as benefit evidence; `ollama-chat`'s `test-and-lint` skill already has a counterpart |
+
+Assessment is categorical (benefit, cost, risk: high / medium / low, each with its evidence). A declined opportunity is not proposed again unless its evidence changes.
 
 ## Counting claims
 

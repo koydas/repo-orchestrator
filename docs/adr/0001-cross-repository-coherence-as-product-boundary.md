@@ -11,7 +11,7 @@ The repository is named `repo-orchestrator`. The name invites scope creep toward
 
 ## Decision
 
-1. The product is **cross-repository engineering coherence**: discover and model how independent repositories relate, detect where one repository's claims or contracts about another are false or at risk, explain the impact with evidence, and (later) plan remediation for a human to approve.
+1. The product is **cross-repository engineering coherence**: discover and model how independent repositories relate, detect where one repository's claims or contracts about another are false or at risk, explain the impact with evidence, (later) plan remediation for a human to approve, and surface optimization opportunities between related repositories ([ADR-0009](0009-optimization-opportunities-as-first-class-output.md)).
 2. **In scope:** relationships, contracts, shared resources, documentary claims and conventions that span at least two repositories.
 3. **Out of scope:**
    - Single-repository code review, lint, test execution. Those belong to the repository's own CI and to `autonomous-dev-loop` / `ai-dev-tools`.
@@ -35,9 +35,9 @@ The repository is named `repo-orchestrator`. The name invites scope creep toward
 
 - ✅ A crisp test for every proposed feature: does it need two repositories to be meaningful?
 - ✅ No overlap with existing reviewers; the systems can compose.
-- ⚠️ The repository name does not describe the product. The README states the boundary in its first paragraph.
+- ⚠️ The repository name (`repo-orchestrator`, the owner's choice) does not by itself describe the product; the README states the boundary in its first paragraph.
 - ⚠️ Some valuable single-repository observations (D2's root cause lies inside `autonomous-dev-loop`) are only reported through their cross-repository effect.
 
 ## Open questions
 
-- Should the project be renamed to match the boundary, or is the name kept for continuity?
+None. The name `repo-orchestrator` is decided by the owner and is not reopened.

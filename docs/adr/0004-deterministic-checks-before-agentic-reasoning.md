@@ -20,9 +20,10 @@ The ecosystem has a clear precedent: `autonomous-dev-loop` lets tools, not the m
    - may read additional files only from the run's pinned snapshots, through read-only tools (`read`, `search`) with fixed call and size caps;
    - returns a structured claim with verbatim quotes and locations;
    - has no network access, no shell, no write tool.
-4. **Every quote the Investigator returns is checked in code** against the snapshot at the cited location. A claim whose quotes do not all verify cannot become `confirmed` ([ADR-0006](0006-evidence-provenance-uncertainty-and-reproducibility.md)).
+4. **Every quote the Investigator returns is checked in code** against the snapshot at the cited location. A claim whose quotes do not all verify cannot become `confirmed`. A claim whose quotes all verify is only `supported`: the conclusion still needs validation by an entailment check the policy declares, or by a human ([ADR-0006](0006-evidence-provenance-uncertainty-and-reproducibility.md)).
 5. Budgets (candidates per run, tool calls per candidate, tokens per run) are **constants in code**, not configuration, following `autonomous-dev-loop` ADR-0039 §5.
 6. The MVP has **one** reasoning role (the Investigator). No multi-agent debate, no planner agent.
+7. The same bounded Investigator may look for **candidate semantic conflicts** between a proposed remediation or opportunity and accepted ADRs written in prose. Its output is a candidate conflict with quotes, never a verdict of compatibility ([coherence model](../coherence-model.md#adr-compatibility)).
 
 ## Rationale
 
@@ -40,9 +41,9 @@ The ecosystem has a clear precedent: `autonomous-dev-loop` lets tools, not the m
 ## Consequences
 
 - ✅ The MVP can ship its first milestone with no LLM at all.
-- ✅ Every confirmed finding is either code-proven or quote-verified.
+- ✅ Every confirmed finding is either code-proven, or quote-verified and then validated by an entailment check or a human.
 - ⚠️ Pre-filters bound recall: a semantic inconsistency no pre-filter flags is never investigated.
-- ⚠️ Quote verification proves that the quoted text exists, not that the reasoning about it is correct; a human still reviews `supported` findings.
+- ⚠️ Quote verification proves that the quoted text exists, not that the reasoning about it is correct; hence the separate validation status of ADR-0006, and more findings waiting on a human.
 
 ## Open questions
 
