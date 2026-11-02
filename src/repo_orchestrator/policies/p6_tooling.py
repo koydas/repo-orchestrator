@@ -344,6 +344,14 @@ def _table(
         return ctx.cannot(rel, "adopter_table", CannotEvaluate(exc.cause, f"{t.path}: {exc.detail}"), locators)
     except CannotEvaluate as exc:
         return ctx.cannot(rel, "adopter_table", exc, locators)
+    header = table.detail["header"]
+    missing = [c for c in (t.repo_column, t.skills_column) if c not in header]
+    if missing:  # an unreadable layout is not evidence that the adopter is unlisted
+        return ctx.cannot(
+            rel, "adopter_table",
+            CannotEvaluate(Cause.LOCATOR_NO_MATCH, f"{t.path}: table '{t.heading}' has no column {missing} (columns: {header})"),
+            locators,
+        )  # fmt: skip
     if skills_ev is None:
         return ctx.cannot(
             rel, "adopter_table", CannotEvaluate(Cause.NOT_FOUND, f"{cfg.skills_dir} could not be listed"), locators

@@ -128,14 +128,19 @@ class RunStore:
                 event = "state_changed" if changed else "unchanged"
             self._db.execute("INSERT INTO finding_events VALUES (?,?,?)", (fp, run_key, event))
         by_subject: dict[tuple[str, str, str], set[Status]] = {}
+        by_pair: dict[tuple[str, str], set[Status]] = {}
         for o in outcomes:
             by_subject.setdefault(o.subject_key, set()).add(o.status)
+            by_pair.setdefault((o.policy_id, o.relationship_id), set()).add(o.status)
         for row in self._db.execute("SELECT * FROM findings WHERE state != 'resolved'").fetchall():
             if row["fingerprint"] in live:
                 continue
             statuses = by_subject.get((row["policy_id"], row["relationship_id"], row["subject"]), set())
-            if Status.CONSISTENT in statuses or statuses & set(_LIVE):
-                # the subject was evaluated and this fingerprint is no longer present
+            pair = by_pair.get((row["policy_id"], row["relationship_id"]), set())
+            vanished = not statuses and bool(pair) and not pair & {Status.CANNOT_EVALUATE, Status.FAILED}
+            if Status.CONSISTENT in statuses or statuses & set(_LIVE) or vanished:
+                # the subject was evaluated and this fingerprint is no longer present, or the subject itself is gone
+                # (a removed link, an address no longer claimed) while its policy completed on the relationship
                 self._db.execute(
                     "UPDATE findings SET state='resolved', last_evaluated_run=? WHERE fingerprint=?",
                     (run_key, row["fingerprint"]),

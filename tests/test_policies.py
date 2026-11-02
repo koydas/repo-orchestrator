@@ -553,6 +553,13 @@ class TestP6:
             is Status.CONSISTENT
         )
 
+    @pytest.mark.parametrize("old,new", [("| Repo |", "| Repository |"), ("| Skills |", "| Procedures |")])
+    def test_an_unsupported_table_layout_is_not_evidence_of_a_missing_adopter(self, old, new):
+        r = scan([replace_text(ADT, "docs/consumer-repos.md", old, new)])
+        outs = find(r, "P6", "R5.ap", "adopter_table")
+        assert [o.status for o in outs] == [Status.CANNOT_EVALUATE] and outs[0].cause == Cause.LOCATOR_NO_MATCH
+        assert not [o for o in r.result.outcomes if o.policy_id == "P6" and o.status is Status.INCONSISTENT]
+
     def test_an_adopter_missing_from_the_table_is_a_finding_at_the_registry(self):
         row = "| `agent-patterns` | `new-pattern` | `docs/claude-code.md` |\n"
         f = one(scan([replace_text(ADT, "docs/consumer-repos.md", row, "")]), "P6", "R5.ap", "adopter_table")

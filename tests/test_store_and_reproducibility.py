@@ -11,7 +11,7 @@ from repo_orchestrator.collector.overlay import delete_path, replace_text
 from repo_orchestrator.models import Status
 from repo_orchestrator.report import render_markdown
 from repo_orchestrator.store import RunStore
-from support import AS_OF, one, scan
+from support import AS_OF, find, one, scan
 
 PROFILE, AP = "koydas/koydas", "koydas/agent-patterns"
 FIX_D1 = replace_text(PROFILE, "README.md", "17 multi-agent patterns", "20 multi-agent patterns")
@@ -101,6 +101,34 @@ def test_finding_lifecycle_new_resolved_regressed(store):
     row = store.finding(d1)
     assert row["state"] == "open" and row["regression_count"] == 1
     assert [h["event"] for h in store.history(d1)] == ["new", "resolved", "regressed"]
+
+
+BROKEN_LINK = replace_text(
+    PROFILE,
+    "README.md",
+    "### Current focus",
+    "### Current focus\n[x](https://github.com/koydas/agent-patterns/blob/main/nonexistent.md)",
+)
+
+
+def test_a_finding_whose_subject_disappears_is_resolved_when_its_policy_completed(store):
+    broken = scan([BROKEN_LINK])
+    ref = one(broken, "P5", "R1.ap", "ref:blob:ap:nonexistent.md")
+    assert ref.status is Status.INCONSISTENT
+    store.record(broken.semantic, broken.result.outcomes, now=T0)
+    fixed = scan(as_of=AS_OF.replace(day=3))  # the link is gone: its subject is no longer emitted
+    assert not find(fixed, "P5", "R1.ap", "ref:blob:ap:nonexistent.md")
+    rec = store.record(fixed.semantic, fixed.result.outcomes, now=T0.replace(day=3))
+    assert ref.fingerprint in rec.transitions["resolved"] and store.finding(ref.fingerprint)["state"] == "resolved"
+
+
+def test_a_vanished_subject_is_not_resolved_when_its_policy_could_not_complete(store):
+    broken = scan([BROKEN_LINK])
+    fp = one(broken, "P5", "R1.ap", "ref:blob:ap:nonexistent.md").fingerprint
+    store.record(broken.semantic, broken.result.outcomes, now=T0)
+    unreadable = scan([delete_path(PROFILE, "README.md")], as_of=AS_OF.replace(day=3))  # the source cannot be read
+    rec = store.record(unreadable.semantic, unreadable.result.outcomes, now=T0.replace(day=3))
+    assert fp in rec.transitions["not_evaluated"] and store.finding(fp)["state"] == "open"
 
 
 def test_cannot_evaluate_never_resolves_a_finding(store):
