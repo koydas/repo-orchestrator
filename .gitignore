@@ -4,3 +4,11 @@ prototypes/langgraph-spike/s0-state/
 __pycache__/
 .pytest_cache/
 .venv/
+
+# M1 runtime state and local caches
+/.repo-orchestrator/
+/reports/
+*.egg-info/
+build/
+.mypy_cache/
+.ruff_cache/

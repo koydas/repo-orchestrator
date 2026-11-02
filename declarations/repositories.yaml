@@ -1,0 +1,16 @@
+# Repositories of the declared set (docs/mvp.md → Scope). `analyzed: false` repositories appear in relationships
+# but are never collected by M1 (outside the six-repository MVP scope).
+version: 1
+repositories:
+  - {id: adl, slug: koydas/autonomous-dev-loop, scope: primary}
+  - {id: adt, slug: koydas/ai-dev-tools, scope: primary}
+  - {id: ap, slug: koydas/agent-patterns, scope: primary}
+  - {id: profile, slug: koydas/koydas, scope: primary}
+  - {id: homelab, slug: koydas/gitops-homelab, scope: secondary}
+  - {id: chat, slug: koydas/ollama-chat, scope: secondary}
+  - {id: fullstack-pilot, slug: koydas/fullstack-pilot, scope: out_of_m1, analyzed: false,
+     note: "named by ai-dev-tools ADR-018 (R5); not in the MVP scope"}
+  - {id: sync-engine, slug: koydas/sync-engine, scope: out_of_m1, analyzed: false,
+     note: "named by ai-dev-tools ADR-018 (R5); not in the MVP scope"}
+  - {id: orchestrator, slug: koydas/repo-orchestrator, scope: out_of_m1, analyzed: false,
+     note: "this repository; target of R11 (conceptual precedent)"}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repo-orchestrator"
+version = "0.1.0"
+description = "Deterministic cross-repository coherence engine (M1): read-only, pinned, evidence-backed."
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest==9.2.0", "ruff", "mypy", "types-PyYAML"]
+
+[project.scripts]
+repo-orchestrator = "repo_orchestrator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF012", "E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/repo_orchestrator"]
