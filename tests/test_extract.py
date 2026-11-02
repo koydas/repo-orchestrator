@@ -193,3 +193,10 @@ def test_json_top_level_key_scalars_and_misses():
     assert extract.json_top_level_key('{"n":12,"t":true}', "t").quote == '"t":true'
     with pytest.raises(ExtractionError):
         extract.json_top_level_key('{"a": {"target": 1}}', "target")
+
+
+def test_find_keys_visits_each_alias_use_and_survives_cycles():
+    doc = extract.yaml_single("a: &x {k: 1}\nb: *x\nc: [*x, *x]\n")
+    assert [v for v, *_ in doc.find_keys("k")] == [1, 1, 1, 1]
+    cyclic = extract.yaml_single("a: &r {k: 1, self: *r}\n")
+    assert [v for v, *_ in cyclic.find_keys("k")] == [1]

@@ -313,6 +313,15 @@ class TestP4:
         assert all(o.status is Status.CANNOT_EVALUATE for o in find(r, "P4", "R8") if o.subject.startswith("address:"))
         assert r.exit_code == 2
 
+    def test_an_aliased_claim_counts_at_every_use_site(self):
+        yaml = (
+            "kind: List\nitems:\n"
+            "  - kind: Service\n    metadata:\n      name: a\n      annotations: &ip {metallb.io/loadBalancerIPs: '192.168.1.246'}\n"
+            "  - kind: Service\n    metadata:\n      name: b\n      annotations: *ip\n"
+        )
+        o = one(scan([add_file(CHAT, "k8s/alias.yaml", yaml)]), "P4", "R8", "address:192.168.1.246")
+        assert o.status is Status.INCONSISTENT and o.comparison.result == "duplicate"
+
     def test_an_empty_legacy_field_claims_nothing(self):
         r = scan([add_file(CHAT, "k8s/extra.yaml", 'kind: Service\nspec:\n  loadBalancerIP: ""\n')])
         assert all(o.status is Status.CONSISTENT for o in find(r, "P4", "R8"))

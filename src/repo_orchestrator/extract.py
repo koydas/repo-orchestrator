@@ -319,23 +319,26 @@ class YamlDoc:
         return self.construct(node), quote, start, end
 
     def find_keys(self, name: str) -> Iterator[tuple[Any, str, int, int]]:
-        """Every value stored under a mapping key ``name``, anywhere in the document, in source order."""
-        seen: set[int] = set()
-        stack: list[yaml.Node] = [self.root]
+        """Every value stored under a mapping key ``name``, in source order.
+
+        An anchored mapping reused through an alias is visited at **each** use site (an aliased claim is a claim per use);
+        cycles are cut by an ancestor guard, and the total work is bounded by the expansion limit checked at load.
+        """
         found: list[tuple[int, int, Any, str, int, int]] = []
+        stack: list[tuple[yaml.Node, frozenset[int]]] = [(self.root, frozenset())]
         while stack:
-            node = stack.pop()
-            if id(node) in seen:
+            node, ancestors = stack.pop()
+            if id(node) in ancestors:
                 continue
-            seen.add(id(node))
+            below = ancestors | {id(node)}
             if isinstance(node, yaml.MappingNode):
                 for k, v in node.value:
                     if isinstance(k, yaml.ScalarNode) and k.value == name:
                         quote, s, e = self.span(k, v)
                         found.append((k.start_mark.line, k.start_mark.column, self.construct(v), quote, s, e))
-                    stack.append(v)
+                    stack.append((v, below))
             elif isinstance(node, yaml.SequenceNode):
-                stack.extend(node.value)
+                stack.extend((child, below) for child in node.value)
         for _, _, value, quote, s, e in sorted(found, key=lambda f: (f[0], f[1])):
             yield value, quote, s, e
 
