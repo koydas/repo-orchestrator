@@ -1,0 +1,55 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --test *)",
+      "Bash(node --test scripts/tests/*.test.mjs)",
+      "Bash(npm test)",
+      "Bash(npm run lint)",
+      "Bash(node --check *)",
+      "Bash(node scripts/check_event_docs.mjs)",
+      "Bash(node scripts/check_changelog.mjs)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git merge-base *)",
+      "Bash(git rev-parse *)",
+      "Bash(git ls-files *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/test-gate.mjs\" stop",
+            "timeout": 300,
+            "statusMessage": "Running test suite on changed scripts..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/test-gate.mjs\" pre-push",
+            "timeout": 300,
+            "statusMessage": "Test gate before git push..."
+          }
+        ]
+      }
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "ai-dev-tools": {
+      "source": { "source": "github", "repo": "koydas/ai-dev-tools" }
+    }
+  },
+  "enabledPlugins": {
+    "ai-dev-tools@ai-dev-tools": true
+  }
+}
