@@ -44,6 +44,9 @@ class PolicyMeta:
     impact: Impact
     intent: Intent
     check: str = "deterministic"
+    # Subject prefixes whose set depends on the analyzed content (links, claimed addresses): a subject of such a family
+    # that is no longer emitted, while the family was enumerated, is gone rather than unevaluated.
+    enumerated_subjects: tuple[str, ...] = ()
 
 
 class CannotEvaluate(Exception):

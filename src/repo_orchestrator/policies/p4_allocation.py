@@ -35,6 +35,7 @@ META = PolicyMeta(
     scope=Scope(ScopeKind.RELATIONSHIP_TYPE, ("shared_resource",)),
     impact=Impact.BREAKS,
     intent=Intent.ACCIDENTAL,
+    enumerated_subjects=("address:", "claim-site:", "claims"),
 )
 
 IPv4 = ipaddress.IPv4Address

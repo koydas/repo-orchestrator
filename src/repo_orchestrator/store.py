@@ -51,6 +51,28 @@ class RecordResult:
     transitions: dict[str, list[str]] = field(default_factory=dict)  # event → fingerprints
 
 
+def _vanished(
+    row: Mapping[str, Any],
+    outcomes: Sequence[Outcome],
+    pair: set[Status],
+    statuses: set[Status],
+    enumerated: Mapping[str, tuple[str, ...]],
+) -> bool:
+    """The subject is gone, not merely unevaluated: it belongs to a policy's enumerated family, the family was enumerated
+    in this run (an outcome of that family exists for the relationship) and nothing in the pair failed to evaluate."""
+    prefixes = enumerated.get(row["policy_id"], ())
+    if statuses or not prefixes or not row["subject"].startswith(prefixes):
+        return False
+    if pair & {Status.CANNOT_EVALUATE, Status.FAILED}:
+        return False
+    return any(
+        o.policy_id == row["policy_id"]
+        and o.relationship_id == row["relationship_id"]
+        and o.subject.startswith(prefixes)
+        for o in outcomes
+    )
+
+
 class RunStore:
     def __init__(self, path: Path | str) -> None:
         if str(path) != ":memory:":
@@ -65,7 +87,11 @@ class RunStore:
 
     # -- writing -----------------------------------------------------------------------------------------
     def record(
-        self, semantic: Mapping[str, Any], outcomes: Sequence[Outcome], now: datetime | None = None
+        self,
+        semantic: Mapping[str, Any],
+        outcomes: Sequence[Outcome],
+        now: datetime | None = None,
+        enumerated: Mapping[str, tuple[str, ...]] | None = None,
     ) -> RecordResult:
         stamp = (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
         inputs_digest = digest(semantic["inputs"])
@@ -99,10 +125,10 @@ class RunStore:
                         json.dumps(to_jsonable(o), sort_keys=True),
                     ),
                 )
-            self._transition(run_key, outcomes)
+            self._transition(run_key, outcomes, enumerated or {})
         return RecordResult(run_key, True, self._events(run_key))
 
-    def _transition(self, run_key: str, outcomes: Sequence[Outcome]) -> None:
+    def _transition(self, run_key: str, outcomes: Sequence[Outcome], enumerated: Mapping[str, tuple[str, ...]]) -> None:
         live = {o.fingerprint: o for o in outcomes if o.status in _LIVE and o.fingerprint}
         for fp, o in sorted(live.items()):
             state = _LIVE[o.status]
@@ -137,7 +163,7 @@ class RunStore:
                 continue
             statuses = by_subject.get((row["policy_id"], row["relationship_id"], row["subject"]), set())
             pair = by_pair.get((row["policy_id"], row["relationship_id"]), set())
-            vanished = not statuses and bool(pair) and not pair & {Status.CANNOT_EVALUATE, Status.FAILED}
+            vanished = _vanished(row, outcomes, pair, statuses, enumerated)
             if Status.CONSISTENT in statuses or statuses & set(_LIVE) or vanished:
                 # the subject was evaluated and this fingerprint is no longer present, or the subject itself is gone
                 # (a removed link, an address no longer claimed) while its policy completed on the relationship

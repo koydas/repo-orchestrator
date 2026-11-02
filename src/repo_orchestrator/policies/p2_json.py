@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from .. import extract
 from ..collector.snapshot import ArtifactRequest
 from ..declarations import Declarations
 from ..extract import ExtractionError, int_of_js
 from ..graph import Graph
 from ..locators import LocatorSpec, parse_locator
 from ..models import (
+    Cause,
     Comparison,
     ConfigError,
     Evidence,
@@ -23,6 +26,8 @@ from ..models import (
     ScopeKind,
 )
 from .base import CannotEvaluate, EvalContext, Policy, PolicyMeta, Scope
+
+VERSION_KEY = "schema_version"
 
 META = PolicyMeta(
     id="P2",
@@ -96,16 +101,49 @@ def requests(cfg: Config, rel: Relationship) -> Sequence[ArtifactRequest]:
     return [ArtifactRequest(spec.repo, spec.path) for side in (c.first, c.second) for spec in (side.version, side.keys)]
 
 
-def _resolve(ctx: EvalContext, spec: LocatorSpec, side: str) -> tuple[object, Evidence]:
+def _resolve(
+    ctx: EvalContext, spec: LocatorSpec, side: str, keys: LocatorSpec | None = None
+) -> tuple[object, list[Evidence]]:
+    """Value of a locator and its evidence. For a version constant, ``keys`` (the object literal the document is built
+    from) is used to check what is actually *emitted*: the declared constant must be the value of ``schema_version`` there."""
     art, text = ctx.text(spec.repo, spec.path)
     try:
         ex = spec.resolve(text)
         value: object = ex.value
         if spec.kind == "js_object_value":
             value = int_of_js(str(ex.value))
+        evidence = [ctx.text_ev(side, art, ex, spec.label)]
+        if (
+            spec.kind == "js_const_int"
+            and keys is not None
+            and keys.kind == "js_object_keys"
+            and keys.path == spec.path
+        ):
+            literal = extract.js_object_value(text, keys.params["after"], keys.params["literal"], VERSION_KEY)
+            emitted = str(literal.value)
+            line_no = next(
+                (
+                    n
+                    for n in range(literal.line_start, literal.line_end + 1)
+                    if re.search(rf"\b{VERSION_KEY}\b\s*:", text.splitlines()[n - 1])
+                ),
+                literal.line_start,
+            )
+            entry = extract.Extracted(emitted, text.splitlines()[line_no - 1], line_no, line_no, literal.extractor)
+            evidence.append(ctx.text_ev(side, art, entry, f"emitted {VERSION_KEY}"))
+            if emitted == spec.params["name"]:
+                pass  # the declared constant is what the object carries
+            elif re.fullmatch(r"\d+", emitted):
+                value = int(emitted)  # a literal in the object overrides the constant: that is what is emitted
+            else:
+                raise CannotEvaluate(
+                    Cause.LOCATOR_NO_MATCH,
+                    f"{spec.path}: {VERSION_KEY} is `{emitted}`, not the declared constant {spec.params['name']}",
+                    tuple(evidence),
+                )
     except ExtractionError as exc:
         raise CannotEvaluate(exc.cause, f"{art.slug}:{spec.path}: {exc.detail}") from exc
-    return value, ctx.text_ev(side, art, ex, spec.label)
+    return value, evidence
 
 
 def evaluate(cfg: Config, ctx: EvalContext, rel: Relationship) -> list[Outcome]:
@@ -120,12 +158,12 @@ def evaluate(cfg: Config, ctx: EvalContext, rel: Relationship) -> list[Outcome]:
             f"{b_spec.repo}:{b_spec.path}#{c.document}.{subject}",
         ]
         try:
-            a_val, a_ev = _resolve(ctx, a_spec, c.first.name)
-            b_val, b_ev = _resolve(ctx, b_spec, c.second.name)
+            a_val, a_ev = _resolve(ctx, a_spec, c.first.name, c.first.keys if subject == "schema_version" else None)
+            b_val, b_ev = _resolve(ctx, b_spec, c.second.name, c.second.keys if subject == "schema_version" else None)
         except CannotEvaluate as exc:
             out.append(ctx.cannot(rel, subject, exc, locators))
             continue
-        out.append(_compare(ctx, rel, c, subject, a_val, b_val, [a_ev, b_ev], locators, peer))
+        out.append(_compare(ctx, rel, c, subject, a_val, b_val, [*a_ev, *b_ev], locators, peer))
     return out
 
 

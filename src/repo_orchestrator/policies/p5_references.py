@@ -26,6 +26,7 @@ META = PolicyMeta(
     scope=Scope(ScopeKind.GLOBAL),
     impact=Impact.FALSIFIES,
     intent=Intent.ACCIDENTAL,
+    enumerated_subjects=("ref:", "source:"),
 )
 
 ROLES = ("living", "historical")

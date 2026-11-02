@@ -118,6 +118,46 @@ class TestP2:
         o = one(r, "P2", "R2", "key_set")
         assert o.status is Status.CONSISTENT and o.detail["producer_only_keys"] == ["extra"]
 
+    def test_the_emitted_version_is_the_one_in_the_object_not_the_unused_constant(self):
+        r = scan(
+            [
+                replace_text(
+                    ADL,
+                    "scripts/lib/findings_export.mjs",
+                    "schema_version: FINDINGS_SCHEMA_VERSION",
+                    "schema_version: 2",
+                )
+            ]
+        )
+        f = one(r, "P2", "R2", "schema_version")
+        assert f.status is Status.INCONSISTENT and (f.comparison.left, f.comparison.right) == (2, 1)
+        assert any(e.locator == "emitted schema_version" and "schema_version: 2" in e.quote for e in f.evidence)
+
+    def test_an_emitted_version_that_is_not_the_declared_constant_cannot_be_evaluated(self):
+        r = scan(
+            [
+                replace_text(
+                    ADL,
+                    "scripts/lib/findings_export.mjs",
+                    "schema_version: FINDINGS_SCHEMA_VERSION",
+                    "schema_version: OTHER_VERSION",
+                )
+            ]
+        )
+        o = one(r, "P2", "R2", "schema_version")
+        assert o.status is Status.CANNOT_EVALUATE and o.cause == Cause.LOCATOR_NO_MATCH and "OTHER_VERSION" in o.reason
+        assert one(r, "P2", "R2", "key_set").status is Status.CONSISTENT
+
+    def test_the_consumer_must_also_use_its_declared_constant(self):
+        r = scan(
+            [
+                replace_text(
+                    ADT, "scripts/loop-insights.mjs", "schema_version: SUPPORTED_SCHEMA_VERSION", "schema_version: 7"
+                )
+            ]
+        )
+        assert one(r, "P2", "R2", "schema_version").status is Status.INCONSISTENT
+
     def test_peer_contracts_must_agree_on_the_key_set_and_either_side_may_be_fixed(self):
         r = scan(
             [

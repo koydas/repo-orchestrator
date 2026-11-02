@@ -42,7 +42,8 @@ def run_scan(
     t0 = time.monotonic()
     result = engine.run(source, options)
     semantic = build_semantic(result, engine.decl, requested=options.revisions, overlay_digest=overlay_digest)
-    record = store.record(semantic, result.outcomes) if store else None
+    enumerated = {p.meta.id: p.meta.enumerated_subjects for p in engine.policies.values() if p.meta.enumerated_subjects}
+    record = store.record(semantic, result.outcomes, enumerated=enumerated) if store else None
     if store is not None and semantic["run_status"] == "complete":
         divergent = store.divergent_complete_runs(digest(semantic["inputs"]))
         if divergent:

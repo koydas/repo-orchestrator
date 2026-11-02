@@ -9,6 +9,7 @@ import pytest
 
 from repo_orchestrator.collector.overlay import delete_path, replace_text
 from repo_orchestrator.models import Status
+from repo_orchestrator.policies import REGISTRY
 from repo_orchestrator.report import render_markdown
 from repo_orchestrator.store import RunStore
 from support import AS_OF, find, one, scan
@@ -17,6 +18,12 @@ PROFILE, AP = "koydas/koydas", "koydas/agent-patterns"
 FIX_D1 = replace_text(PROFILE, "README.md", "17 multi-agent patterns", "20 multi-agent patterns")
 BREAK_CLAIM = replace_text(PROFILE, "README.md", "17 multi-agent patterns", "seventeen multi-agent patterns")
 T0 = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
+ENUMERATED = {p.meta.id: p.meta.enumerated_subjects for p in REGISTRY if p.meta.enumerated_subjects}
+
+
+def record_with_families(store, report, now):
+    """What the runner does: the policies' enumerated subject families travel with the outcomes."""
+    return store.record(report.semantic, report.result.outcomes, now=now, enumerated=ENUMERATED)
 
 
 @pytest.fixture
@@ -115,19 +122,38 @@ def test_a_finding_whose_subject_disappears_is_resolved_when_its_policy_complete
     broken = scan([BROKEN_LINK])
     ref = one(broken, "P5", "R1.ap", "ref:blob:ap:nonexistent.md")
     assert ref.status is Status.INCONSISTENT
-    store.record(broken.semantic, broken.result.outcomes, now=T0)
+    record_with_families(store, broken, T0)
     fixed = scan(as_of=AS_OF.replace(day=3))  # the link is gone: its subject is no longer emitted
     assert not find(fixed, "P5", "R1.ap", "ref:blob:ap:nonexistent.md")
-    rec = store.record(fixed.semantic, fixed.result.outcomes, now=T0.replace(day=3))
+    rec = record_with_families(store, fixed, T0.replace(day=3))
     assert ref.fingerprint in rec.transitions["resolved"] and store.finding(ref.fingerprint)["state"] == "resolved"
 
 
 def test_a_vanished_subject_is_not_resolved_when_its_policy_could_not_complete(store):
     broken = scan([BROKEN_LINK])
     fp = one(broken, "P5", "R1.ap", "ref:blob:ap:nonexistent.md").fingerprint
-    store.record(broken.semantic, broken.result.outcomes, now=T0)
+    record_with_families(store, broken, T0)
     unreadable = scan([delete_path(PROFILE, "README.md")], as_of=AS_OF.replace(day=3))  # the source cannot be read
-    rec = store.record(unreadable.semantic, unreadable.result.outcomes, now=T0.replace(day=3))
+    rec = record_with_families(store, unreadable, T0.replace(day=3))
+    assert fp in rec.transitions["not_evaluated"] and store.finding(fp)["state"] == "open"
+
+
+def test_an_unrelated_outcome_of_the_same_relationship_does_not_resolve_a_static_subject(store):
+    """A static subject (adopter_table) is never 'gone': another subject of the pair being emitted proves nothing about it."""
+    row = "| `agent-patterns` | `new-pattern` | `docs/claude-code.md` |\n"
+    missing_row = scan([replace_text("koydas/ai-dev-tools", "docs/consumer-repos.md", row, "")])
+    fp = one(missing_row, "P6", "R5.ap", "adopter_table").fingerprint
+    record_with_families(store, missing_row, T0)
+    # P6 now returns early with only a plugin_keys violation; adopter_table is not emitted at all
+    early = scan(
+        [
+            replace_text("koydas/ai-dev-tools", "docs/consumer-repos.md", row, ""),
+            delete_path(AP, ".claude/settings.json"),
+        ],
+        as_of=AS_OF.replace(day=3),
+    )
+    assert not find(early, "P6", "R5.ap", "adopter_table")
+    rec = record_with_families(store, early, T0.replace(day=3))
     assert fp in rec.transitions["not_evaluated"] and store.finding(fp)["state"] == "open"
 
 
