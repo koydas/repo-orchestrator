@@ -11,7 +11,13 @@ class Limits:
     max_units_per_investigation: int = 5  # abstract tool-call units one investigation may spend
     recursion_limit: int = 100  # LangGraph's own backstop, passed in the run config
 
+    def __post_init__(self):
+        if self.max_steps < MIN_STEPS:
+            raise ValueError(f"max_steps must be >= {MIN_STEPS}: the fixed path needs that many steps")
 
+
+# Steps kept back beyond the workers of a batch, counted from the dispatch that spends them:
+# the dispatch itself, collect, a second dispatch that denies the retries, aggregate, approval_gate, finalize.
+STEP_RESERVE = 6
+MIN_STEPS = 8  # init_run, freeze_input and STEP_RESERVE
 DEFAULT_LIMITS = Limits()
-# Steps kept back for collect, aggregate, approval_gate and a finalize node once work is denied.
-STEP_RESERVE = 4

@@ -39,12 +39,26 @@ def test_attempt_cap_one_means_no_retry(make_orch):
 def test_step_cap_stops_work_and_records_denials(make_orch):
     o = make_orch(Limits(max_steps=16))
     st = o.start("r1", "baseline")
-    assert st["steps"] <= 16 and st["phase"] == "awaiting_approval"
+    assert st["steps"] <= 16 and st["phase"] == "awaiting_approval" and approve(o, "r1")["steps"] <= 16
     rep = st["report"]
     assert {d["reason"] for d in rep["denials"].values()} == {"step_cap"}
     assert len(rep["findings"]) == 9  # every candidate still has a final classification
     never = [f for f in rep["findings"] if f["attempt"] == 0]
     assert all(f["outcome"] == "insufficient_evidence" and f["reason"] == "step_cap" for f in never)
+
+
+@pytest.mark.parametrize("max_steps", [8, 10, 12, 14, 16, 18, 20, 24])
+def test_step_cap_holds_through_finalization(make_orch, max_steps):
+    o = make_orch(Limits(max_steps=max_steps), name=f"s{max_steps}")
+    st = o.start("r1", "baseline")
+    assert len(st["report"]["findings"]) == 9
+    end = approve(o, "r1")
+    assert end["phase"] == "approved" and end["steps"] <= max_steps, (max_steps, end["steps"])
+
+
+def test_step_cap_below_the_fixed_path_is_refused():
+    with pytest.raises(ValueError):
+        Limits(max_steps=7)
 
 
 def test_recursion_limit_is_a_backstop_not_the_budget(orch):
@@ -87,7 +101,8 @@ def test_operator_state_edit_can_reset_the_counter_but_not_the_ledger(tmp_path):
     g.invoke(None, cfg)  # the router now believes the budget is untouched and dispatches two retries
     v = g.get_state(cfg).values
     assert ledger.spent("t") == 3  # the worker-side check against the ledger stopped the third spend
-    assert [r["reason"] for k, r in sorted(v["results"].items()) if k.endswith("#2")] == ["agent_exception", "investigation_cap"]
+    # which of the two parallel retries gets the last spend is a thread race: assert the set, not the order
+    assert sorted(r["reason"] for k, r in v["results"].items() if k.endswith("#2")) == ["agent_exception", "investigation_cap"]
 
 
 def test_operator_edit_of_frozen_candidates_is_detected(tmp_path):

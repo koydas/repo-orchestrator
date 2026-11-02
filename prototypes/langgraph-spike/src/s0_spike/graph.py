@@ -85,7 +85,7 @@ def build_graph(checkpointer, ledger, limits=DEFAULT_LIMITS, **compile_kwargs):
             reason = None
             if spent + len(batch) >= limits.max_investigations:
                 reason = "investigation_cap"
-            elif steps + len(batch) + 1 > limits.max_steps - STEP_RESERVE:
+            elif steps + len(batch) + 1 > limits.max_steps - STEP_RESERVE:  # runs to finalize within max_steps
                 reason = "step_cap"
             if reason:
                 denials[cid] = {"reason": reason, "attempt": attempt}

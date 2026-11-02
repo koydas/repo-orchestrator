@@ -10,7 +10,7 @@ Run date 2026-11-02. Everything below was executed; nothing is extrapolated unle
 | B Parallel investigation | 5 | **Pass** | 6 candidates, reversed completion orders, identical digests; failure did not erase successes; 12-candidate run kept all 12 |
 | C Failure isolation | 8 + 19 unit | **Pass** | Exception, malformed output, missing evidence, fabricated quote, budget exhaustion, kill: none reported as success |
 | D Human-in-the-loop | 12 | **Pass**, with one unexpected hazard (below) | Pause/resume across processes, approve ≠ reject, finalized run closed, one effect despite a replayed finalize |
-| E Bounded execution | 9 | **Pass**, with one documented limit (`steps` has no second store) | Caps held across resume; operator counter reset caught by the ledger |
+| E Bounded execution | 18 | **Pass**, with one documented limit (`steps` has no second store) | Caps held across resume and through finalization (step cap checked for 8 values); operator counter reset caught by the ledger |
 | F Deterministic replay | 4 | **Pass** | Equal digests across fresh runs and across processes; no network call attempted |
 | Framework behaviors pinned | 4 | **Pass** | Interrupt replays the node; a raising task aborts the step; `Command(update)` is ordinary input; a start input wedges a paused thread |
 | Docs consistency | 2 | **Pass** | Mermaid in `architecture.md` equals the generated graph; node list matches |
@@ -26,8 +26,8 @@ python -m pytest
 
 | Interpreter | Result |
 |---|---|
-| CPython 3.13.18 (local) | `72 passed` in 33.6–35.1 s (five consecutive full runs, no flake after the fix to the raising-task test) |
-| CPython 3.11 (local, clean venv from `requirements.txt`) | `72 passed in 37.25s` |
+| CPython 3.13.18 (local) | `81 passed` in 33–35 s (after review fixes; the previous 72-test version ran five times without failure once the two racy assertions were fixed) |
+| CPython 3.11 (local, clean venv from `requirements.txt`) | `81 passed in 34.53s` |
 | GitHub Actions matrix 3.11 / 3.13 | Reported in the pull request checks; not claimed here |
 
 Environment of every multi-process test: `PATH`, `PYTHONPATH`, `HOME` only. No token, no API key, no network.

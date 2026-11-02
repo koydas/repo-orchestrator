@@ -98,7 +98,7 @@ These are prototype outcomes, not production confidence or policy verdicts. The 
 | `max_candidates` | 10 | `freeze_input` |
 | `max_attempts` | 2 | `dispatch` (pending work) |
 | `max_investigations` | 15 | `dispatch` (state mirror) **and** `investigate` (ledger, authoritative) |
-| `max_steps` | 60 | `dispatch` (reserves `STEP_RESERVE` = 4 steps for the tail) and `collect` routing |
+| `max_steps` | 60 | `dispatch` (reserves `STEP_RESERVE` = 6 steps: itself, collect, a retry-denying dispatch, aggregate, approval gate, finalize, so the cap holds through finalization; `max_steps` below 8 is refused) and `collect` routing |
 | `max_units_per_investigation` | 5 | `Budget.spend` inside the agent runner |
 | `recursion_limit` | 100 | LangGraph backstop only; raising `GraphRecursionError` is not a designed outcome |
 

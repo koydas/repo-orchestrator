@@ -17,9 +17,10 @@ pip install -r requirements.txt
 python -m pytest            # whole suite, ~40 s; no network, no credentials
 ```
 
-Drive a run by hand (one process per command; state in `--state-dir`, default `./s0-state`, git-ignored):
+Drive a run by hand (one process per command; state in `--state-dir`, default `./s0-state`, git-ignored). The package is not installed; point Python at `src/`:
 
 ```bash
+export PYTHONPATH=src
 python -m s0_spike --state-dir /tmp/s0 start --run-id demo --scenario baseline    # pauses at the approval gate
 python -m s0_spike --state-dir /tmp/s0 status --run-id demo                        # shows pending_report_digest
 python -m s0_spike --state-dir /tmp/s0 resume --run-id demo --decision approve --reviewer me --report-digest <digest>

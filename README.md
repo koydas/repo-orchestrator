@@ -78,7 +78,7 @@ Grounded in the [baseline](docs/research/ecosystem-baseline.md); all are **inten
 | Milestone | Scope | Status |
 |---|---|---|
 | M0 Design | Documentation and ADRs | **In review** |
-| S0 LangGraph validation spike | Isolated, throwaway: checkpoints, interrupts, fan-out, budget guard; before or alongside M1 | **Executed, in review**: experiments A–F pass (72 tests); recommends adopting LangGraph for M3 with constraints; ADR-0005 still Proposed ([results](prototypes/langgraph-spike/docs/results.md)) |
+| S0 LangGraph validation spike | Isolated, throwaway: checkpoints, interrupts, fan-out, budget guard; before or alongside M1 | **Executed, in review**: experiments A–F pass (81 tests); recommends adopting LangGraph for M3 with constraints; ADR-0005 still Proposed ([results](prototypes/langgraph-spike/docs/results.md)) |
 | M1 Deterministic baseline | Six repositories, six deterministic policies, local report, evaluation set | Not started |
 | M2 PR impact | Cross-repository impact of a PR, base/head comparison | Not started |
 | M3 Bounded investigation | LangGraph-backed Investigator, quote verification, claim validation, human interrupts | Not started |

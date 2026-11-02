@@ -76,7 +76,7 @@ Multi-process claims use one OS process per CLI command (`tests/conftest.py::cli
 | `max_candidates` 10 | `too_many` (12) | 10 investigated, `c11`/`c12` `insufficient_evidence/candidate_cap`, attempt 0, listed in the report |
 | `max_attempts` 2, `max_investigations` 15 | `all_fail` (10 failing) | Round 1: 10 spends; round 2: 5 retries; `c06`–`c10` denied (`investigation_cap`); ledger spent 15; all 10 still `failed`, none successful |
 | `max_attempts` 1 | `baseline` | 9 spends, no retry |
-| `max_steps` 16 | `baseline` | 15 steps, `step_cap` denials for the three retries, 9 findings |
+| `max_steps` 8–24 | `baseline` | Total steps **after approval and finalization** ≤ `max_steps` for every value tested (an earlier reserve of 4 overshot by 1–2: found by review, fixed). At 16: 14 steps paused, 16 final, `c09` never investigated (`step_cap`, attempt 0), retries of `c05`/`c06`/`c08` denied, 9 findings. `max_steps` < 8 raises `ValueError` |
 | Resume cannot buy budget | `all_fail` | `start` on the thread → `RunExists`; after approval `spent` still 15; extra keys (`spent`, `max_investigations`, `limits`) in a start input are dropped |
 | Operator `update_state({"spent": 0})` | paused before retry dispatch | The router dispatches again; the **ledger** reserves the third spend and denies the fourth (`investigation_cap` at the worker): ledger spent 3 = cap |
 | Operator edit of `candidates` | same | `FrozenInputTampered` at `dispatch` |
