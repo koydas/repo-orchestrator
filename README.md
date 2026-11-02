@@ -98,9 +98,14 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [Workflows](docs/workflows.md) | Baseline scan, PR analysis, LangGraph workflow, failure handling, human intervention |
 | [MVP](docs/mvp.md) | Scope, milestones, deferred capabilities, evaluation design |
 | [Ecosystem baseline](docs/research/ecosystem-baseline.md) | Verified relationships and inconsistencies, hypotheses, open questions, with revisions |
-| [ADRs](docs/adr/README.md) | Nine Proposed decisions |
+| [ADRs](docs/adr/README.md) | Ten Proposed decisions |
+| [Claude Code](docs/claude-code.md) | `ai-dev-tools` toolbox, repository rules (`CLAUDE.md`) and skills |
 
 ## Relation to the rest of the ecosystem
 
 - [`autonomous-dev-loop`](https://github.com/koydas/autonomous-dev-loop) reviews PRs inside one repository with tool evidence, impact analysis and document evidence; its ADR-0039 prototypes LangGraph for a single-repository write loop. This project addresses what happens **between** repositories, read-only, and reuses its lessons (code-checked quotes, verification statuses, caps as constants).
 - [`ai-dev-tools`](https://github.com/koydas/ai-dev-tools) provides the human-gated interactive toolbox; its "human as gate" model applies here unchanged.
+
+## License
+
+[MIT](LICENSE)

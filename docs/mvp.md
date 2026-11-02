@@ -20,7 +20,7 @@ The first release is a **read-only, on-demand analyzer** of a small, declared se
 
 | Milestone | Delivers | Exit criteria |
 |---|---|---|
-| **M0 Design** (this repository today) | Documentation, nine Proposed ADRs | ADRs reviewed; open questions Q1–Q6 answered or explicitly deferred |
+| **M0 Design** (this repository today) | Documentation, ten Proposed ADRs | ADRs reviewed; open questions Q1–Q6 answered or explicitly deferred |
 | **S0 LangGraph validation spike** (first implementation activity, before or alongside M1) | Time-boxed, throwaway spike outside the core package, scripted Investigator stand-in, synthetic candidates ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5) | Resume after `interrupt()` across restarts, isolated fan-out, budget guard holding across resume, generated diagram matching the docs, pinned dependencies; outcome (adopt or fallback) recorded in ADR-0005 before M1 completes. No core code depends on it |
 | **M1 Deterministic baseline** | C1, C2 (declared relationships only), C3 with P1–P6, W1, report, run store with fingerprints | Evaluation set (below) passes: 100% recall on seeded and mutation cases for P1–P6, zero findings on negative controls, deterministic rerun produces an identical report |
 | **M2 PR impact** | C4, W2 with base/head comparison | Mutation cases U1–U5 replayed as PRs against a coherent base yield the expected affected repository, impact class and `introduced` label; U5 replayed against the raw baseline (D1 already present) yields `pre-existing`, so no pre-existing finding is blamed on a PR |
