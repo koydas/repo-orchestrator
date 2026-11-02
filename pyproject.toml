@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0"]
 
 [project.optional-dependencies]
-dev = ["pytest==9.2.0", "ruff", "mypy", "types-PyYAML"]
+dev = ["pytest==9.2.0", "ruff==0.17.3", "mypy==2.4.1", "types-PyYAML==6.0.12.20261030"]
 
 [project.scripts]
 repo-orchestrator = "repo_orchestrator.cli:main"
