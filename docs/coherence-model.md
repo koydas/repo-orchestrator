@@ -65,6 +65,8 @@ flowchart TD
 | Owner | Who reviews it. |
 | Review by | A date. After it, the exception stops applying and the finding returns to `confirmed`. |
 
+**M1:** exceptions are declared in `declarations/exceptions.yaml` with every field required and no wildcard; `review_by` is judged at the run's `--as-of` date (an input of the run, so results stay reproducible), an exception whose authority artifact or quote does not resolve at the pinned revision is not applied, and an applied exception turns a `confirmed` finding into an `excepted` one that stays listed. Exceptions never change `cannot_evaluate`. No exception is declared at the baseline.
+
 An exception is the only way a finding becomes `intentional`. The Investigator can **propose** one, with quotes; a human records it.
 
 ## Prioritization
@@ -136,7 +138,7 @@ Counts in descriptions (ADRs, patterns, incidents, tests) are the most common ve
 | "N incidents" | `###` headings under the declared runbook section | Exact |
 | "N+ tests" | Not checked deterministically in the MVP (no reliable static count); reported as `cannot_evaluate` | Lower bound |
 
-The rule is a parameter of the policy, reviewed like any declaration. A different rule (for example Accepted ADRs only) changes D2's outcome; that is why baseline Q2 is an open question, not a design detail.
+The rule is a parameter of the policy, reviewed like any declaration. **M1** implements `numbered_adr_files`, `pattern_dirs`, `h3_under_h2` and `tests_lower_bound` (reported as not checkable by design). `numbered_adr_files` is marked *provisional* on Q2: a finding that uses it names Q2, and a claim that equals the count under the declared alternative (`adr_index_entries`) is a policy clarification instead of a finding. On the baseline D2 stays a finding, because 59 matches neither count (65 files, 65 index entries). A different rule (for example Accepted ADRs only) changes D2's outcome; that is why baseline Q2 is an open question, not a design detail.
 
 ## MVP policy catalog
 
@@ -153,3 +155,5 @@ Seven policies, six deterministic. Detailed scope and milestones in [mvp.md](mvp
 | P7 | Qualitative descriptive claims in the profile (for example "12 extracted from the two repos above") agree with the described repository's own statements | repository (`koydas`) | reasoning-assisted | R1, R4 | `koydas CLAUDE.md:3` |
 
 P6 is deliberately the policy with open questions (baseline Q1, Q3): it exercises `undetermined` intent, exceptions and policy conflicts on real data.
+
+**M1 status.** P1–P6 are implemented at version 1.0.0 ([policies](m1/policies.md)); P7 is not (M3). Ambiguous applicability is a distinct outcome, `policy_clarification` (N2 and H1 on the baseline), not a weak finding. The policy-conflict path (precedence rule 1) and expiring exceptions are implemented and exercised by the offline suite on synthetic declarations, because the pinned baseline needs neither.

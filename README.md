@@ -2,7 +2,7 @@
 
 **Cross-repository coherence for independent GitHub repositories: model how they relate, detect where one repository's claims about another have become false, and explain the impact with evidence a human can check.**
 
-> **Status: design phase.** This repository contains documentation and Proposed ADRs, plus one throwaway code spike: [S0](prototypes/langgraph-spike/README.md), which validates LangGraph on synthetic data (no GitHub access, no LLM, no credentials). No capability described below is implemented; the product scans and posts nothing. S0 outcome: all six experiments passed, with constraints; the framework decision is the owner's ([results](prototypes/langgraph-spike/docs/results.md), [ADR-0005](docs/adr/0005-langgraph-for-investigation-workflows-only.md), still Proposed).
+> **Status: M1 implemented, M2–M5 design only.** [M1](docs/m1/README.md) is a working, read-only, deterministic scan of six public repositories: declared relationships, six policies (P1–P6), pinned evidence, Markdown and JSON reports, a local SQLite run store, no LLM. Everything else below (PR impact, bounded investigation, remediation plans, optimization opportunities) is **intended**, not implemented. The throwaway [S0 spike](prototypes/langgraph-spike/README.md) validated LangGraph on synthetic data and stays isolated from M1 (outcome: all six experiments passed, with constraints; the framework decision is the owner's: [results](prototypes/langgraph-spike/docs/results.md), [ADR-0005](docs/adr/0005-langgraph-for-investigation-workflows-only.md), still Proposed). All ADRs, including [ADR-0011](docs/adr/0011-m1-outcome-contracts-and-reproducible-reports.md) written for M1, are Proposed.
 
 ## The problem
 
@@ -15,23 +15,36 @@ This is not hypothetical. Reading six public `koydas` repositories at fixed comm
 - a data contract (`findings.json`, `schema_version` 1) produced in one repository and consumed in another, kept in sync only by two constants that no shared check compares;
 - a MetalLB address pool defined in one repository, with addresses claimed in two.
 
+## Quick start (M1)
+
+```bash
+python -m venv .venv && . .venv/bin/activate && pip install -e '.[dev]'
+repo-orchestrator scan                      # reads the six repositories at their default-branch HEAD (read-only, ~50 API requests)
+repo-orchestrator scan --revisions baseline --offline --cache-dir tests/fixtures/baseline --as-of 2026-11-02   # the pinned baseline, no network
+pytest                                      # unit tests + the offline evaluation against the pinned baseline
+```
+
+Exit codes: 0 no finding · 1 findings · 2 incomplete evaluation · 3 configuration/runtime error ([usage](docs/m1/usage.md)). On the pinned baseline the scan reports exactly the two documented inconsistencies (D1, D2, with D2 attributed to `autonomous-dev-loop`'s own README), two policy questions (N2, H1) and no false finding on the negative controls ([evaluation](docs/m1/evaluation.md)).
+
 ## What this project intends to do
 
-| Capability | Intent |
-|---|---|
-| Relationship model | Typed edges between repositories (runtime contract, deployment, shared resource, tooling adoption, documentary, conceptual), declared by humans, with optional proposals from observers |
-| Coherence policies | A divergence is a finding only if a policy with a named authority says it matters; intentional divergence is recorded as an expiring exception |
-| Deterministic checks first | Versions, tags, addresses, counts and references are compared in code; an LLM investigates only what code cannot decide |
-| Evidence | Every finding cites both repositories at pinned commits, with quotes verified in code; authentic evidence and a validated conclusion are separate statuses, so a verified quote never confirms a claim on its own |
-| PR impact | For a pull request, which other repositories it can break, falsify or outdate, and whether it introduces or resolves a finding |
-| Remediation plans | Ordered steps per repository with a prevention step; ADR conflicts reported as checked, candidate or not examined, and an unresolved conflict blocks approval; approved by a human, never merged by the system |
-| Optimization opportunities | Improvements that are not violations (propagate a proven guardrail, consolidate a genuinely shared contract, remove duplicated maintenance), each with pinned benefit evidence, cost, risk and the coupling it creates, decided by a human; never "make it uniform" |
+The table states the **intent**; the *M1* column says what exists today.
+
+| Capability | Intent | M1 |
+|---|---|---|
+| Relationship model | Typed edges between repositories (runtime contract, deployment, shared resource, tooling adoption, documentary, conceptual), declared by humans, with optional proposals from observers | **Implemented** for declared edges (R1–R11); observers and proposals: no |
+| Coherence policies | A divergence is a finding only if a policy with a named authority says it matters; intentional divergence is recorded as an expiring exception | **Implemented**: P1–P6, precedence, exceptions, policy conflicts, policy questions; P7: no |
+| Deterministic checks first | Versions, tags, addresses, counts and references are compared in code; an LLM investigates only what code cannot decide | **Implemented** (no LLM exists in M1) |
+| Evidence | Every finding cites both repositories at pinned commits, with quotes verified in code; authentic evidence and a validated conclusion are separate statuses, so a verified quote never confirms a claim on its own | **Implemented** for deterministic checks (`verified`, `validated_by_check`) |
+| PR impact | For a pull request, which other repositories it can break, falsify or outdate, and whether it introduces or resolves a finding | Not implemented (M2). M1 scans snapshots; the evaluation replays U1–U5 as in-memory mutations |
+| Remediation plans | Ordered steps per repository with a prevention step; ADR conflicts reported as checked, candidate or not examined, and an unresolved conflict blocks approval; approved by a human, never merged by the system | Not implemented (M4). Findings carry fix sites and an investigation list |
+| Optimization opportunities | Improvements that are not violations (propagate a proven guardrail, consolidate a genuinely shared contract, remove duplicated maintenance), each with pinned benefit evidence, cost, risk and the coupling it creates, decided by a human; never "make it uniform" | Not implemented (M5) |
 
 **Not a code reviewer.** A reviewer reads one diff in one repository. This system reads the relationships between repositories and asks whether a claim on one side is still true on the other. It does not lint, test, or review code quality, and it does not enforce identical conventions where nothing depends on them.
 
 **Coherence is not uniformity.** The baseline also records divergences that must **not** be reported: ADR naming formats that differ across repositories with no consumer, `new-adr` procedures duplicated in five repositories because an accepted ADR says skills belong to each repository, a settings file that differs from a toolbox ADR's literal text for a documented reason.
 
-## Architecture (proposed)
+## Architecture (M1 implemented; the rest proposed)
 
 ```mermaid
 flowchart LR
@@ -48,11 +61,11 @@ flowchart LR
     gate --> report["Report<br/>Markdown + JSON"]
 ```
 
-One Python process, one SQLite file, no services. The Investigator is the only component that calls an LLM, and its output is verified in code before it can become a finding. LangGraph is the candidate engine for the investigation and approval workflow only; the isolated S0 spike [validated it](prototypes/langgraph-spike/docs/results.md) on synthetic data, with explicit constraints, without coupling the core to it. Details: [architecture](docs/architecture.md), [workflows](docs/workflows.md).
+The [M1 data flow as implemented](docs/m1/README.md#data-flow-as-implemented) covers the Collector, Relationship graph, Policy engine, report and run store; the Impact analyzer, Investigator and Remediation planner below are the M2–M4 design. One Python process, one SQLite file, no services. The Investigator is the only component that calls an LLM, and its output is verified in code before it can become a finding. LangGraph is the candidate engine for the investigation and approval workflow only; the isolated S0 spike [validated it](prototypes/langgraph-spike/docs/results.md) on synthetic data, with explicit constraints, without coupling the core to it. Details: [architecture](docs/architecture.md), [workflows](docs/workflows.md).
 
 ## Example scenarios
 
-Grounded in the [baseline](docs/research/ecosystem-baseline.md); all are **intended behavior**.
+Grounded in the [baseline](docs/research/ecosystem-baseline.md). The first four are reproduced by the M1 evaluation as in-memory mutations of pinned snapshots (U1–U4) or as findings (D1, D2): M1 reports the *resulting state* of a snapshot. Reacting to a pull request is M2. The last two are M5 and not implemented.
 
 | Scenario | Intended result |
 |---|---|
@@ -79,7 +92,7 @@ Grounded in the [baseline](docs/research/ecosystem-baseline.md); all are **inten
 |---|---|---|
 | M0 Design | Documentation and ADRs | **In review** |
 | S0 LangGraph validation spike | Isolated, throwaway: checkpoints, interrupts, fan-out, budget guard; before or alongside M1 | **Executed, in review**: experiments A–F pass (81 tests); recommends adopting LangGraph for M3 with constraints; ADR-0005 still Proposed ([results](prototypes/langgraph-spike/docs/results.md)) |
-| M1 Deterministic baseline | Six repositories, six deterministic policies, local report, evaluation set | Not started |
+| M1 Deterministic baseline | Six repositories, six deterministic policies, local report, evaluation set | **Implemented, in review**: [docs](docs/m1/README.md), offline evaluation green, live read-only scan recorded ([evaluation](docs/m1/evaluation.md)) |
 | M2 PR impact | Cross-repository impact of a PR, base/head comparison | Not started |
 | M3 Bounded investigation | LangGraph-backed Investigator, quote verification, claim validation, human interrupts | Not started |
 | M4 Remediation plans | Ordered plans, three-tier ADR compatibility, regression detection | Not started |
@@ -99,7 +112,8 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [MVP](docs/mvp.md) | Scope, milestones, deferred capabilities, evaluation design |
 | [S0 spike](prototypes/langgraph-spike/README.md) | LangGraph validation on synthetic data: architecture, experiments A–F, results, recommendation |
 | [Ecosystem baseline](docs/research/ecosystem-baseline.md) | Verified relationships and inconsistencies, hypotheses, open questions, with revisions |
-| [ADRs](docs/adr/README.md) | Ten Proposed decisions |
+| [M1](docs/m1/README.md) | What is implemented: usage, declarations, policies, report format, evaluation, limitations |
+| [ADRs](docs/adr/README.md) | Eleven Proposed decisions |
 | [Claude Code](docs/claude-code.md) | `ai-dev-tools` toolbox, repository rules (`CLAUDE.md`) and skills |
 
 ## Relation to the rest of the ecosystem

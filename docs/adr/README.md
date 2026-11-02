@@ -18,6 +18,7 @@ Format: `NNNN-kebab-title.md`, sections Context / Decision / Rationale / Alterna
 | [ADR-0008](./0008-git-declarations-and-local-sqlite-state.md) | Declarations live in Git; runtime state lives in one local SQLite file | Proposed |
 | [ADR-0009](./0009-optimization-opportunities-as-first-class-output.md) | Optimization opportunities are a first-class output with their own lifecycle | Proposed |
 | [ADR-0010](./0010-claude-code-toolbox-adoption.md) | Adopt the ai-dev-tools toolbox and the ecosystem's Claude Code conventions | Proposed |
+| [ADR-0011](./0011-m1-outcome-contracts-and-reproducible-reports.md) | M1 outcome contracts, reproducible reports and run identity | Proposed |
 
 ## Dependencies between records
 
@@ -37,4 +38,7 @@ flowchart LR
     A6 --> A9
     A7 --> A9
     A3 --> A10["0010 Toolbox adoption"]
+    A4 --> A11["0011 M1 outcomes & reports"]
+    A6 --> A11
+    A8 --> A11
 ```

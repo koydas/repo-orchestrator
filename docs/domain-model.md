@@ -70,6 +70,8 @@ Cardinality notes:
 | `documentary` | Target describes source (counts, capabilities, links) | **falsify** the target's claim | R1 profile, R9 ADR links |
 | `conceptual` | Target derives ideas from source (patterns, modeled-after) | **outdate** the target; never break | R4, R10, R11 |
 
+**Direction (M1).** `source` is the repository whose change can affect `target`; for `documentary` edges the *described* repository is the source and the repository making the claim is the target (R1: `autonomous-dev-loop` → `koydas`), for `conceptual` edges the origin of the idea is the source. The [baseline relationship map](research/ecosystem-baseline.md#relationship-map-verified-edges-only) draws R1, R9, R10 the other way ("describes", "cites", "modeled after"); the declarations follow this section ([ADR-0011](adr/0011-m1-outcome-contracts-and-reproducible-reports.md) §3). In M1 a baseline relationship that fans out (R1, R4, R5) is declared as one edge per repository pair (`R1.adl`, `R1.ap`, …) with the baseline id kept.
+
 `build_dependency` and `deployment` are kept distinct because their fix order differs: a build dependency is fixed source-first; a deployment manifest may need the target's change first (R6: the image must exist before the manifest points to it).
 
 ## Invariants
@@ -111,6 +113,7 @@ stateDiagram-v2
 - State is per **fingerprint** (policy + relationship + normalized locators), so a finding keeps its history across runs.
 - `needs_validation` findings are reported in their own section. A `breaks` claim in this state is never presented as a confirmed break.
 - `resolved` is only ever set by a check passing on a newer snapshot, never by a human closing it.
+- **M1 implements** the deterministic subset: `candidate` → `confirmed` is a single step (the check fails, `verified` and `validated_by_check`), reported with the outcome status `inconsistent`; the run store holds `open`, `excepted`, `conflict` and `resolved` per fingerprint with `regression_count`. `needs_validation`, `insufficient_evidence` (as a finding state), `acknowledged`, `remediation_planned` and `dismissed` require the Investigator or human triage (M3–M4) and are not implemented.
 - A regression reopens the same finding with `regression_count` incremented; the report shows its history and the prevention step of the plan that resolved it.
 
 ## Uncertainty model
@@ -128,6 +131,8 @@ Authentic evidence is not a correct claim: verified quotes can be misread or sup
 The Investigator may **propose** `intentional` with a quoted justification (for example a `CLAUDE.md` line documenting the divergence, baseline N2); the proposal is shown as such and becomes `intentional` only through an exception recorded by a human.
 
 A check that cannot run (file missing, parse failure, locator ambiguous) yields `cannot_evaluate` with a reason. It is reported, counted, and never silently treated as `pass`.
+
+**Outcome statuses as implemented in M1** ([ADR-0011](adr/0011-m1-outcome-contracts-and-reproducible-reports.md), [report format](m1/report-format.md)). A policy concludes, per subject of a relationship, one of: `consistent`; `inconsistent` (a confirmed finding); `cannot_evaluate` (with a cause class: collection, artifact, parse, locator, or *by design*, for a claim no deterministic rule can check); `policy_clarification` (applicability ambiguous or an owner decision open: a question, never a finding); `policy_conflict` (a verified repository authority governs the subject); `excepted` (a valid unexpired exception); `failed` (an engine fault). Only `inconsistent` is a finding; only `cannot_evaluate` (except by design) and `failed` make a run partial.
 
 ## Opportunity lifecycle
 

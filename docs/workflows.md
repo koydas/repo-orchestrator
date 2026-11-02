@@ -1,12 +1,12 @@
 # Workflows
 
-> **Status: proposed design. Nothing described here is implemented.** Command names are placeholders for the eventual interface.
+> **Status: W1 is implemented in M1** (`repo-orchestrator scan`, [usage](m1/usage.md)); W4 is manual in M1. **W2, W3, W5, W6 and the LangGraph workflow are proposed design**; their command names are placeholders.
 
 Operational workflows, the LangGraph graph proposed for milestone M3, failure handling and human intervention points. Components C1–C7 are defined in [architecture.md](architecture.md#components).
 
 | ID | Workflow | Trigger | Milestone |
 |---|---|---|---|
-| W1 | Baseline scan | Human runs it on the declared repositories | M1 |
+| W1 | Baseline scan | Human runs it on the declared repositories | M1 (**implemented**) |
 | W2 | Cross-repository PR analysis | Human runs it on one PR | M2 |
 | W3 | Bounded investigation | Inside W1/W2, for reasoning candidates | M3 |
 | W4 | Triage and exceptions | Human, on a report | M1 (manual), M3 (in-graph) |
@@ -23,6 +23,14 @@ Operational workflows, the LangGraph graph proposed for milestone M3, failure ha
 5. C7 writes the report: findings by severity, `cannot_evaluate` list, policy conflicts, proposed relationships, opportunities, and the delta since the previous run.
 
 No LLM call in M1–M2. Expected cost: GitHub reads only.
+
+**As implemented in M1** (`runner.run_scan`):
+
+1. Declarations are loaded and every policy prepares and validates its configuration; invalid declarations, same-scope policy conflicts, unknown pins or exception references stop the command (exit 3) before anything is collected.
+2. The engine derives the collection plan from the declared artifacts of the relationships to evaluate (plus policy and exception authorities); C1 resolves each repository (HEAD, a named pin set or `--pin`), lists its tree and fetches the planned artifacts into the cache.
+3. C2 holds the declared graph. Observers are not implemented.
+4. C3 verifies each policy's authority, evaluates every applicable policy on every evaluable relationship, then applies repository authorities and exceptions, re-verifies all evidence and computes fingerprints. The run store records the run and transitions findings by fingerprint (`new`, `unchanged`, `regressed`, `state_changed`, `resolved`, `not_evaluated`).
+5. The report lists findings by severity, policy questions, conflicts, exceptions, cannot-evaluate and failures, the consistent relationships, the coverage of every declared relationship and the open questions; the exit code is 0, 1, 2 or 3. Proposed relationships, opportunities and the delta since the previous run (history is in the JSON `execution` part) are not rendered in the Markdown report.
 
 ## W2 Cross-repository PR analysis
 
