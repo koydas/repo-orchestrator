@@ -114,10 +114,7 @@ def strict_equal(a: Any, b: Any) -> bool:
 
 
 def _key_line(text: str, key: str) -> Extracted:
-    for number, line in enumerate(text.splitlines(), start=1):
-        if re.match(rf'^\s*"{re.escape(key)}"\s*:', line):
-            return Extracted(key, line, number, number, "json_key_line@1")
-    raise ExtractionError(Cause.LOCATOR_NO_MATCH, f"key {key!r} not found as a line")
+    return extract.json_top_level_key(text, key)
 
 
 def _skills(ctx: EvalContext, cfg: Config, repo: str) -> tuple[list[str], Evidence]:

@@ -153,3 +153,43 @@ def test_github_links_extracts_blob_and_tree_links_and_unquotes():
         ("blob", "main", "docs/a b.md", 1),
         ("tree", "abc", "dir", 1),
     ]
+
+
+def test_commented_out_constants_and_literals_are_not_live_code():
+    commented = "/* export const V = 1; */\n// export const V = 2;\nexport const V = 3;\n"
+    assert extract.js_const_int(commented, "V").value == 3
+    only_comment = "/*\nexport const V = 1;\n*/\nexport const V = compute();\n"
+    with pytest.raises(ExtractionError) as err:
+        extract.js_const_int(only_comment, "V")
+    assert err.value.cause == Cause.LOCATOR_NO_MATCH
+    in_string = "const URL = 'http://x'; // note\nexport const V = 4;"
+    assert extract.js_const_int(in_string, "V").value == 4
+    ex = extract.js_const_int("// c\nexport const V = 5; // t", "V")
+    assert ex.quote == "export const V = 5; // t" and ex.line_start == 2
+    assert extract.js_const_string("// const M = 'old'\nconst M = 'new'", "M").value == "new"
+    mask = extract.mask_comments("a // b\nc /* d\ne */ f")
+    assert mask.count("\n") == 2 and len(mask) == len("a // b\nc /* d\ne */ f") and "b" not in mask
+    stale_anchor = "// export function build() { return { old: 1 } }\nexport function build() { return { live: 1 } }"
+    assert extract.js_object_keys(stale_anchor, r"export function build", r"return\s*\{").value == ("live",)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"a": 1,\n "target": {"x": [1, 2]},\n "z": 2}',
+        '{"a":1,"target":{"x":[1,2]},"z":2}',
+        '{"target":{"x":[1,2]}}',
+        '{ "a": {"target": 0}, "target" :\n  {"x": [1, 2]} }',
+    ],
+)
+def test_json_top_level_key_is_independent_of_formatting_and_ignores_nested_keys(text):
+    ex = extract.json_top_level_key(text, "target")
+    assert ex.quote in text and ex.quote.replace(" ", "").replace("\n", "").startswith('"target":{"x":[1,2]}')
+    assert 1 <= ex.line_start <= ex.line_end
+
+
+def test_json_top_level_key_scalars_and_misses():
+    assert extract.json_top_level_key('{"n":12,"s":"a\\"b","t":true}', "s").quote == '"s":"a\\"b"'
+    assert extract.json_top_level_key('{"n":12,"t":true}', "t").quote == '"t":true'
+    with pytest.raises(ExtractionError):
+        extract.json_top_level_key('{"a": {"target": 1}}', "target")

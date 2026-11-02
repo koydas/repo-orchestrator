@@ -74,8 +74,9 @@ def test_recording_the_same_run_twice_is_idempotent(store):
 
 def test_replaying_an_earlier_run_never_rewrites_history(store):
     d1 = one(scan(), "P1", "R1.ap", "claim:patterns").fingerprint
-    for report in (scan(), scan([FIX_D1], as_of=AS_OF.replace(day=3)), scan()):  # A, B, then A replayed
-        store.record(report.semantic, report.result.outcomes, now=T0)
+    runs = (scan(), scan([FIX_D1], as_of=AS_OF.replace(day=3)), scan())  # A, B, then A replayed
+    for day, report in enumerate(runs, start=2):
+        store.record(report.semantic, report.result.outcomes, now=T0.replace(day=day))
     assert [h["event"] for h in store.history(d1)] == ["new", "resolved"] and store.finding(d1)["state"] == "resolved"
 
 

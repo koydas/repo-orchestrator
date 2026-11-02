@@ -197,6 +197,21 @@ class TestP3:
         o = one(r, "P3", "R7", "const:VISION_MODEL")
         assert o.status is Status.INCONSISTENT and o.fix_sites[0].repo == "homelab"
 
+    def test_a_commented_out_model_constant_is_not_the_live_one(self):
+        old = "export const TEXT_MODEL = 'llama3.1:8b-instruct-q4_0'"
+        r = scan(
+            [
+                replace_text(
+                    CHAT,
+                    "src/lib/conversations.js",
+                    old,
+                    f"/*\n{old}\n*/\nexport const TEXT_MODEL = `missing-model:latest`",
+                )
+            ]
+        )
+        o = one(r, "P3", "R7", "const:TEXT_MODEL")
+        assert o.status is Status.CANNOT_EVALUATE and o.cause == Cause.LOCATOR_NO_MATCH
+
     def test_the_consumer_constant_must_be_a_plain_string_literal(self):
         r = scan(
             [
@@ -405,6 +420,18 @@ class TestP6:
     def test_a_different_marketplace_repo_is_a_finding(self):
         r = scan([replace_text(AP, ".claude/settings.json", "koydas/ai-dev-tools", "someone/else")])
         assert one(r, "P6", "R5.ap", "plugin_keys").detail["differing_keys"] == ["extraKnownMarketplaces"]
+
+    def test_json_formatting_never_changes_the_outcome(self):
+        minified = json.dumps(KEYS, separators=(",", ":"))
+        for text in (
+            minified,
+            "{" + minified[1:],
+            json.dumps({**KEYS, "permissions": {"allow": []}}, separators=(",", ":")),
+        ):
+            r = scan([add_file(AP, ".claude/settings.json", text)])
+            assert one(r, "P6", "R5.ap", "plugin_keys").status is Status.CONSISTENT
+            assert one(r, "P6", "R5.ap", "adopter_table").status is Status.CONSISTENT
+            assert not [o for o in r.result.outcomes if o.status is Status.FAILED]
 
     def test_malformed_settings_are_cannot_evaluate(self):
         r = scan([add_file(AP, ".claude/settings.json", "{ not json")])

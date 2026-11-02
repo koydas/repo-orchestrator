@@ -1,6 +1,6 @@
 # Cross-repository coherence report
 
-`repo-orchestrator` 0.1.0 · scope adl, adt, ap, chat, homelab, profile · as of 2026-11-02 · run **complete** · result digest `4a206722d1788c28`
+`repo-orchestrator` 0.1.0 · scope adl, adt, ap, chat, homelab, profile · as of 2026-11-02 · run **complete** · result digest `d8934b2ca433e740`
 
 ## Summary
 

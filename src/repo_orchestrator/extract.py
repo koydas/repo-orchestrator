@@ -175,13 +175,14 @@ def _entry_key_value(entry: str) -> tuple[str, str]:
 
 def _literal(text: str, after: str, literal: str) -> tuple[int, int, str]:
     """Locate the object literal matched by ``literal`` after the single match of ``after``."""
-    anchors = list(re.finditer(after, text, re.MULTILINE))
+    live = mask_comments(text)
+    anchors = list(re.finditer(after, live, re.MULTILINE))
     if len(anchors) != 1:
         raise ExtractionError(
             Cause.LOCATOR_NO_MATCH if not anchors else Cause.LOCATOR_AMBIGUOUS,
             f"anchor {after!r} matched {len(anchors)} times",
         )
-    m = re.compile(literal).search(text, anchors[0].end())
+    m = re.compile(literal).search(live, anchors[0].end())
     if m is None or not text[: m.end()].endswith("{"):
         raise ExtractionError(Cause.LOCATOR_NO_MATCH, f"object literal {literal!r} not found after anchor")
     open_idx = m.end() - 1
@@ -210,12 +211,43 @@ def js_object_value(text: str, after: str, literal: str, key: str) -> Extracted:
     )
 
 
+def mask_comments(t: str) -> str:
+    """Blank out ``//`` and ``/* */`` comments (keeping newlines and every offset) so patterns never match commented code.
+
+    Strings are skipped, so ``"http://x"`` is untouched. Anything the scanner cannot follow is left as it is.
+    """
+    out = list(t)
+    i = 0
+    while i < len(t):
+        c = t[i]
+        if c in "'\"`":
+            try:
+                i = _skip_string(t, i)
+            except ExtractionError:
+                i += 1
+            continue
+        if c == "/":
+            try:
+                end = _skip_trivia(t, i)
+            except ExtractionError:
+                end = None
+            if end is not None:
+                for k in range(i, end):
+                    if t[k] != "\n":
+                        out[k] = " "
+                i = end
+                continue
+        i += 1
+    return "".join(out)
+
+
 def _const(text: str, name: str, value_pattern: str, label: str) -> Extracted:
+    live = mask_comments(text)
     pattern = re.compile(
         rf"^[ \t]*(?:export[ \t]+)?const[ \t]+{re.escape(name)}[ \t]*=[ \t]*{value_pattern}[ \t]*;?[ \t]*(?://.*)?$",
         re.MULTILINE,
     )
-    matches = list(pattern.finditer(text))
+    matches = list(pattern.finditer(live))
     if len(matches) != 1:
         raise ExtractionError(
             Cause.LOCATOR_NO_MATCH if not matches else Cause.LOCATOR_AMBIGUOUS,
@@ -223,7 +255,7 @@ def _const(text: str, name: str, value_pattern: str, label: str) -> Extracted:
         )
     m = matches[0]
     line = _line_at(text, m.start())
-    return Extracted(m.group("v"), m.group(0).strip(), line, line, _ext(f"js_const_{label}"))
+    return Extracted(m.group("v"), text[m.start() : m.end()].strip(), line, line, _ext(f"js_const_{label}"))
 
 
 def js_const_int(text: str, name: str) -> Extracted:
@@ -374,6 +406,49 @@ def json_loads(text: str) -> Any:
         return json.loads(text)
     except (ValueError, RecursionError) as exc:
         raise ExtractionError(Cause.PARSE_ERROR, f"invalid JSON: {str(exc)[:120]}") from exc
+
+
+def json_top_level_key(text: str, key: str) -> Extracted:
+    """Exact source span of a top-level property of a JSON object, whatever the formatting (minified or indented)."""
+    n, i, depth = len(text), 0, 0
+    while i < n:
+        c = text[i]
+        if c == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            token, k = text[i : j + 1], j + 1
+            while k < n and text[k] in " \t\r\n":
+                k += 1
+            if depth == 1 and k < n and text[k] == ":" and json_loads(token) == key:
+                v = k + 1
+                while v < n and text[v] in " \t\r\n":
+                    v += 1
+                if text[v : v + 1] == '"':
+                    end = v + 1
+                    while end < n and text[end] != '"':
+                        end += 2 if text[end] == "\\" else 1
+                    end += 1
+                elif text[v : v + 1] in ("{", "["):
+                    end = _skip_balanced(text, v)
+                else:
+                    m = re.compile(r"[^,}\]\s]+").match(text, v)
+                    end = m.end() if m else v
+                return Extracted(
+                    key,
+                    _quote(text[i:end]),
+                    _line_at(text, i),
+                    _line_at(text, max(end - 1, i)),
+                    _ext("json_top_level_key"),
+                )
+            i = j + 1
+            continue
+        if c in "{[":
+            depth += 1
+        elif c in "}]":
+            depth -= 1
+        i += 1
+    raise ExtractionError(Cause.LOCATOR_NO_MATCH, f"top-level key {key!r} not found")
 
 
 # --------------------------------------------------------------------------------------------------
