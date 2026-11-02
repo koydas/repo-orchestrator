@@ -1,6 +1,6 @@
 # MVP
 
-> **Status: proposed scope. Nothing described here is implemented.**
+> **Status: proposed scope. Nothing described here is implemented, except the throwaway S0 spike (see the milestone table).**
 
 The first release is a **read-only, on-demand analyzer** of a small, declared set of repositories, with seven policies and an evaluation set built from the [ecosystem baseline](research/ecosystem-baseline.md).
 
@@ -21,7 +21,7 @@ The first release is a **read-only, on-demand analyzer** of a small, declared se
 | Milestone | Delivers | Exit criteria |
 |---|---|---|
 | **M0 Design** (this repository today) | Documentation, ten Proposed ADRs | ADRs reviewed; open questions Q1–Q6 answered or explicitly deferred |
-| **S0 LangGraph validation spike** (first implementation activity, before or alongside M1) | Time-boxed, throwaway spike outside the core package, scripted Investigator stand-in, synthetic candidates ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5) | Resume after `interrupt()` across restarts, isolated fan-out, budget guard holding across resume, generated diagram matching the docs, pinned dependencies; outcome (adopt or fallback) recorded in ADR-0005 before M1 completes. No core code depends on it |
+| **S0 LangGraph validation spike** (first implementation activity, before or alongside M1) | Time-boxed, throwaway spike outside the core package, scripted Investigator stand-in, synthetic candidates ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5) | Resume after `interrupt()` across restarts, isolated fan-out, budget guard holding across resume, generated diagram matching the docs, pinned dependencies; outcome (adopt or fallback) recorded in ADR-0005 before M1 completes. No core code depends on it. **Status: executed** in [`prototypes/langgraph-spike`](../prototypes/langgraph-spike/README.md): experiments A–F pass (81 tests, Python 3.11 and 3.13), recommendation *adopt for M3 with explicit constraints*, not measured items listed in the [results](../prototypes/langgraph-spike/docs/results.md#remaining-architectural-risks). ADR-0005 remains Proposed until the owner decides; the exit criterion "outcome recorded in ADR-0005" is met by the pointer added there |
 | **M1 Deterministic baseline** | C1, C2 (declared relationships only), C3 with P1–P6, W1, report, run store with fingerprints | Evaluation set (below) passes: 100% recall on seeded and mutation cases for P1–P6, zero findings on negative controls, deterministic rerun produces an identical report |
 | **M2 PR impact** | C4, W2 with base/head comparison | Mutation cases U1–U5 replayed as PRs against a coherent base yield the expected affected repository, impact class and `introduced` label; U5 replayed against the raw baseline (D1 already present) yields `pre-existing`, so no pre-existing finding is blamed on a PR |
 | **M3 Bounded investigation** | LangGraph-backed Investigator on the S0-validated design (or the S0 fallback); C5; P7; quote verification; validation status and entailment checks; interrupts | H2 ends in `needs_validation` with verified quotes (a human decides) or `insufficient_evidence`; zero `confirmed` findings with an unverified quote or without validation; every `breaks` reasoning claim without an entailment check routed to a human; LLM cost per run reported |
@@ -95,7 +95,7 @@ In order, each gated by the previous one's measurements: optimization opportunit
 
 | Risk | Mitigation in this design |
 |---|---|
-| LangGraph adopted before it has a job, or validated too late | Not used in M1–M2; validated early by the isolated S0 spike, built only at M3 ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)) |
+| LangGraph adopted before it has a job, or validated too late | Not used in M1–M2; validated early by the isolated S0 spike (executed, see above), built only at M3 ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)) |
 | A policy framework larger than seven policies need | Python functions with metadata; no DSL ([ADR-0003](adr/0003-policy-driven-coherence-with-scoped-exceptions.md)) |
 | Generic multi-agent design | One Investigator; everything else deterministic ([ADR-0004](adr/0004-deterministic-checks-before-agentic-reasoning.md)) |
 | Graph DB, vector store, services | Explicitly excluded with revisit triggers ([architecture](architecture.md#complexity-budget)) |

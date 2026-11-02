@@ -1,0 +1,30 @@
+name: S0 LangGraph spike
+
+# Scoped to the throwaway spike: runs only when it changes. Not production CI.
+on:
+  pull_request:
+    paths:
+      - "prototypes/langgraph-spike/**"
+      - ".github/workflows/spike-langgraph.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    defaults:
+      run:
+        working-directory: prototypes/langgraph-spike
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -v

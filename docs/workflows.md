@@ -71,7 +71,7 @@ Notes:
 
 ## LangGraph workflow
 
-Validated first by the isolated S0 spike ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5), built at M3. Nodes call the core functions of C1–C7; the graph adds routing, fan-out, checkpoints and interrupts.
+Validated first by the isolated S0 spike ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5; [results](../prototypes/langgraph-spike/docs/results.md)), built at M3. S0 exercised a reduced shape of this graph (fan-out, retry loop, one approval interrupt, synthetic candidates; its node names are its own, see its [architecture](../prototypes/langgraph-spike/docs/architecture.md)); the nodes below are not implemented. Nodes call the core functions of C1–C7; the graph adds routing, fan-out, checkpoints and interrupts.
 
 ```mermaid
 flowchart TD

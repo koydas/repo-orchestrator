@@ -1,0 +1,6 @@
+
+# S0 spike runtime state
+prototypes/langgraph-spike/s0-state/
+__pycache__/
+.pytest_cache/
+.venv/
