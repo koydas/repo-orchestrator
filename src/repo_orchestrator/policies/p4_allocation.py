@@ -38,6 +38,9 @@ META = PolicyMeta(
 
 IPv4 = ipaddress.IPv4Address
 
+# Other ways to claim an address. Not understood in M1, so a site using one is never declared safe (docs/m1/limitations.md).
+UNSUPPORTED_CLAIM_KEYS = ("loadBalancerIP", "metallb.universe.tf/loadBalancerIPs")
+
 
 @dataclass(frozen=True)
 class ClaimSource:
@@ -124,6 +127,12 @@ def _site_claims(ctx: EvalContext, repo: str, path: str, annotation: str) -> lis
         raise CannotEvaluate(exc.cause, f"{art.slug}:{path}: {exc.detail}") from exc
     claims: list[Claim] = []
     for doc in docs:
+        for other in UNSUPPORTED_CLAIM_KEYS:
+            for value, _, start, _ in doc.find_keys(other):
+                if value not in (None, ""):  # an empty value claims nothing
+                    raise CannotEvaluate(
+                        Cause.UNSUPPORTED_SYNTAX, f"{path}:{start}: '{other}' is an address claim form M1 does not read"
+                    )
         for value, quote, start, end in doc.find_keys(annotation):
             if not isinstance(value, str):
                 raise CannotEvaluate(Cause.UNSUPPORTED_SYNTAX, f"{path}:{start}: {annotation} is not a string")

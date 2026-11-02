@@ -298,6 +298,25 @@ class TestP4:
         r = scan([add_file(HOMELAB, "apps/metallb-config/ipaddresspool.yaml", yaml)])
         assert all(o.status is Status.CONSISTENT for o in find(r, "P4", "R8"))
 
+    @pytest.mark.parametrize(
+        "claim",
+        [
+            "spec:\n  loadBalancerIP: 192.168.1.243\n",
+            "metadata:\n  annotations:\n    metallb.universe.tf/loadBalancerIPs: 192.168.1.243\n",
+        ],
+    )
+    def test_other_claim_forms_are_never_silently_skipped(self, claim):
+        r = scan([add_file(CHAT, "k8s/service.yaml", "kind: Service\n" + claim)])
+        assert [o.cause for o in find(r, "P4", "R8") if o.subject.startswith("claim-site:")] == [
+            Cause.UNSUPPORTED_SYNTAX
+        ]
+        assert all(o.status is Status.CANNOT_EVALUATE for o in find(r, "P4", "R8") if o.subject.startswith("address:"))
+        assert r.exit_code == 2
+
+    def test_an_empty_legacy_field_claims_nothing(self):
+        r = scan([add_file(CHAT, "k8s/extra.yaml", 'kind: Service\nspec:\n  loadBalancerIP: ""\n')])
+        assert all(o.status is Status.CONSISTENT for o in find(r, "P4", "R8"))
+
     def test_a_non_string_annotation_value_is_refused(self):
         r = scan(
             [
