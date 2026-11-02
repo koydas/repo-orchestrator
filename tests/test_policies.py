@@ -164,6 +164,42 @@ class TestP2:
         )
         assert one(returned, "P2", "R2", "schema_version").status is Status.CONSISTENT
 
+    @pytest.mark.parametrize(
+        "operand",
+        [
+            "SUPPORTED_SCHEMA_VERSION + 1",
+            "SUPPORTED_SCHEMA_VERSION - 0",
+            "(SUPPORTED_SCHEMA_VERSION)",
+            "SUPPORTED_SCHEMA_VERSION ?? 2",
+        ],
+    )
+    def test_a_computed_guard_operand_is_never_read_by_its_first_token(self, operand):
+        r = scan(
+            [
+                replace_text(
+                    ADT,
+                    "scripts/loop-insights.mjs",
+                    "raw.schema_version !== SUPPORTED_SCHEMA_VERSION",
+                    f"raw.schema_version !== {operand}",
+                )
+            ]
+        )
+        o = one(r, "P2", "R2", "schema_version")
+        assert o.status is Status.CANNOT_EVALUATE and o.cause == Cause.UNSUPPORTED_SYNTAX
+
+    def test_a_guard_followed_by_other_conditions_still_yields_its_operand(self):
+        r = scan(
+            [
+                replace_text(
+                    ADT,
+                    "scripts/loop-insights.mjs",
+                    "raw.schema_version !== SUPPORTED_SCHEMA_VERSION",
+                    "raw.schema_version !== 1 && true",
+                )
+            ]
+        )
+        assert one(r, "P2", "R2", "schema_version").status is Status.CONSISTENT
+
     def test_a_guard_not_connected_to_the_declared_constant_or_missing_cannot_be_evaluated(self):
         other = scan(
             [

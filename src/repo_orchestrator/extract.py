@@ -250,11 +250,20 @@ def js_guard(text: str, after: str, subject: str) -> Extracted:
             Cause.LOCATOR_NO_MATCH if not anchors else Cause.LOCATOR_AMBIGUOUS,
             f"anchor {after!r} matched {len(anchors)} times",
         )
-    m = re.compile(rf"{re.escape(subject)}\s*!==?\s*(?P<v>[A-Za-z_$][\w$.]*|\d+)").search(live, anchors[0].end())
+    m = re.compile(rf"{re.escape(subject)}\s*!==?\s*").search(live, anchors[0].end())
     if m is None:
         raise ExtractionError(Cause.LOCATOR_NO_MATCH, f"no `{subject} !== …` guard after {after!r}")
+    # the whole operand, up to the end of the comparison; anything but one identifier or integer is not understood
+    tail = re.compile(r"[^)&|;{}\n]*").match(live, m.end())
+    assert tail is not None
+    operand, end = tail.group(0).strip(), tail.end()
+    ends_here = end >= len(live) or live[end] in ")};{\n" or live[end : end + 2] in ("&&", "||")
+    if not ends_here or not re.fullmatch(r"[A-Za-z_$][\w$.]*|\d+", operand):
+        raise ExtractionError(
+            Cause.UNSUPPORTED_SYNTAX, f"the guard compares against `{operand}…`, not a single constant or integer"
+        )
     line = _line_at(text, m.start())
-    return Extracted(m.group("v"), text.splitlines()[line - 1].strip(), line, line, _ext("js_guard"))
+    return Extracted(operand, text.splitlines()[line - 1].strip(), line, line, _ext("js_guard"))
 
 
 def _const(text: str, name: str, value_pattern: str, label: str) -> Extracted:
