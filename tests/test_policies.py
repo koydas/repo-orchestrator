@@ -322,6 +322,22 @@ class TestP4:
         o = one(scan([add_file(CHAT, "k8s/alias.yaml", yaml)]), "P4", "R8", "address:192.168.1.246")
         assert o.status is Status.INCONSISTENT and o.comparison.result == "duplicate"
 
+    def test_yaml_merge_keys_are_resolved_to_the_effective_claim(self):
+        def services(second: str) -> str:
+            return (
+                "kind: List\nitems:\n"
+                "  - kind: Service\n    metadata:\n      name: a\n      annotations: &ip {metallb.io/loadBalancerIPs: '192.168.1.246'}\n"
+                f"  - kind: Service\n    metadata:\n      name: b\n      annotations:\n        <<: *ip\n{second}"
+            )
+
+        overridden = scan(
+            [add_file(CHAT, "k8s/merged.yaml", services("        metallb.io/loadBalancerIPs: '192.168.1.247'\n"))]
+        )
+        assert one(overridden, "P4", "R8", "address:192.168.1.246").status is Status.CONSISTENT
+        assert one(overridden, "P4", "R8", "address:192.168.1.247").status is Status.CONSISTENT
+        inherited = scan([add_file(CHAT, "k8s/merged.yaml", services("        other: x\n"))])
+        assert one(inherited, "P4", "R8", "address:192.168.1.246").comparison.result == "duplicate"
+
     def test_an_empty_legacy_field_claims_nothing(self):
         r = scan([add_file(CHAT, "k8s/extra.yaml", 'kind: Service\nspec:\n  loadBalancerIP: ""\n')])
         assert all(o.status is Status.CONSISTENT for o in find(r, "P4", "R8"))

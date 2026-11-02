@@ -200,3 +200,18 @@ def test_find_keys_visits_each_alias_use_and_survives_cycles():
     assert [v for v, *_ in doc.find_keys("k")] == [1, 1, 1, 1]
     cyclic = extract.yaml_single("a: &r {k: 1, self: *r}\n")
     assert [v for v, *_ in cyclic.find_keys("k")] == [1]
+
+
+def test_merge_keys_expand_with_explicit_keys_winning_and_earlier_sources_first():
+    doc = extract.yaml_single(
+        "base: &b {k: 1, j: 9}\nother: &o {k: 2}\nx: {<<: [*o, *b], k: 3}\ny: {<<: [*o, *b]}\nz: {<<: *b}\n"
+    )
+    assert sorted(v for v, *_ in doc.find_keys("k")) == [
+        1,
+        1,
+        2,
+        2,
+        3,
+    ]  # base, z, other, y (o wins over b), x (explicit wins)
+    assert [v for v, *_ in doc.find_keys("j")] == [9, 9, 9, 9]  # base and the three mappings merging it
+    assert [v for v, *_ in extract.yaml_single("a: &x {k: 1, m: {<<: *x}}\n").find_keys("k")] == [1]

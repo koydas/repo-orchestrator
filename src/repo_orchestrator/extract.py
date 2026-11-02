@@ -332,7 +332,7 @@ class YamlDoc:
                 continue
             below = ancestors | {id(node)}
             if isinstance(node, yaml.MappingNode):
-                for k, v in node.value:
+                for k, v in effective_pairs(node):
                     if isinstance(k, yaml.ScalarNode) and k.value == name:
                         quote, s, e = self.span(k, v)
                         found.append((k.start_mark.line, k.start_mark.column, self.construct(v), quote, s, e))
@@ -341,6 +341,30 @@ class YamlDoc:
                 stack.extend((child, below) for child in node.value)
         for _, _, value, quote, s, e in sorted(found, key=lambda f: (f[0], f[1])):
             yield value, quote, s, e
+
+
+_MERGE_TAG = "tag:yaml.org,2002:merge"
+
+
+def effective_pairs(node: yaml.MappingNode, guard: frozenset[int] = frozenset()) -> list[tuple[yaml.Node, yaml.Node]]:
+    """Key/value pairs of a mapping as YAML defines them: ``<<`` merges are expanded and explicit keys win."""
+    explicit = [(k, v) for k, v in node.value if k.tag != _MERGE_TAG]
+    seen = {k.value for k, _ in explicit if isinstance(k, yaml.ScalarNode)}
+    out = list(explicit)
+    for k, v in node.value:
+        if k.tag != _MERGE_TAG:
+            continue
+        sources = v.value if isinstance(v, yaml.SequenceNode) else [v]  # earlier sources take precedence
+        for src in sources:
+            if not isinstance(src, yaml.MappingNode) or id(src) in guard:
+                continue
+            for mk, mv in effective_pairs(src, guard | {id(node), id(src)}):
+                if isinstance(mk, yaml.ScalarNode) and mk.value in seen:
+                    continue
+                if isinstance(mk, yaml.ScalarNode):
+                    seen.add(mk.value)
+                out.append((mk, mv))
+    return out
 
 
 def _last_line(node: yaml.Node, seen: set[int]) -> int:

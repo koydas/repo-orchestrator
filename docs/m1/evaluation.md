@@ -50,7 +50,7 @@ Recorded on 2026-11-02, Python 3.13 (CI also runs 3.11):
 
 | Check | Result |
 |---|---|
-| `pytest` | **395 passed**, 0 failed, 0 skipped (about 12 s, offline) |
+| `pytest` | **397 passed**, 0 failed, 0 skipped (about 12 s, offline) |
 | Offline baseline scan (exit code) | **1**: complete, exactly the two expected findings |
 | `ruff check` / `ruff format --check` | clean |
 | `mypy` (strict, 27 source files) | no issues |
