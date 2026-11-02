@@ -120,7 +120,7 @@ SQLite file plus snapshot cache ([ADR-0008](adr/0008-git-declarations-and-local-
 
 ## Orchestration strategy
 
-- **S0** (first implementation activity, before or alongside M1): an isolated, throwaway LangGraph design-validation spike outside the core package ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5). The core never imports it.
+- **S0** (first implementation activity, before or alongside M1): an isolated, throwaway LangGraph design-validation spike outside the core package ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5), executed in [`prototypes/langgraph-spike`](../prototypes/langgraph-spike/README.md) ([architecture](../prototypes/langgraph-spike/docs/architecture.md), [results](../prototypes/langgraph-spike/docs/results.md)). The core never imports it.
 - **M1–M2:** a plain function pipeline: `collect → build_graph → evaluate → (impact) → report`. One command, no framework.
 - **M3:** the investigation and approval part becomes a LangGraph graph whose nodes call the same functions, on the design S0 validated (or the hand-written fallback if S0 failed). The graph is specified in [workflows.md](workflows.md#langgraph-workflow).
 

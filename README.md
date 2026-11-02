@@ -2,7 +2,7 @@
 
 **Cross-repository coherence for independent GitHub repositories: model how they relate, detect where one repository's claims about another have become false, and explain the impact with evidence a human can check.**
 
-> **Status: design phase.** This repository contains documentation and Proposed ADRs only. No capability described below is implemented. Nothing here runs, scans or posts anything.
+> **Status: design phase.** This repository contains documentation and Proposed ADRs, plus one throwaway code spike: [S0](prototypes/langgraph-spike/README.md), which validates LangGraph on synthetic data (no GitHub access, no LLM, no credentials). No capability described below is implemented; the product scans and posts nothing. S0 outcome: all six experiments passed, with constraints; the framework decision is the owner's ([results](prototypes/langgraph-spike/docs/results.md), [ADR-0005](docs/adr/0005-langgraph-for-investigation-workflows-only.md), still Proposed).
 
 ## The problem
 
@@ -48,7 +48,7 @@ flowchart LR
     gate --> report["Report<br/>Markdown + JSON"]
 ```
 
-One Python process, one SQLite file, no services. The Investigator is the only component that calls an LLM, and its output is verified in code before it can become a finding. LangGraph is the candidate engine for the investigation and approval workflow only; an isolated spike validates it as the first implementation activity, without coupling the core to it. Details: [architecture](docs/architecture.md), [workflows](docs/workflows.md).
+One Python process, one SQLite file, no services. The Investigator is the only component that calls an LLM, and its output is verified in code before it can become a finding. LangGraph is the candidate engine for the investigation and approval workflow only; the isolated S0 spike [validated it](prototypes/langgraph-spike/docs/results.md) on synthetic data, with explicit constraints, without coupling the core to it. Details: [architecture](docs/architecture.md), [workflows](docs/workflows.md).
 
 ## Example scenarios
 
@@ -78,7 +78,7 @@ Grounded in the [baseline](docs/research/ecosystem-baseline.md); all are **inten
 | Milestone | Scope | Status |
 |---|---|---|
 | M0 Design | Documentation and ADRs | **In review** |
-| S0 LangGraph validation spike | Isolated, throwaway: checkpoints, interrupts, fan-out, budget guard; before or alongside M1 | Not started |
+| S0 LangGraph validation spike | Isolated, throwaway: checkpoints, interrupts, fan-out, budget guard; before or alongside M1 | **Executed, in review**: experiments A–F pass (72 tests); recommends adopting LangGraph for M3 with constraints; ADR-0005 still Proposed ([results](prototypes/langgraph-spike/docs/results.md)) |
 | M1 Deterministic baseline | Six repositories, six deterministic policies, local report, evaluation set | Not started |
 | M2 PR impact | Cross-repository impact of a PR, base/head comparison | Not started |
 | M3 Bounded investigation | LangGraph-backed Investigator, quote verification, claim validation, human interrupts | Not started |
@@ -97,6 +97,7 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [Coherence model](docs/coherence-model.md) | Meaningful inconsistency, scopes, precedence, exceptions, prioritization, evidence, MVP policies |
 | [Workflows](docs/workflows.md) | Baseline scan, PR analysis, LangGraph workflow, failure handling, human intervention |
 | [MVP](docs/mvp.md) | Scope, milestones, deferred capabilities, evaluation design |
+| [S0 spike](prototypes/langgraph-spike/README.md) | LangGraph validation on synthetic data: architecture, experiments A–F, results, recommendation |
 | [Ecosystem baseline](docs/research/ecosystem-baseline.md) | Verified relationships and inconsistencies, hypotheses, open questions, with revisions |
 | [ADRs](docs/adr/README.md) | Ten Proposed decisions |
 | [Claude Code](docs/claude-code.md) | `ai-dev-tools` toolbox, repository rules (`CLAUDE.md`) and skills |
