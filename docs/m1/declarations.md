@@ -53,6 +53,7 @@ A closed set; there is no expression language. Each names a `repo` and `path` an
 | `js_const_string` | `name` | the string of `const NAME = 'x';` |
 | `js_object_keys` | `after` (regex, one match), `literal` (regex ending at `{`) | top-level keys of the object literal after the anchor; a spread, computed key or method is `unsupported_syntax` |
 | `js_object_value` | + `key` | the raw expression of that key |
+| `js_guard` | `after` (regex, one match), `subject` | the operand of the first `<subject> !== X` check after the anchor (what a consumer accepts) |
 | `yaml_path` | `yaml_path` (dotted) | the value at that path (exact line span as evidence) |
 
 JavaScript is read as text; it is never run.

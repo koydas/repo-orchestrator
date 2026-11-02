@@ -141,6 +141,13 @@ relationships:
             literal: 'return\s*\{'
         consumer:
           version: {kind: js_const_int, repo: adt, path: scripts/loop-insights.mjs, name: SUPPORTED_SCHEMA_VERSION}
+          # what the consumer accepts is decided by its guard, not by the object it returns
+          acceptance:
+            kind: js_guard
+            repo: adt
+            path: scripts/loop-insights.mjs
+            after: 'export function parseExport'
+            subject: raw.schema_version
           keys:
             kind: js_object_keys
             repo: adt

@@ -148,15 +148,39 @@ class TestP2:
         assert o.status is Status.CANNOT_EVALUATE and o.cause == Cause.LOCATOR_NO_MATCH and "OTHER_VERSION" in o.reason
         assert one(r, "P2", "R2", "key_set").status is Status.CONSISTENT
 
-    def test_the_consumer_must_also_use_its_declared_constant(self):
-        r = scan(
+    def test_the_consumer_version_is_what_its_guard_accepts_not_its_returned_object(self):
+        guard = "raw.schema_version !== SUPPORTED_SCHEMA_VERSION"
+        rejects_v1 = scan([replace_text(ADT, "scripts/loop-insights.mjs", guard, "raw.schema_version !== 2")])
+        f = one(rejects_v1, "P2", "R2", "schema_version")
+        assert f.status is Status.INCONSISTENT and (f.comparison.left, f.comparison.right) == (1, 2)
+        assert any(e.locator == "accepted schema_version" and "!== 2" in e.quote for e in f.evidence)
+        # the returned property is only a normalized copy: changing it does not change what is accepted
+        returned = scan(
             [
                 replace_text(
                     ADT, "scripts/loop-insights.mjs", "schema_version: SUPPORTED_SCHEMA_VERSION", "schema_version: 7"
                 )
             ]
         )
-        assert one(r, "P2", "R2", "schema_version").status is Status.INCONSISTENT
+        assert one(returned, "P2", "R2", "schema_version").status is Status.CONSISTENT
+
+    def test_a_guard_not_connected_to_the_declared_constant_or_missing_cannot_be_evaluated(self):
+        other = scan(
+            [
+                replace_text(
+                    ADT,
+                    "scripts/loop-insights.mjs",
+                    "raw.schema_version !== SUPPORTED_SCHEMA_VERSION",
+                    "raw.schema_version !== LEGACY",
+                )
+            ]
+        )
+        o = one(other, "P2", "R2", "schema_version")
+        assert o.status is Status.CANNOT_EVALUATE and "LEGACY" in o.reason
+        gone = scan(
+            [replace_text(ADT, "scripts/loop-insights.mjs", "raw.schema_version !== SUPPORTED_SCHEMA_VERSION", "false")]
+        )
+        assert one(gone, "P2", "R2", "schema_version").cause == Cause.LOCATOR_NO_MATCH
 
     def test_peer_contracts_must_agree_on_the_key_set_and_either_side_may_be_fixed(self):
         r = scan(

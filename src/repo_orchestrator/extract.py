@@ -241,6 +241,22 @@ def mask_comments(t: str) -> str:
     return "".join(out)
 
 
+def js_guard(text: str, after: str, subject: str) -> Extracted:
+    """What a consumer *accepts*: the operand of the first ``<subject> !== <operand>`` check after the single anchor."""
+    live = mask_comments(text)
+    anchors = list(re.finditer(after, live, re.MULTILINE))
+    if len(anchors) != 1:
+        raise ExtractionError(
+            Cause.LOCATOR_NO_MATCH if not anchors else Cause.LOCATOR_AMBIGUOUS,
+            f"anchor {after!r} matched {len(anchors)} times",
+        )
+    m = re.compile(rf"{re.escape(subject)}\s*!==?\s*(?P<v>[A-Za-z_$][\w$.]*|\d+)").search(live, anchors[0].end())
+    if m is None:
+        raise ExtractionError(Cause.LOCATOR_NO_MATCH, f"no `{subject} !== …` guard after {after!r}")
+    line = _line_at(text, m.start())
+    return Extracted(m.group("v"), text.splitlines()[line - 1].strip(), line, line, _ext("js_guard"))
+
+
 def _const(text: str, name: str, value_pattern: str, label: str) -> Extracted:
     live = mask_comments(text)
     pattern = re.compile(

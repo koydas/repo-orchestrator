@@ -16,6 +16,7 @@ _REQUIRED: dict[str, tuple[str, ...]] = {
     "js_const_string": ("name",),
     "js_object_keys": ("after", "literal"),
     "js_object_value": ("after", "literal", "key"),
+    "js_guard": ("after", "subject"),
     "yaml_path": ("yaml_path",),
 }
 _REGEX_PARAMS = {"after", "literal"}
@@ -49,6 +50,8 @@ class LocatorSpec:
                 return extract.js_object_keys(text, p["after"], p["literal"])
             case "js_object_value":
                 return extract.js_object_value(text, p["after"], p["literal"], p["key"])
+            case "js_guard":
+                return extract.js_guard(text, p["after"], p["subject"])
             case "yaml_path":
                 value, quote, start, end = extract.yaml_single(text).get(p["yaml_path"])
                 return Extracted(value, quote, start, end, f"yaml_path@{extract.EXTRACTOR_VERSION}")

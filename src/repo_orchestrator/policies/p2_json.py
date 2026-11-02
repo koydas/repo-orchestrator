@@ -45,6 +45,7 @@ class Side:
     name: str
     version: LocatorSpec
     keys: LocatorSpec
+    acceptance: LocatorSpec | None = None  # consumers: the guard that decides which version is accepted
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,7 @@ def _side(raw: object, name: str, where: str, repos: set[str]) -> Side:
         name,
         parse_locator(raw.get("version"), f"{where}.{name}.version", repos),
         parse_locator(raw.get("keys"), f"{where}.{name}.keys", repos),
+        parse_locator(raw["acceptance"], f"{where}.{name}.acceptance", repos) if raw.get("acceptance") else None,
     )
 
 
@@ -98,52 +100,62 @@ def applies(rel: Relationship) -> bool:
 
 def requests(cfg: Config, rel: Relationship) -> Sequence[ArtifactRequest]:
     c = cfg.contracts[rel.id]
-    return [ArtifactRequest(spec.repo, spec.path) for side in (c.first, c.second) for spec in (side.version, side.keys)]
+    specs = [s for side in (c.first, c.second) for s in (side.version, side.keys, side.acceptance) if s is not None]
+    return [ArtifactRequest(spec.repo, spec.path) for spec in specs]
 
 
-def _resolve(
-    ctx: EvalContext, spec: LocatorSpec, side: str, keys: LocatorSpec | None = None
-) -> tuple[object, list[Evidence]]:
-    """Value of a locator and its evidence. For a version constant, ``keys`` (the object literal the document is built
-    from) is used to check what is actually *emitted*: the declared constant must be the value of ``schema_version`` there."""
+def _resolve(ctx: EvalContext, side: Side, check_emitted: bool) -> tuple[object, list[Evidence]]:
+    """A side's ``schema_version`` and its evidence.
+
+    A producer's version is what its document-building object *emits*: the declared constant must be the value of
+    ``schema_version`` there (an integer literal overrides it, anything else is undecidable). A consumer's version is what
+    it *accepts*: the operand of its ``schema_version !== …`` guard, never the shape of the object it returns.
+    """
+    spec, label = side.version, side.name
     art, text = ctx.text(spec.repo, spec.path)
     try:
         ex = spec.resolve(text)
-        value: object = ex.value
-        if spec.kind == "js_object_value":
-            value = int_of_js(str(ex.value))
-        evidence = [ctx.text_ev(side, art, ex, spec.label)]
-        if (
+        value: object = int_of_js(str(ex.value)) if spec.kind == "js_object_value" else ex.value
+        evidence = [ctx.text_ev(label, art, ex, spec.label)]
+        if spec.kind == "js_const_int" and side.acceptance is not None:
+            guard = side.acceptance.resolve(text)
+            evidence.append(ctx.text_ev(label, art, guard, "accepted schema_version"))
+            value = _connected(spec, str(guard.value), "the version it accepts", int(str(ex.value)), tuple(evidence))
+        elif (
             spec.kind == "js_const_int"
-            and keys is not None
-            and keys.kind == "js_object_keys"
-            and keys.path == spec.path
+            and check_emitted
+            and side.keys.kind == "js_object_keys"
+            and side.keys.path == spec.path
         ):
-            literal = extract.js_object_value(text, keys.params["after"], keys.params["literal"], VERSION_KEY)
-            emitted = str(literal.value)
+            literal = extract.js_object_value(text, side.keys.params["after"], side.keys.params["literal"], VERSION_KEY)
+            lines = text.splitlines()
             line_no = next(
                 (
                     n
                     for n in range(literal.line_start, literal.line_end + 1)
-                    if re.search(rf"\b{VERSION_KEY}\b\s*:", text.splitlines()[n - 1])
+                    if re.search(rf"\b{VERSION_KEY}\b\s*:", lines[n - 1])
                 ),
                 literal.line_start,
             )
-            entry = extract.Extracted(emitted, text.splitlines()[line_no - 1], line_no, line_no, literal.extractor)
-            evidence.append(ctx.text_ev(side, art, entry, f"emitted {VERSION_KEY}"))
-            if emitted == spec.params["name"]:
-                pass  # the declared constant is what the object carries
-            elif re.fullmatch(r"\d+", emitted):
-                value = int(emitted)  # a literal in the object overrides the constant: that is what is emitted
-            else:
-                raise CannotEvaluate(
-                    Cause.LOCATOR_NO_MATCH,
-                    f"{spec.path}: {VERSION_KEY} is `{emitted}`, not the declared constant {spec.params['name']}",
-                    tuple(evidence),
-                )
+            entry = extract.Extracted(str(literal.value), lines[line_no - 1], line_no, line_no, literal.extractor)
+            evidence.append(ctx.text_ev(label, art, entry, f"emitted {VERSION_KEY}"))
+            value = _connected(spec, str(literal.value), "the version it emits", int(str(ex.value)), tuple(evidence))
     except ExtractionError as exc:
         raise CannotEvaluate(exc.cause, f"{art.slug}:{spec.path}: {exc.detail}") from exc
     return value, evidence
+
+
+def _connected(spec: LocatorSpec, expression: str, what: str, declared: int, evidence: tuple[Evidence, ...]) -> int:
+    """The declared constant (its value), an integer literal (that literal), or undecidable."""
+    if expression == spec.params["name"]:
+        return declared
+    if re.fullmatch(r"\d+", expression):
+        return int(expression)
+    raise CannotEvaluate(
+        Cause.LOCATOR_NO_MATCH,
+        f"{spec.path}: {what} is `{expression}`, not the declared constant {spec.params['name']}",
+        evidence,
+    )
 
 
 def evaluate(cfg: Config, ctx: EvalContext, rel: Relationship) -> list[Outcome]:
@@ -158,8 +170,12 @@ def evaluate(cfg: Config, ctx: EvalContext, rel: Relationship) -> list[Outcome]:
             f"{b_spec.repo}:{b_spec.path}#{c.document}.{subject}",
         ]
         try:
-            a_val, a_ev = _resolve(ctx, a_spec, c.first.name, c.first.keys if subject == "schema_version" else None)
-            b_val, b_ev = _resolve(ctx, b_spec, c.second.name, c.second.keys if subject == "schema_version" else None)
+            if subject == "schema_version":
+                a_val, a_ev = _resolve(ctx, c.first, check_emitted=True)
+                b_val, b_ev = _resolve(ctx, c.second, check_emitted=peer)
+            else:
+                a_val, a_ev = _resolve(ctx, Side(c.first.name, a_spec, a_spec), check_emitted=False)
+                b_val, b_ev = _resolve(ctx, Side(c.second.name, b_spec, b_spec), check_emitted=False)
         except CannotEvaluate as exc:
             out.append(ctx.cannot(rel, subject, exc, locators))
             continue
