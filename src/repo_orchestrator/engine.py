@@ -19,9 +19,20 @@ from .collector.source import SnapshotSource
 from .declarations import AuthorityRef, Declarations, ExceptionDecl
 from .extract import ExtractionError, decode
 from .graph import Graph
-from .models import SCOPE_RANK, Cause, ConfigError, Evidence, Intent, Outcome, Relationship, Status, cause_class
+from .models import (
+    SCOPE_RANK,
+    Applicability,
+    Cause,
+    ConfigError,
+    Evidence,
+    Intent,
+    Outcome,
+    Relationship,
+    Status,
+    cause_class,
+)
 from .policies import REGISTRY
-from .policies.base import CannotEvaluate, EvalContext, Policy
+from .policies.base import CannotEvaluate, EvalContext, Policy, in_scope
 
 
 @dataclass(frozen=True)
@@ -131,7 +142,7 @@ class Engine:
         for rel in self.graph.trusted():
             by_aspect: dict[str, list[Policy]] = {}
             for p in self.policies.values():
-                if p.applies(rel):
+                if p.applies(rel) and in_scope(p.meta.scope, rel):
                     by_aspect.setdefault(p.meta.aspect, []).append(p)
             chosen: list[Policy] = []
             dropped: list[Superseded] = []
@@ -304,7 +315,7 @@ class Engine:
             cause = failed[0].note if cause_class(failed[0].note) == "collection" else Cause.AUTHORITY_UNRESOLVED
             return [ctx.cannot(rel, "*", CannotEvaluate(cause, f"policy authority not resolved: {detail}"))]
         try:
-            return list(policy.evaluate(self.configs[policy.meta.id], ctx, rel))
+            return [_ask_when_undetermined(o, rel) for o in policy.evaluate(self.configs[policy.meta.id], ctx, rel)]
         except CannotEvaluate as exc:
             return [ctx.cannot(rel, "*", exc)]
         except Exception as exc:
@@ -487,6 +498,18 @@ def _resolve_authority(policy_id: str, ref: AuthorityRef, snapshot: Snapshot) ->
     return AuthorityResult(
         policy_id, ref.repo, ref.path, ref.quote, found, "resolved, quote verified" if found else "quote not found"
     )
+
+
+def _ask_when_undetermined(o: Outcome, rel: Relationship) -> Outcome:
+    """An unresolved owner decision never becomes a confirmed finding: on an `undetermined` relationship a failing
+    check is reported as a question (docs/coherence-model.md; baseline Q1)."""
+    if rel.applicability is not Applicability.UNDETERMINED or o.status is not Status.INCONSISTENT:
+        return o
+    question = rel.open_question or ""
+    return dataclasses.replace(
+        o, status=Status.POLICY_CLARIFICATION, severity=None, impact=None, intent=Intent.UNDETERMINED, fingerprint=None,
+        open_questions=(*o.open_questions, question), reason=f"{o.reason} Whether this relationship is in scope is undecided ({question}).",
+    )  # fmt: skip
 
 
 def _failed(o: Outcome, cause: str, reason: str) -> Outcome:

@@ -5,10 +5,11 @@ from __future__ import annotations
 import ipaddress
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from ..collector.snapshot import ArtifactRequest
 from ..declarations import Declarations
-from ..extract import ExtractionError, yaml_docs
+from ..extract import Extracted, ExtractionError, yaml_docs
 from ..graph import Graph
 from ..locators import LocatorSpec, parse_locator
 from ..models import (
@@ -125,15 +126,26 @@ def _site_claims(ctx: EvalContext, repo: str, path: str, annotation: str) -> lis
         docs = yaml_docs(text)
     except ExtractionError as exc:
         raise CannotEvaluate(exc.cause, f"{art.slug}:{path}: {exc.detail}") from exc
+    return _claims_of(ctx, art, path, docs, annotation, None, 0)
+
+
+def _claims_of(
+    ctx: EvalContext, art: Any, path: str, docs: list[Any], annotation: str, outer: Any, offset: int
+) -> list[Claim]:
+    """Claims of parsed documents. For an embedded block (``outer`` set) evidence cites the outer file's own lines."""
     claims: list[Claim] = []
     for doc in docs:
         for other in UNSUPPORTED_CLAIM_KEYS:
             for value, _, start, _ in doc.find_keys(other):
                 if value not in (None, ""):  # an empty value claims nothing
                     raise CannotEvaluate(
-                        Cause.UNSUPPORTED_SYNTAX, f"{path}:{start}: '{other}' is an address claim form M1 does not read"
+                        Cause.UNSUPPORTED_SYNTAX,
+                        f"{path}:{offset + start}: '{other}' is an address claim form M1 does not read",
                     )
         for value, quote, start, end in doc.find_keys(annotation):
+            if outer is not None:
+                start = end = offset + start
+                quote = outer.source_line(start)
             if not isinstance(value, str):
                 raise CannotEvaluate(Cause.UNSUPPORTED_SYNTAX, f"{path}:{start}: {annotation} is not a string")
             for part in (p.strip() for p in value.split(",")):
@@ -143,16 +155,34 @@ def _site_claims(ctx: EvalContext, repo: str, path: str, annotation: str) -> lis
                     raise CannotEvaluate(
                         Cause.UNSUPPORTED_SYNTAX, f"{path}:{start}: unsupported address {part!r}"
                     ) from exc
-                from ..extract import Extracted
-
-                claims.append(
-                    Claim(
-                        address,
-                        repo,
-                        path,
-                        ctx.text_ev("claim", art, Extracted(part, quote, start, end, "yaml_annotation@1"), annotation),
-                    )
+                ex = Extracted(part, quote, start, end, "yaml_annotation@1")
+                claims.append(Claim(address, art.repo, path, ctx.text_ev("claim", art, ex, annotation)))
+        if outer is None:
+            claims.extend(_embedded_claims(ctx, art, path, doc, annotation))
+        else:  # a claim key inside a string inside an embedded block: never read a second level
+            for _, _, line in doc.embedded_strings((annotation, *UNSUPPORTED_CLAIM_KEYS)):
+                raise CannotEvaluate(
+                    Cause.UNSUPPORTED_SYNTAX, f"{path}:{offset + line + 1}: claim key in a nested string"
                 )
+    return claims
+
+
+def _embedded_claims(ctx: EvalContext, art: Any, path: str, doc: Any, annotation: str) -> list[Claim]:
+    """Claims inside a string value that is itself YAML (an ArgoCD ``helm.values: |`` block, one level deep)."""
+    claims: list[Claim] = []
+    for value, style, line in doc.embedded_strings((annotation, *UNSUPPORTED_CLAIM_KEYS)):
+        where = f"{path}:{line + 1}"
+        if style != "|":
+            raise CannotEvaluate(
+                Cause.UNSUPPORTED_SYNTAX,
+                f"{where}: a claim key appears inside a string value that M1 cannot read as YAML",
+            )
+        try:
+            inner = yaml_docs(value)
+        except ExtractionError as exc:
+            raise CannotEvaluate(exc.cause, f"{where}: embedded YAML: {exc.detail}") from exc
+        # embedded line n sits on outer line (line + 1) + n: the block content starts below the `|` indicator
+        claims.extend(_claims_of(ctx, art, path, inner, annotation, doc, line + 1))
     return claims
 
 
@@ -172,6 +202,7 @@ def evaluate(cfg: Config, ctx: EvalContext, rel: Relationship) -> list[Outcome]:
 
     claims: list[Claim] = []
     failures: list[Outcome] = []
+    read_sites: set[tuple[str, str]] = set()
     for source in alloc.sources:
         try:
             paths = ctx.glob(source.repo, source.glob)
@@ -181,6 +212,9 @@ def evaluate(cfg: Config, ctx: EvalContext, rel: Relationship) -> list[Outcome]:
             )
             continue
         for path in paths:
+            if (source.repo, path) in read_sites:  # overlapping globs: one file is one site
+                continue
+            read_sites.add((source.repo, path))
             try:
                 claims.extend(_site_claims(ctx, source.repo, path, alloc.annotation))
             except CannotEvaluate as exc:

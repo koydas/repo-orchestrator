@@ -18,13 +18,21 @@ from repo_orchestrator.policies.base import EvalContext, Policy, PolicyMeta, Sco
 from support import AS_OF, find, load_decl, one, scan
 
 
-def synthetic(pid, *, aspect="x", kind=ScopeKind.RELATIONSHIP, rels=("R2",), evaluate=None, version="1"):
+def synthetic(pid, *, aspect="x", kind=ScopeKind.RELATIONSHIP, rels=("R2",), evaluate=None, version="1", values=None):
+    if values is None:  # scope values that really cover R2 (a runtime_contract from adl to adt)
+        values = {
+            ScopeKind.RELATIONSHIP: rels,
+            ScopeKind.RELATIONSHIP_TYPE: ("runtime_contract",),
+            ScopeKind.REPOSITORY: ("adl",),
+            ScopeKind.GLOBAL: (),
+        }[kind]
+
     def default_eval(cfg, ctx: EvalContext, rel):
         cmp = Comparison("equal", 1, 2, "not_equal")
         return [ctx.inconsistent(rel, f"s-{pid}", f"{pid} says so", cmp, [], [f"{pid}:loc"], [rel.target], [])]
 
     return Policy(
-        PolicyMeta(pid, version, pid, aspect, Scope(kind, tuple(rels)), Impact.BREAKS, Intent.ACCIDENTAL),
+        PolicyMeta(pid, version, pid, aspect, Scope(kind, tuple(values)), Impact.BREAKS, Intent.ACCIDENTAL),
         lambda d, g: None,
         lambda rel: rel.id in rels,
         lambda cfg, rel: [],
@@ -311,3 +319,64 @@ def test_every_policy_in_the_registry_has_a_version_scope_authority_and_unique_i
     for p in REGISTRY:
         assert p.meta.version.count(".") == 2 and p.meta.check == "deterministic" and p.meta.scope.kind
         assert d.policy_params[p.meta.id]["authority"], f"{p.meta.id} has no declared authority"
+
+
+# ---- review findings: declared scope values, undetermined applicability ---------------------------------------------------
+
+
+def test_a_policy_is_selected_only_where_its_declared_scope_values_cover_the_relationship():
+    elsewhere = synthetic("PA", kind=ScopeKind.RELATIONSHIP, values=("R99",))  # applies() says yes, scope says no
+    assert run(engine_with(elsewhere)).outcomes == []
+    covering = synthetic("PB", kind=ScopeKind.RELATIONSHIP, values=("R2",))
+    assert [o.policy_id for o in run(engine_with(covering)).outcomes] == ["PB"]
+
+
+def test_same_scope_kind_on_different_repositories_neither_conflicts_nor_supersedes():
+    on_adl = synthetic("PA", kind=ScopeKind.REPOSITORY, values=("adl",))
+    on_homelab = synthetic("PB", kind=ScopeKind.REPOSITORY, values=("homelab",))
+    result = run(
+        engine_with(on_adl, on_homelab)
+    )  # no ConfigError; only the policy whose repository is an endpoint runs
+    assert [o.policy_id for o in result.outcomes] == ["PA"] and result.superseded == []
+
+
+def test_scope_values_of_the_shipped_policies_cover_every_relationship_they_evaluate():
+    from repo_orchestrator.policies.base import in_scope
+
+    engine = Engine(load_decl())
+    for rel in engine.graph.trusted():
+        for p in engine.plan_by_rel[rel.id][0]:
+            assert in_scope(p.meta.scope, rel), (p.meta.id, rel.id)
+
+
+def test_an_undetermined_relationship_can_only_produce_a_question_never_a_finding():
+    from repo_orchestrator.collector.overlay import replace_text
+    from support import scan as _scan
+
+    d = load_decl()
+    rels = tuple(
+        dataclasses.replace(
+            r,
+            applicability=__import__("repo_orchestrator.models", fromlist=["x"]).Applicability.UNDETERMINED,
+            open_question="Q1",
+        )
+        if r.id == "R7"
+        else r
+        for r in d.relationships
+    )
+    mutation = replace_text(
+        "koydas/ollama-chat",
+        "src/lib/conversations.js",
+        "TEXT_MODEL = 'llama3.1:8b-instruct-q4_0'",
+        "TEXT_MODEL = 'nope:1b'",
+    )
+    r = _scan([mutation], decl=dataclasses.replace(d, relationships=rels))
+    o = one(r, "P3", "R7", "const:TEXT_MODEL")
+    assert (
+        o.status is Status.POLICY_CLARIFICATION
+        and o.open_questions == ("Q1",)
+        and o.fingerprint is None
+        and o.severity is None
+    )
+    assert not [x for x in r.result.outcomes if x.relationship_id == "R7" and x.status is Status.INCONSISTENT]
+    assert one(r, "P3", "R7", "const:VISION_MODEL").status is Status.CONSISTENT  # consistent results are untouched

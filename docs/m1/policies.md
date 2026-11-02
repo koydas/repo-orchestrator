@@ -61,7 +61,7 @@ Every `js_const_string` the consumer declares must be a member of the string lis
 
 ### P4 — shared resource allocation
 
-Parses the pool ranges (`a-b`, CIDR or single IPv4), then every `metallb.io/loadBalancerIPs` annotation found anywhere in the YAML of the declared glob sources (comma-separated lists allowed). Per address: outside the pool, or claimed more than once (also within one repository) → finding. If a claim source cannot be read or parsed, **no other address is declared safe** (they become `cannot_evaluate`), but a collision already found is still reported.
+Parses the pool ranges (`a-b`, CIDR or single IPv4), then every `metallb.io/loadBalancerIPs` annotation found anywhere in the YAML of the declared glob sources (comma-separated lists allowed). Per address: outside the pool, or claimed more than once (also within one repository) → finding. YAML aliases and merge keys are resolved as YAML defines them (an aliased claim counts at each use; an explicit key overrides a merged one) and `helm.values: |` blocks are read. If a claim source cannot be read or parsed, **no other address is declared safe** (they become `cannot_evaluate`), but a collision already found is still reported.
 
 ### P5 — cross-repository references
 

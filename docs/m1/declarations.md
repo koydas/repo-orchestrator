@@ -94,7 +94,7 @@ repository_authorities:
 
 When a policy would report a finding on a subject governed by a **verified** repository authority, the outcome is `policy_conflict` for a human, not a finding. An authority whose quote does not verify never suppresses anything. None is declared at the baseline.
 
-Policies are selected per relationship by `applies`, grouped by `aspect`. Within an aspect the narrowest scope wins (`repository` > `relationship` > `relationship_type` > `global`) and the others are listed as superseded; two policies of the same aspect and scope on one relationship are a configuration error at load.
+A policy is selected for a relationship only if its `applies` holds **and** the relationship is covered by the policy's declared scope values (repository ids, relationship ids or baseline ids, relationship types); candidates are then grouped by `aspect`. On a relationship with `applicability: undetermined`, any failing check is reported by the engine as a `policy_clarification` naming the open question, whatever the policy. Within an aspect the narrowest scope wins (`repository` > `relationship` > `relationship_type` > `global`) and the others are listed as superseded; two policies of the same aspect and scope on one relationship are a configuration error at load.
 
 ## Pins and open questions
 

@@ -318,29 +318,54 @@ class YamlDoc:
         quote, start, end = self.span(key_node, node)
         return self.construct(node), quote, start, end
 
-    def find_keys(self, name: str) -> Iterator[tuple[Any, str, int, int]]:
-        """Every value stored under a mapping key ``name``, in source order.
-
-        An anchored mapping reused through an alias is visited at **each** use site (an aliased claim is a claim per use);
-        cycles are cut by an ancestor guard, and the total work is bounded by the expansion limit checked at load.
-        """
-        found: list[tuple[int, int, Any, str, int, int]] = []
+    def _iter_nodes(self) -> Iterator[yaml.Node]:
+        """Every node, once per use site (aliases and merges expanded), cycles cut by an ancestor guard."""
         stack: list[tuple[yaml.Node, frozenset[int]]] = [(self.root, frozenset())]
         while stack:
             node, ancestors = stack.pop()
             if id(node) in ancestors:
                 continue
             below = ancestors | {id(node)}
+            yield node
+            if isinstance(node, yaml.MappingNode):
+                stack.extend((v, below) for _, v in effective_pairs(node))
+            elif isinstance(node, yaml.SequenceNode):
+                stack.extend((child, below) for child in node.value)
+
+    def find_keys(self, name: str) -> Iterator[tuple[Any, str, int, int]]:
+        """Every value stored under a mapping key ``name``, in source order.
+
+        An anchored mapping reused through an alias is visited at **each** use site (an aliased claim is a claim per use),
+        merges are resolved as YAML defines them, and the total work is bounded by the expansion limit checked at load.
+        """
+        found: list[tuple[int, int, Any, str, int, int]] = []
+        for node in self._iter_nodes():
             if isinstance(node, yaml.MappingNode):
                 for k, v in effective_pairs(node):
                     if isinstance(k, yaml.ScalarNode) and k.value == name:
                         quote, s, e = self.span(k, v)
                         found.append((k.start_mark.line, k.start_mark.column, self.construct(v), quote, s, e))
-                    stack.append((v, below))
-            elif isinstance(node, yaml.SequenceNode):
-                stack.extend((child, below) for child in node.value)
         for _, _, value, quote, s, e in sorted(found, key=lambda f: (f[0], f[1])):
             yield value, quote, s, e
+
+    def embedded_strings(self, needles: tuple[str, ...]) -> Iterator[tuple[str, str | None, int]]:
+        """String *values* (never keys) that mention a needle: ``(text, scalar style, zero-based line of the scalar)``.
+
+        Such a string may itself be YAML (a Helm ``values: |`` block) that structural search cannot see into.
+        """
+        found: list[tuple[int, int, str, str | None]] = []
+        for node in self._iter_nodes():
+            if (
+                isinstance(node, yaml.ScalarNode)
+                and node.tag == "tag:yaml.org,2002:str"
+                and any(n in node.value for n in needles)
+            ):
+                found.append((node.start_mark.line, node.start_mark.column, node.value, node.style))
+        for line, _, value, style in sorted(found, key=lambda f: (f[0], f[1])):
+            yield value, style, line
+
+    def source_line(self, one_based: int) -> str:
+        return self._lines[one_based - 1] if 1 <= one_based <= len(self._lines) else ""
 
 
 _MERGE_TAG = "tag:yaml.org,2002:merge"

@@ -338,6 +338,48 @@ class TestP4:
         inherited = scan([add_file(CHAT, "k8s/merged.yaml", services("        other: x\n"))])
         assert one(inherited, "P4", "R8", "address:192.168.1.246").comparison.result == "duplicate"
 
+    HELM = (
+        "apiVersion: argoproj.io/v1alpha1\nkind: Application\nspec:\n  source:\n    helm:\n      values: |\n"
+        "        controller:\n          service:\n            annotations:\n"
+        '              metallb.io/loadBalancerIPs: "{ip}"\n'
+    )
+
+    def test_claims_inside_embedded_helm_values_are_read_with_outer_file_evidence(self):
+        r = scan([add_file(HOMELAB, "apps/other/application.yaml", self.HELM.format(ip="192.168.1.243"))])
+        o = one(r, "P4", "R8", "address:192.168.1.243")
+        assert o.status is Status.INCONSISTENT and o.comparison.result == "duplicate"
+        embedded = next(e for e in o.evidence if e.path == "apps/other/application.yaml")
+        assert embedded.line_start == 10 and embedded.quote.strip().startswith("metallb.io/loadBalancerIPs")
+        fresh = scan([add_file(HOMELAB, "apps/other/application.yaml", self.HELM.format(ip="192.168.1.246"))])
+        assert one(fresh, "P4", "R8", "address:192.168.1.246").status is Status.CONSISTENT
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "spec:\n  values: >\n    metallb.io/loadBalancerIPs: '192.168.1.243'\n",
+            "spec:\n  values: 'metallb.io/loadBalancerIPs: 192.168.1.243'\n",
+            "spec:\n  values: |\n    broken: [unclosed\n    metallb.io/loadBalancerIPs: x\n",
+        ],
+    )
+    def test_embedded_text_that_cannot_be_read_as_yaml_is_never_skipped(self, text):
+        r = scan([add_file(HOMELAB, "apps/other/application.yaml", text)])
+        sites = [o for o in find(r, "P4", "R8") if o.subject.startswith("claim-site:")]
+        assert sites and sites[0].status is Status.CANNOT_EVALUATE and r.exit_code == 2
+
+    def test_overlapping_claim_source_globs_read_each_file_once(self):
+        decl = with_contract(
+            load_decl(),
+            "R8",
+            lambda c: c["allocation"]["claim_sources"].extend(
+                [
+                    {"repo": "homelab", "glob": "apps/whisper/service.yaml"},
+                    {"repo": "homelab", "glob": "apps/ingress-nginx/*.yaml"},
+                ]
+            ),
+        )
+        r = scan(decl=decl)
+        assert all(o.status is Status.CONSISTENT for o in find(r, "P4", "R8")) and len(find(r, "P4", "R8")) == 3
+
     def test_an_empty_legacy_field_claims_nothing(self):
         r = scan([add_file(CHAT, "k8s/extra.yaml", 'kind: Service\nspec:\n  loadBalancerIP: ""\n')])
         assert all(o.status is Status.CONSISTENT for o in find(r, "P4", "R8"))
