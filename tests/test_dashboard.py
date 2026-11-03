@@ -274,6 +274,19 @@ def test_structural_violations_are_rejected_even_when_the_digest_is_valid(base, 
         validate_report(forge(base, edit), "r")
 
 
+@pytest.mark.parametrize("stats", [["invalid"], "x", 3])
+def test_malformed_execution_stats_skip_the_file_and_never_abort_the_build(tmp_path, base, stats):
+    bad = copy.deepcopy(base)
+    bad["execution"]["stats"] = stats  # execution is outside the digest: only the structural check can catch it
+    with pytest.raises(ReportError, match="stats"):
+        validate_report(bad, "r")
+    src = tmp_path / "in"
+    write(src, "good.json", base)
+    write(src, "bad.json", bad)
+    result = build_dashboard(src, tmp_path / "out")
+    assert result.reports == 1 and [s.file for s in result.skipped] == ["bad.json"]
+
+
 def test_a_run_key_that_contradicts_the_inputs_is_rejected(base):
     bad = copy.deepcopy(base)
     bad["execution"]["run_key"] = "0" * 32

@@ -192,6 +192,9 @@ def _check_execution(exe: Mapping[str, Any], key: str, path: str) -> None:
         isinstance(v, list) and all(isinstance(x, str) for x in v) for v in history.values()
     ):
         _fail(f"{path}.history", "must map an event to a list of fingerprints")
+    stats = exe.get("stats")
+    if stats is not None and not (isinstance(stats, dict) and all(isinstance(k, str) for k in stats)):
+        _fail(f"{path}.stats", "must be an object or null")
     recorded = exe.get("run_key")
     if recorded is not None and recorded != key:
         _fail(f"{path}.run_key", "does not match the run identity of the report's inputs and result")
