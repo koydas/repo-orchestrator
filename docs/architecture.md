@@ -1,6 +1,6 @@
 # Architecture
 
-> **Status: proposed design. Nothing described here is implemented.**
+> **Status: M1 is implemented** (C1 Collector, C2 Relationship graph, C3 Policy engine with P1–P6, the M1 subset of C7, the run store); see [M1](m1/README.md) for the data flow as built. **C4, C5, C6 and everything labelled M2–M5 are proposed design.** Components marked *M1* below describe what exists; the rest is intent.
 
 Conceptual architecture of `repo-orchestrator`. The components below are **logical responsibilities inside one Python package and one process**, not services. Decisions: [ADR index](adr/README.md).
 
@@ -50,7 +50,12 @@ flowchart LR
     gate --> out
     col & eng & inv & gate <--> store
     human -- "edits by PR" --> decl
+
+    classDef m1 fill:#d1fae5,stroke:#047857,color:#064e3b
+    class col,grf,eng,store m1
 ```
+
+Green components are implemented in M1; C7 is implemented as report assembly and file output only (no review gate, no human decisions recorded). The others are proposed.
 
 No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007-read-only-operation-and-human-gated-remediation.md)).
 
@@ -63,6 +68,7 @@ No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007
 - **Outputs:** pinned snapshots, Artifacts.
 - **Boundary:** the only component that talks to GitHub. Read-only token. Retries transient errors with bounded backoff; a repository that cannot be fetched marks every policy touching it `cannot_evaluate` for the run.
 - **Deterministic.**
+- **M1:** `collector/`. Resolves each repository (default-branch HEAD or an explicit SHA, verified to exist and to be public), takes one recursive tree listing, fetches only the declared artifacts as git blobs verified against their ids, into a `(repository, SHA, path)` cache that is also the offline fixture format. Bounded attempts, request budget and sizes. A failure becomes a `Missing` record, then `cannot_evaluate`: never a pass. No PR heads yet.
 
 ### C2 Relationship graph
 
@@ -70,6 +76,7 @@ No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007
 - **Outputs:** an in-memory typed graph; proposed relationships for the report.
 - **Boundary:** observed and inferred relationships are reported, never traversed, until a human declares them ([ADR-0002](adr/0002-explicit-typed-relationship-model.md)).
 - **Deterministic.**
+- **M1:** `declarations.py`, `graph.py`. Declared relationships only, validated at load; observed and inferred edges are held as proposals and never evaluated. Observers are not implemented.
 
 ### C3 Policy engine
 
@@ -77,6 +84,7 @@ No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007
 - **Outputs:** findings (`candidate` → `confirmed` / `needs_validation` / `insufficient_evidence` / `dismissed` / `excepted`), policy conflicts, `cannot_evaluate` records.
 - **Boundary:** the only component that sets a finding's verification status. Policies are Python functions with declared metadata; no policy DSL.
 - **Deterministic.**
+- **M1:** `policies/`, `engine.py`. P1–P6; applicability and precedence by scope and aspect; expiring exceptions; repository authorities (`policy_conflict`); `policy_clarification` for ambiguous applicability; fingerprints; every piece of evidence re-verified by code. Reasoning pre-filters and lifecycle states other than the deterministic ones are not implemented. Outcome vocabulary: [ADR-0011](adr/0011-m1-outcome-contracts-and-reproducible-reports.md).
 
 ### C4 Impact analyzer
 
@@ -100,10 +108,11 @@ No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007
 
 - **Does:** assemble the report, pause for human triage where the workflow requires it, record human decisions (acknowledge, dismiss, request exception), write the report files.
 - **Boundary:** in the MVP, writes only to the local filesystem and the run store.
+- **M1:** `report.py`, `runner.py`, `cli.py`: Markdown and JSON reports (semantic part with a digest, execution metadata apart), console summary, exit codes. No pause for triage: W4 is manual.
 
 ### Run store
 
-SQLite file plus snapshot cache ([ADR-0008](adr/0008-git-declarations-and-local-sqlite-state.md)): findings by fingerprint with history, Run Records, checkpoints.
+SQLite file plus snapshot cache ([ADR-0008](adr/0008-git-declarations-and-local-sqlite-state.md)): findings by fingerprint with history, Run Records, checkpoints. **M1:** `store.py` keeps runs (idempotent by input-and-result digest), outcomes and finding history; no checkpoints (no investigation yet).
 
 ## Data flow
 
@@ -121,7 +130,7 @@ SQLite file plus snapshot cache ([ADR-0008](adr/0008-git-declarations-and-local-
 ## Orchestration strategy
 
 - **S0** (first implementation activity, before or alongside M1): an isolated, throwaway LangGraph design-validation spike outside the core package ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5), executed in [`prototypes/langgraph-spike`](../prototypes/langgraph-spike/README.md) ([architecture](../prototypes/langgraph-spike/docs/architecture.md), [results](../prototypes/langgraph-spike/docs/results.md)). The core never imports it.
-- **M1–M2:** a plain function pipeline: `collect → build_graph → evaluate → (impact) → report`. One command, no framework.
+- **M1–M2:** a plain function pipeline: `collect → build_graph → evaluate → (impact) → report`. One command, no framework. **M1 implements it** as `runner.run_scan` (without the impact step); the engine imports neither the S0 spike nor LangGraph, and a test enforces it.
 - **M3:** the investigation and approval part becomes a LangGraph graph whose nodes call the same functions, on the design S0 validated (or the hand-written fallback if S0 failed). The graph is specified in [workflows.md](workflows.md#langgraph-workflow).
 
 Why not a simpler pipeline throughout: once investigations exist, the run must survive LLM failures per candidate, budget exhaustion, and human pauses of arbitrary length. Written by hand, that is a resumable state machine with a persisted status per candidate; LangGraph provides it. Before investigations exist, it provides nothing the pipeline needs, which is why S0 tests it in isolation instead of in the core.

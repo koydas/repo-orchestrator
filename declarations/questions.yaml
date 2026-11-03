@@ -1,0 +1,28 @@
+# Unanswered owner decisions (docs/research/ecosystem-baseline.md → Unanswered questions).
+# An open question is never decided by the engine: policies that depend on one report it on their outcomes.
+version: 1
+questions:
+  - id: Q1
+    status: open
+    text: "Which repositories are inside ADR-018's 'worked on with Claude Code' scope (H1)?"
+    effect: "P6 reports ollama-chat and gitops-homelab as policy_clarification, never as findings."
+  - id: Q2
+    status: open
+    text: "What is the counting rule for public ADR counts: all numbered files, Accepted only, or index entries (D2, H6)?"
+    effect: "P1 counts numbered ADR files (provisional default) and cross-checks the index; a claim equal to either count is a policy_clarification, otherwise a finding that names Q2."
+  - id: Q3
+    status: open
+    text: "Should ADR-018's 'identical file' sentence be read as 'identical plugin keys' (N2)?"
+    effect: "P6 reports extra settings keys (permissions, hooks) as policy_clarification; the reading is the file_identity parameter."
+  - id: Q4
+    status: open
+    text: "When a decision in repository B changes a fact recorded in an accepted ADR of repository A, does A record anything (N4)?"
+    effect: "No M1 policy depends on it: accepted ADRs are never compared with living documents."
+  - id: Q5
+    status: open
+    text: "Is there an owner-intended home for cross-repository decisions (H5)?"
+    effect: "No M1 policy depends on it."
+  - id: Q6
+    status: open
+    text: "Are private repositories ever in scope? The baseline covers public repositories only."
+    effect: "The collector refuses a private repository and reports cannot_evaluate (private_repository_out_of_scope)."

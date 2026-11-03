@@ -1,0 +1,41 @@
+# Policy parameters and authorities (docs/coherence-model.md → MVP policy catalog). The checks are Python functions; what is
+# declared here is reviewed like any declaration. `authority` artifacts are resolved at the pinned revision before a policy
+# runs; an unresolved authority makes the policy `cannot_evaluate` for the run. `repo: orchestrator` is this repository.
+version: 1
+policies:
+  P1:
+    authority:
+      - {repo: profile, path: CLAUDE.md, quote: "must match the repos' own READMEs"}
+    # Counting rules whose choice is an open owner decision: a finding that depends on them names the question.
+    provisional_rules: {numbered_adr_files: Q2}
+  P2:
+    authority:
+      - {repo: adt, path: docs/adr/ADR-017-loop-insights-command.md, quote: "`schema_version` must be the supported integer"}
+      - {repo: adl, path: docs/adr/0047-findings-export-and-lever-table.md, quote: "a consumer rejects a version it does not know"}
+  P3:
+    authority:
+      - {repo: chat, path: docs/adr/0009-fixed-chat-mode-automatic-model-routing.md, quote: "TEXT_MODEL"}
+  P4:
+    authority:
+      - {repo: homelab, path: docs/adr/0008-metallb-config-in-git.md, quote: "IPAddressPool"}
+  P5:
+    authority:
+      - {repo: orchestrator, path: docs/adr/0001-cross-repository-coherence-as-product-boundary.md}
+  P6:
+    authority:
+      - {repo: adt, path: docs/adr/ADR-018-consumer-repo-adoption.md, quote: "Every repository worked on with Claude Code declares the plugin"}
+    settings_path: .claude/settings.json
+    skills_dir: .claude/skills
+    # Exactly the two keys of ai-dev-tools ADR-013 §2 / ADR-018 §1.
+    plugin_keys:
+      extraKnownMarketplaces:
+        ai-dev-tools: {source: {source: github, repo: koydas/ai-dev-tools}}
+      enabledPlugins:
+        "ai-dev-tools@ai-dev-tools": true
+    # How to read ADR-018's "The file is identical across repos" (Q3): undecided | exact_file | plugin_keys_only.
+    file_identity: undecided
+    adopter_table: {repo: adt, path: docs/consumer-repos.md, heading: Current adopters, repo_column: Repo, skills_column: Skills}
+
+# A repository's own authority that governs a subject a wider policy would otherwise judge (docs/coherence-model.md → Precedence 1).
+# A matching failure becomes a policy_conflict for a human, never a finding. None is declared at the baseline.
+repository_authorities: []

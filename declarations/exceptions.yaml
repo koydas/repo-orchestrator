@@ -1,0 +1,5 @@
+# Intentional exceptions (docs/coherence-model.md → Intentional exceptions). Every field is required; an exception without
+# a resolvable authority, an owner or a future review date is invalid and not applied. No wildcard over repositories.
+# None is declared at the baseline: N2 is a policy clarification, not an exception.
+version: 1
+exceptions: []

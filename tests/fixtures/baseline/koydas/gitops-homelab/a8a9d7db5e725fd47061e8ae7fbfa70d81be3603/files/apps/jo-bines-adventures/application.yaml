@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jo-bines-adventures
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: https://github.com/koydas/jo-bines-adventures.git
+    targetRevision: master
+    path: web/k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jo-bines-adventures
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

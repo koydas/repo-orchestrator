@@ -1,0 +1,71 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ollama
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: https://helm.otwld.com/
+    chart: ollama
+    targetRevision: 1.68.0
+    helm:
+      valuesObject:
+        runtimeClassName: nvidia
+        service:
+          type: LoadBalancer
+        persistentVolume:
+          enabled: true
+          storageClass: microk8s-hostpath
+          size: 40Gi
+        # extraEnv is a chart-root key, NOT nested under ollama: -- confirmed via
+        # `helm show values otwld/ollama --version 1.68.0`. It was misplaced under
+        # ollama.extraEnv since ADR-0017, which meant OLLAMA_KEEP_ALIVE=30s was
+        # silently never applied (Helm ignores unrecognized values keys with no
+        # error) -- the ollama Deployment hadn't changed generation since initial
+        # install on 2026-07-23, still running on the chart's 5-minute default.
+        # Caught while investigating the 2026-07-30 OOM incident (ADR-0019).
+        extraEnv:
+          - name: OLLAMA_KEEP_ALIVE
+            value: "30s"
+          # Forces one model resident at a time instead of Ollama trying
+          # to keep the previous model warm alongside a newly-requested
+          # one. On the GTX 1060's 6GB, loading qwen2.5vl:3b (vision)
+          # while llama3.1:8b-instruct-q4_0 (text) was still loaded blew
+          # past available VRAM (further squeezed by whisper's own ~1.3GB
+          # footprint) and crashed llama-server with a CUDA OOM -- see
+          # 2026-07-30 incident. Costs a few extra seconds of reload time
+          # any time a conversation switches between text and image
+          # messages, in exchange for not crashing.
+          - name: OLLAMA_MAX_LOADED_MODELS
+            value: "1"
+        ollama:
+          gpu:
+            enabled: true
+            type: nvidia
+            number: 1
+          models:
+            # Edit this list and commit to bump/add the served model version.
+            pull:
+              - "llama3.1:8b-instruct-q4_0"
+              # qwen2.5:0.5b removed 2026-07-30: added in ADR-0004 to
+              # validate the models.pull flow, never actually consumed by
+              # an app -- only used ad hoc in the runbook's GPU smoke test,
+              # which now uses llama3.1:8b-instruct-q4_0 instead.
+              - "qwen2.5-coder:7b-instruct-q4_0"
+              # Vision model routed to by ollama-chat's VISION_MODEL
+              # (src/lib/conversations.js) whenever a request carries images.
+              # Was qwen2.5vl:3b; switched 2026-07-30 after it proved
+              # unreliable at recalling images across turns in a multi-image
+              # conversation -- see ollama-chat's ADR-0016.
+              - "llava:7b"
+            run: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ollama
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

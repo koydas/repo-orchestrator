@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama-chat
+  labels:
+    app: ollama-chat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama-chat
+  template:
+    metadata:
+      labels:
+        app: ollama-chat
+    spec:
+      containers:
+        - name: ollama-chat
+          # Tag is rewritten to the built commit SHA by the docker-publish
+          # workflow on every push to main; see docs/adr/0006.
+          image: ghcr.io/koydas/ollama-chat:2f1e6ad
+          env:
+            # Routed through homelab-gateway (not the backends directly) so
+            # its Prometheus metrics cover ollama-chat's traffic too; see
+            # gitops-homelab/apps/homelab-gateway. The gateway forwards each
+            # request on to whichever of ollama/whisper/piper it sniffs from
+            # the request content, at the same paths these proxies already use.
+            - name: OLLAMA_URL
+              value: http://homelab-gateway.homelab-gateway.svc.cluster.local:80
+            - name: WHISPER_URL
+              value: http://homelab-gateway.homelab-gateway.svc.cluster.local:80
+            - name: PIPER_URL
+              value: http://homelab-gateway.homelab-gateway.svc.cluster.local:80
+            # No ANTHROPIC_API_KEY here -- this app holds no Anthropic
+            # credential of its own; homelab-gateway does, and injects it
+            # before forwarding. See docs/adr/0019 and homelab-gateway's
+            # docs/adr/0004.
+            - name: CLAUDE_URL
+              value: http://homelab-gateway.homelab-gateway.svc.cluster.local:80
+          ports:
+            - containerPort: 8080
+            - containerPort: 8443
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: session-data
+              mountPath: /app/server/data
+            - name: tls-certs
+              mountPath: /app/certs
+              readOnly: true
+      volumes:
+        - name: session-data
+          persistentVolumeClaim:
+            claimName: ollama-chat-session
+        - name: tls-certs
+          secret:
+            # Self-signed cert created once out-of-band (never in Git) --
+            # see docs/adr/0012.
+            secretName: ollama-chat-tls

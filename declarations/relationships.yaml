@@ -1,0 +1,365 @@
+# Declared relationships R1-R11 (docs/research/ecosystem-baseline.md → Verified relationships), one edge per repository pair.
+# Direction follows docs/domain-model.md: `source` is the repository whose change affects `target`
+#   runtime_contract / deployment / shared_resource: source produces or provides, target consumes or shares
+#   documentary: source is the described repository, target makes the claims
+#   tooling_adoption: source publishes the tooling, target adopts it
+#   conceptual: source is the origin of the idea, target derives from it
+# Only `origin: declared` edges drive policies (ADR-0002 §3). The `contract` block is read by the policy named in its key.
+version: 1
+relationships:
+  # ---- R1: the profile describes five repositories (P1 counts, P5 references) ---------------------------------------
+  - id: R1.adl
+    baseline: R1
+    type: documentary
+    source: adl
+    target: profile
+    origin: declared
+    description: "Profile README describes autonomous-dev-loop (ADR and test counts)."
+    evidence: "profile CLAUDE.md:3; profile README.md:11; adl README.md:19"
+    anchors:
+      - {repo: profile, path: README.md, role: claimant}
+      - {repo: adl, path: README.md, role: upstream_claim}
+      - {repo: adl, path: docs/adr, role: counted}
+    contract:
+      counts:
+        claims:
+          - id: adrs
+            line_regex: '^\| \[`autonomous-dev-loop`\]'
+            value_regex: '(\d+) ADRs'
+            rule: numbered_adr_files
+            dir: docs/adr
+            upstream: {path: README.md, line_regex: 'Decided in writing', value_regex: '\[(\d+) ADRs\]'}
+            cross_checks:
+              - {rule: adr_index_entries, path: docs/adr/README.md}
+          - id: tests
+            line_regex: '^\| \[`autonomous-dev-loop`\]'
+            value_regex: '([\d,]+)\+ tests'
+            rule: tests_lower_bound
+      references:
+        - {repo: profile, path: README.md, role: living}
+  - id: R1.adt
+    baseline: R1
+    type: documentary
+    source: adt
+    target: profile
+    origin: declared
+    description: "Profile README describes ai-dev-tools (no count)."
+    evidence: "profile README.md:12"
+    anchors: [{repo: profile, path: README.md, role: claimant}]
+    contract:
+      counts: {claims: []}
+      references:
+        - {repo: profile, path: README.md, role: living}
+  - id: R1.ap
+    baseline: R1
+    type: documentary
+    source: ap
+    target: profile
+    origin: declared
+    description: "Profile README describes agent-patterns (pattern count)."
+    evidence: "profile README.md:13; ap README.md:3"
+    anchors:
+      - {repo: profile, path: README.md, role: claimant}
+      - {repo: ap, path: README.md, role: upstream_claim}
+      - {repo: ap, path: patterns, role: counted}
+    contract:
+      counts:
+        claims:
+          - id: patterns
+            line_regex: '^\| \[`agent-patterns`\]'
+            value_regex: '(\d+) multi-agent patterns'
+            rule: pattern_dirs
+            dir: patterns
+            upstream: {path: README.md, line_regex: '^\*\*\d+ patterns', value_regex: '^\*\*(\d+) patterns'}
+      references:
+        - {repo: profile, path: README.md, role: living}
+  - id: R1.homelab
+    baseline: R1
+    type: documentary
+    source: homelab
+    target: profile
+    origin: declared
+    description: "Profile README describes gitops-homelab (ADR and incident counts)."
+    evidence: "profile README.md:19; homelab docs/runbook.md:129"
+    anchors:
+      - {repo: profile, path: README.md, role: claimant}
+      - {repo: homelab, path: docs/adr, role: counted}
+      - {repo: homelab, path: docs/runbook.md, role: counted}
+    contract:
+      counts:
+        claims:
+          - id: adrs
+            line_regex: '^\| \[`gitops-homelab`\]'
+            value_regex: '(\d+) ADRs'
+            rule: numbered_adr_files
+            dir: docs/adr
+          - id: incidents
+            line_regex: '^\| \[`gitops-homelab`\]'
+            value_regex: '(\d+) incidents'
+            rule: h3_under_h2
+            path: docs/runbook.md
+            section: Incidents Hit While Building This
+      references:
+        - {repo: profile, path: README.md, role: living}
+  - id: R1.chat
+    baseline: R1
+    type: documentary
+    source: chat
+    target: profile
+    origin: declared
+    description: "Profile README describes ollama-chat (no count)."
+    evidence: "profile README.md:20"
+    anchors: [{repo: profile, path: README.md, role: claimant}]
+    contract:
+      counts: {claims: []}
+      references:
+        - {repo: profile, path: README.md, role: living}
+
+  # ---- R2, R3: JSON contracts (P2) -----------------------------------------------------------------------------------
+  - id: R2
+    baseline: R2
+    type: runtime_contract
+    source: adl
+    target: adt
+    origin: declared
+    description: "findings.json: produced by autonomous-dev-loop, consumed by ai-dev-tools /loop-insights."
+    evidence: "adl scripts/lib/findings_export.mjs:6; adt scripts/loop-insights.mjs:13,110; adt configs/meta-loop.yaml:3"
+    anchors:
+      - {repo: adl, path: scripts/lib/findings_export.mjs, role: producer}
+      - {repo: adt, path: scripts/loop-insights.mjs, role: consumer}
+    contract:
+      json:
+        document: findings.json
+        mode: producer_consumer
+        producer:
+          version: {kind: js_const_int, repo: adl, path: scripts/lib/findings_export.mjs, name: FINDINGS_SCHEMA_VERSION}
+          keys:
+            kind: js_object_keys
+            repo: adl
+            path: scripts/lib/findings_export.mjs
+            after: 'export function buildFindingsExport'
+            literal: 'return\s*\{'
+        consumer:
+          version: {kind: js_const_int, repo: adt, path: scripts/loop-insights.mjs, name: SUPPORTED_SCHEMA_VERSION}
+          # what the consumer accepts is decided by its guard, not by the object it returns
+          acceptance:
+            kind: js_guard
+            repo: adt
+            path: scripts/loop-insights.mjs
+            after: 'export function parseExport'
+            subject: raw.schema_version
+          keys:
+            kind: js_object_keys
+            repo: adt
+            path: scripts/loop-insights.mjs
+            after: 'export function parseExport'
+            literal: 'return\s*\{'
+  - id: R3
+    baseline: R3
+    type: runtime_contract
+    source: adl
+    target: adt
+    origin: declared
+    description: "status.json: same five keys written by both dashboards, kept equal by convention."
+    evidence: "adt scripts/build-dashboard.mjs:168-171; adl scripts/lib/findings_export.mjs:48,62"
+    anchors:
+      - {repo: adl, path: scripts/lib/findings_export.mjs, role: producer}
+      - {repo: adt, path: scripts/build-dashboard.mjs, role: producer}
+    contract:
+      json:
+        document: status.json
+        mode: peer
+        a:
+          version: {kind: js_const_int, repo: adl, path: scripts/lib/findings_export.mjs, name: STATUS_SCHEMA_VERSION}
+          keys:
+            kind: js_object_keys
+            repo: adl
+            path: scripts/lib/findings_export.mjs
+            after: 'export function buildStatus'
+            literal: 'return\s*\{'
+        b:
+          version:
+            kind: js_object_value
+            repo: adt
+            path: scripts/build-dashboard.mjs
+            after: 'export function statusJson'
+            literal: 'JSON\.stringify\(\{'
+            key: schema_version
+          keys:
+            kind: js_object_keys
+            repo: adt
+            path: scripts/build-dashboard.mjs
+            after: 'export function statusJson'
+            literal: 'JSON\.stringify\(\{'
+
+  # ---- R4: conceptual (no M1 policy) ---------------------------------------------------------------------------------
+  - id: R4.adl
+    baseline: R4
+    type: conceptual
+    source: adl
+    target: ap
+    origin: declared
+    description: "agent-patterns names autonomous-dev-loop as a place its patterns run."
+    evidence: "ap README.md:5,30-44"
+  - id: R4.adt
+    baseline: R4
+    type: conceptual
+    source: adt
+    target: ap
+    origin: declared
+    description: "agent-patterns names ai-dev-tools as a place its patterns run."
+    evidence: "ap README.md:5,30-44"
+
+  # ---- R5: plugin adoption (P6) --------------------------------------------------------------------------------------
+  - id: R5.adl
+    baseline: R5
+    type: tooling_adoption
+    source: adt
+    target: adl
+    origin: declared
+    description: "autonomous-dev-loop declares the ai-dev-tools plugin (ADR-018)."
+    evidence: "adt docs/adr/ADR-018-consumer-repo-adoption.md:12; adl .claude/settings.json; adt docs/consumer-repos.md"
+    anchors: [{repo: adl, path: .claude/settings.json, role: adopter}, {repo: adt, path: docs/consumer-repos.md, role: registry}]
+  - id: R5.ap
+    baseline: R5
+    type: tooling_adoption
+    source: adt
+    target: ap
+    origin: declared
+    description: "agent-patterns declares the ai-dev-tools plugin (ADR-018)."
+    evidence: "adt docs/adr/ADR-018-consumer-repo-adoption.md:12; ap .claude/settings.json"
+    anchors: [{repo: ap, path: .claude/settings.json, role: adopter}, {repo: adt, path: docs/consumer-repos.md, role: registry}]
+  - id: R5.profile
+    baseline: R5
+    type: tooling_adoption
+    source: adt
+    target: profile
+    origin: declared
+    description: "The profile repository declares the ai-dev-tools plugin (ADR-018)."
+    evidence: "adt docs/adr/ADR-018-consumer-repo-adoption.md:12; profile .claude/settings.json"
+    anchors: [{repo: profile, path: .claude/settings.json, role: adopter}, {repo: adt, path: docs/consumer-repos.md, role: registry}]
+  - id: R5.fullstack-pilot
+    baseline: R5
+    type: tooling_adoption
+    source: adt
+    target: fullstack-pilot
+    origin: declared
+    description: "fullstack-pilot carries both plugin keys (baseline R5); outside the M1 repository scope."
+    evidence: "adt docs/consumer-repos.md (Current adopters)"
+  - id: R5.sync-engine
+    baseline: R5
+    type: tooling_adoption
+    source: adt
+    target: sync-engine
+    origin: declared
+    description: "sync-engine carries both plugin keys (baseline R5); outside the M1 repository scope."
+    evidence: "adt docs/consumer-repos.md (Current adopters)"
+  - id: R5.homelab
+    baseline: H1
+    type: tooling_adoption
+    source: adt
+    target: homelab
+    origin: declared
+    applicability: undetermined
+    open_question: Q1
+    description: "gitops-homelab has repository skills but declares no plugin; ADR-018 scope undecided (H1)."
+    evidence: "homelab .claude/skills/; adt docs/adr/ADR-018-consumer-repo-adoption.md:12"
+    anchors: [{repo: homelab, path: .claude/settings.json, role: adopter}]
+  - id: R5.chat
+    baseline: H1
+    type: tooling_adoption
+    source: adt
+    target: chat
+    origin: declared
+    applicability: undetermined
+    open_question: Q1
+    description: "ollama-chat has repository skills but declares no plugin; ADR-018 scope undecided (H1)."
+    evidence: "chat .claude/skills/; adt docs/adr/ADR-018-consumer-repo-adoption.md:12"
+    anchors: [{repo: chat, path: .claude/settings.json, role: adopter}]
+
+  # ---- R6: deployment (impact analysis only; no M1 policy) --------------------------------------------------------
+  - id: R6
+    baseline: R6
+    type: deployment
+    source: homelab
+    target: chat
+    origin: declared
+    description: "gitops-homelab deploys ollama-chat through an ArgoCD Application on chat's k8s/ directory."
+    evidence: "homelab apps/ollama-chat/application.yaml:9; chat docs/adr/0006-gitops-deployment-via-ghcr.md"
+
+  # ---- R7: model tags (P3) ---------------------------------------------------------------------------------------
+  - id: R7
+    baseline: R7
+    type: runtime_contract
+    source: homelab
+    target: chat
+    origin: declared
+    description: "ollama-chat hard-codes the model tags that gitops-homelab must pull."
+    evidence: "chat src/lib/conversations.js:16-17; homelab apps/ollama/application.yaml:49-61"
+    anchors:
+      - {repo: chat, path: src/lib/conversations.js, role: consumer}
+      - {repo: homelab, path: apps/ollama/application.yaml, role: provider}
+    contract:
+      model_tags:
+        consumer:
+          - {kind: js_const_string, repo: chat, path: src/lib/conversations.js, name: TEXT_MODEL}
+          - {kind: js_const_string, repo: chat, path: src/lib/conversations.js, name: VISION_MODEL}
+        provider:
+          kind: yaml_path
+          repo: homelab
+          path: apps/ollama/application.yaml
+          yaml_path: spec.source.helm.valuesObject.ollama.models.pull
+
+  # ---- R8: MetalLB pool (P4) -------------------------------------------------------------------------------------
+  - id: R8
+    baseline: R8
+    type: shared_resource
+    source: homelab
+    target: chat
+    origin: declared
+    description: "One MetalLB pool defined in gitops-homelab; addresses claimed in gitops-homelab and ollama-chat."
+    evidence: "homelab apps/metallb-config/ipaddresspool.yaml:8; homelab apps/ingress-nginx/application.yaml:24; homelab apps/whisper/service.yaml:9; chat k8s/service.yaml"
+    anchors:
+      - {repo: homelab, path: apps/metallb-config/ipaddresspool.yaml, role: pool}
+      - {repo: chat, path: k8s/service.yaml, role: claim}
+    contract:
+      allocation:
+        pool: {repo: homelab, path: apps/metallb-config/ipaddresspool.yaml, yaml_path: spec.addresses}
+        annotation: metallb.io/loadBalancerIPs
+        claim_sources:
+          - {repo: homelab, glob: "apps/*/service.yaml"}
+          - {repo: homelab, glob: "apps/*/application.yaml"}
+          - {repo: chat, glob: "k8s/*.yaml"}
+
+  # ---- R9: ADR links from autonomous-dev-loop to ai-dev-tools (P5) -------------------------------------------------
+  - id: R9
+    baseline: R9
+    type: documentary
+    source: adt
+    target: adl
+    origin: declared
+    description: "autonomous-dev-loop docs/autonomy-levels.md links ai-dev-tools ADR-001, ADR-002 and ADR-009 by URL."
+    evidence: "adl docs/autonomy-levels.md:51-57"
+    anchors:
+      - {repo: adl, path: docs/autonomy-levels.md, role: claimant}
+    contract:
+      references:
+        - {repo: adl, path: docs/autonomy-levels.md, role: living}
+
+  # ---- R10, R11: conceptual (no M1 policy) -----------------------------------------------------------------------
+  - id: R10
+    baseline: R10
+    type: conceptual
+    source: adl
+    target: chat
+    origin: declared
+    description: "ollama-chat's new-adr skill is modeled after autonomous-dev-loop's."
+    evidence: "chat .claude/skills/new-adr/SKILL.md:80"
+  - id: R11
+    baseline: R11
+    type: conceptual
+    source: adl
+    target: orchestrator
+    origin: declared
+    description: "autonomous-dev-loop ADR-0039 is the LangGraph precedent for this project (ADR-0005)."
+    evidence: "adl docs/adr/0039-langgraph-bounded-autofix-prototype.md"

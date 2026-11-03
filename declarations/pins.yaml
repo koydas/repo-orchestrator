@@ -1,0 +1,13 @@
+# Named revision sets. `--revisions baseline` pins the analyzed repositories to the ecosystem baseline
+# (docs/research/ecosystem-baseline.md → Revisions). Without a set, every repository is read at its default-branch HEAD.
+version: 1
+sets:
+  baseline:
+    description: "Ecosystem baseline, default-branch HEADs read on 2026-10-31"
+    revisions:
+      adl: 1607f6107b1f50f4e9baa1916a187c7bc16ca18a
+      adt: 62f30ed888201deb713126db90975983c4d6fab0
+      ap: 6d00841fc67d0dbeb3e35e7c2109d201b3979925
+      profile: c43e48bbb4ce6b70ae70e8652ef05f64a23fcadb
+      homelab: a8a9d7db5e725fd47061e8ae7fbfa70d81be3603
+      chat: 1693c3f791a6ebe8dae2cfb90ccc4b168327ae0e
