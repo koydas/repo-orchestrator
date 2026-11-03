@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ollama
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: https://helm.otwld.com/
+    chart: ollama
+    targetRevision: 1.68.0
+    helm:
+      valuesObject:
+        runtimeClassName: nvidia
+        service:
+          type: LoadBalancer
+        persistentVolume:
+          enabled: true
+          storageClass: microk8s-hostpath
+          size: 40Gi
+        ollama:
+          gpu:
+            enabled: true
+            type: nvidia
+            number: 1
+          extraEnv:
+            - name: OLLAMA_KEEP_ALIVE
+              value: "30s"
+          models:
+            # Edit this list and commit to bump/add the served model version.
+            pull:
+              - "llama3.1:8b-instruct-q4_0"
+              - "qwen2.5:0.5b"
+              - "qwen2.5-coder:7b-instruct-q4_0"
+            run: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ollama
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

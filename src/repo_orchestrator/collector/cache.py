@@ -6,8 +6,10 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from typing import cast
 
 from ..models import Cause
+from .pr import PullRequest, PullRequestSource, fixture_json, parse_fixture
 from .source import SHA_RE, SnapshotSource, SourceError, Tree, TreeEntry, git_blob_sha, safe_relative_path
 
 
@@ -32,6 +34,45 @@ class CachingSource:
         if ref is not None and SHA_RE.match(ref):
             return ref
         raise SourceError(Cause.NOT_CACHED, f"offline: cannot resolve moving ref {ref or 'HEAD'} of {slug}; pin a SHA")
+
+    # -- pull requests (M2) ----------------------------------------------------------------------------
+    def _pr_dir(self, slug: str, number: int) -> Path:
+        owner, _, name = slug.partition("/")
+        if not (safe_relative_path(owner) and safe_relative_path(name)) or number < 1:
+            raise SourceError(Cause.FETCH_FAILED, f"unsafe cache key {slug}#{number}")
+        return self._root / owner / name / "pulls" / str(number)
+
+    def pull_request(self, slug: str, number: int, head_sha: str | None = None) -> PullRequest:
+        """Online: always asks the inner source (a PR is mutable) and records the answer under its head SHA, which makes the
+        record immutable. Offline: the recorded answer; several recorded heads need an explicit ``head_sha``."""
+        directory = self._pr_dir(slug, number)
+        if self._inner is not None:
+            inner = self._inner
+            if not hasattr(inner, "pull_request"):
+                raise SourceError(Cause.FETCH_FAILED, "the underlying source cannot read pull requests")
+            pr: PullRequest = cast(PullRequestSource, inner).pull_request(slug, number, head_sha)
+            self._atomic_write(directory / f"{pr.head_sha}.json", fixture_json(pr).encode("utf-8"))
+            return pr
+        if head_sha is not None and not SHA_RE.match(head_sha):
+            raise SourceError(Cause.FETCH_FAILED, f"{head_sha!r} is not a 40-character commit SHA")
+        recorded = sorted(directory.glob("*.json")) if directory.is_dir() else []
+        if head_sha is not None:
+            recorded = [p for p in recorded if p.name == f"{head_sha}.json"]
+        if not recorded:
+            raise SourceError(Cause.NOT_CACHED, f"offline: no recorded pull request {slug}#{number}")
+        if len(recorded) > 1:
+            heads = ", ".join(p.stem[:12] for p in recorded)
+            raise SourceError(
+                Cause.NOT_CACHED, f"offline: {slug}#{number} has several recorded heads ({heads}); pass --head-sha"
+            )
+        try:
+            raw = recorded[0].read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise SourceError(Cause.FETCH_FAILED, f"unreadable pull request record {recorded[0].name}") from exc
+        pr = parse_fixture(slug, number, raw)
+        if pr.head_sha != recorded[0].stem:
+            raise SourceError(Cause.INTEGRITY, f"{recorded[0].name} records head {pr.head_sha[:12]}")
+        return pr
 
     def tree(self, slug: str, sha: str) -> Tree:
         path = self._dir(slug, sha) / "tree.json"

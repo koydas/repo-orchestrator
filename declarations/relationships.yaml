@@ -277,7 +277,7 @@ relationships:
     evidence: "chat .claude/skills/; adt docs/adr/ADR-018-consumer-repo-adoption.md:12"
     anchors: [{repo: chat, path: .claude/settings.json, role: adopter}]
 
-  # ---- R6: deployment (impact analysis only; no M1 policy) --------------------------------------------------------
+  # ---- R6: deployment (impact analysis only; no policy evaluates it) --------------------------------------------------------
   - id: R6
     baseline: R6
     type: deployment
@@ -285,7 +285,11 @@ relationships:
     target: chat
     origin: declared
     description: "gitops-homelab deploys ollama-chat through an ArgoCD Application on chat's k8s/ directory."
-    evidence: "homelab apps/ollama-chat/application.yaml:9; chat docs/adr/0006-gitops-deployment-via-ghcr.md"
+    evidence: "homelab apps/ollama-chat/application.yaml:9-11; chat docs/adr/0006-gitops-deployment-via-ghcr.md"
+    # anchors are read by the impact analyzer (M2): a change to the deployed directory or to the Application can break the other side
+    anchors:
+      - {repo: homelab, path: apps/ollama-chat/application.yaml, role: manifest}
+      - {repo: chat, path: k8s, role: deployed}
 
   # ---- R7: model tags (P3) ---------------------------------------------------------------------------------------
   - id: R7

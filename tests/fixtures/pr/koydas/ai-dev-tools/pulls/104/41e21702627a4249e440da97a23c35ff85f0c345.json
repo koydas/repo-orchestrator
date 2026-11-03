@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "62f30ed888201deb713126db90975983c4d6fab0"
+  },
+  "changed_files": 1,
+  "files": [
+    {
+      "path": "docs/adr/ADR-001-human-gate.md",
+      "previous_path": "docs/adr/ADR-001-human-as-gate.md",
+      "status": "renamed"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/u4",
+    "sha": "41e21702627a4249e440da97a23c35ff85f0c345",
+    "slug": "koydas/ai-dev-tools"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 104,
+  "schema_version": 1,
+  "slug": "koydas/ai-dev-tools",
+  "state": "open",
+  "synthetic": "U4: an ai-dev-tools ADR file is renamed"
+}

@@ -1,0 +1,144 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 87.19.1
+    helm:
+      valuesObject:
+        # The chart's largest CRDs (prometheuses, alertmanagers, etc.) exceed the
+        # 262144-byte last-applied-configuration annotation limit, and ArgoCD does not
+        # honor the Application-level ServerSideApply=true syncOption for a chart's own
+        # crds/ directory -- every auto-sync re-attempts a plain patch and fails. Those
+        # CRDs were installed once out-of-band (`kubectl apply --server-side
+        # --force-conflicts`, see runbook.md) and are left alone from here on.
+        crds:
+          enabled: false
+        prometheus:
+          prometheusSpec:
+            retention: 15d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: microk8s-hostpath
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+            # nvidia-dcgm-exporter (gpu-operator-resources namespace) isn't labeled for the
+            # chart's own release-scoped selector, and lives outside this Application's
+            # namespace — select all ServiceMonitors, in all namespaces, instead.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            serviceMonitorSelector: {}
+            serviceMonitorNamespaceSelector: {}
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+        prometheusOperator:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        kube-state-metrics:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        prometheus-node-exporter:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+        # These monitor kubeadm-style static control-plane pods (via new Services created
+        # in kube-system) that microk8s doesn't expose the same way; out of scope for the
+        # GPU-monitoring goal here, and would otherwise need kube-system write access.
+        kubeControllerManager:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        coreDns:
+          enabled: false
+        grafana:
+          service:
+            type: LoadBalancer
+          # Without this, Grafana's SQLite user DB (including the admin password's
+          # actual hash) lives on the pod's ephemeral filesystem and gets rebuilt from
+          # whatever the current admin secret holds at boot time -- which drifts across
+          # syncs (see runbook.md), locking users out after any pod restart.
+          persistence:
+            enabled: true
+            type: sts
+            storageClassName: microk8s-hostpath
+            accessModes: ["ReadWriteOnce"]
+            size: 1Gi
+          # The chart's own auto-generated Secret is not stable under ArgoCD: its
+          # `lookup()`-based reuse doesn't reliably hold, so the templated password
+          # value drifts on repeated syncs even with persistence enabled. Point at a
+          # Secret created once out-of-band instead (`kubectl create secret generic
+          # grafana-admin-credentials ...`, not in Git -- see runbook.md), so the chart
+          # never tries to compute/template a password value at all.
+          admin:
+            existingSecret: grafana-admin-credentials
+            userKey: admin-user
+            passwordKey: admin-password
+          # Grafana 13.1.1 (bundled by this chart) auto-preinstalls 3 "app" plugins at
+          # startup (Loki Explore, Pyroscope, Traces) that this repo has no matching
+          # datasource for -- pure wasted memory/bandwidth. Disabled to cut the baseline
+          # footprint instead of just raising the limit to cover them.
+          env:
+            GF_PLUGINS_PREINSTALL_DISABLED: "true"
+          # 256Mi was sized off older/lighter Grafana defaults and got OOMKilled in
+          # practice: confirmed via dmesg the container was already sitting at ~250Mi at
+          # steady state (before any interactive dashboard use), so any real usage pushed
+          # it over. See runbook.md.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # kube-prometheus-stack's largest CRDs (Prometheus, Alertmanager, ThanosRuler, ...)
+      # exceed the 262144-byte last-applied-configuration annotation limit under a plain
+      # apply -- the same class of issue already hit installing ArgoCD itself (see runbook.md).
+      - ServerSideApply=true

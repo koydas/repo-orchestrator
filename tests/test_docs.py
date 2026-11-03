@@ -83,22 +83,31 @@ def test_the_readme_counts_the_adrs_correctly():
 # ---- scope statements --------------------------------------------------------------------------------------------
 
 
-def test_claude_md_authorizes_m1_and_keeps_the_later_milestones_closed():
+def test_claude_md_authorizes_m1_and_m2_and_keeps_the_later_milestones_closed():
     text = read(ROOT / "CLAUDE.md")
-    assert "**M1 is authorized**" in text and "src/repo_orchestrator/" in text
+    assert "**M1 is authorized**" in text and "**M2 is authorized**" in text and "src/repo_orchestrator/" in text
     assert "**Not authorized yet:**" in text
-    for later in ("C4", "M2", "C5", "M3", "C6", "M4", "M5"):
-        assert later in text.split("**Not authorized yet:**")[1].split("\n")[0], later
+    closed = text.split("**Not authorized yet:**")[1].split("\n")[0]
+    for later in ("C5", "M3", "C6", "M4", "M5", "PR comments", "issue or PR creation", "any other GitHub write"):
+        assert later in closed, later
+    for opened in ("C4", "M2"):
+        assert opened not in closed, f"{opened} is authorized, it must not be listed as closed"
+    m2 = text.split("**M2 is authorized**")[1].split("- **M1 is authorized**")[0]
+    assert (
+        "never fails a PR gate by itself" in m2
+        and "no GitHub write of any kind" in m2
+        and "never writes to the baseline-scan finding history" in m2
+    )
     assert "no LLM call, no agent framework, no LangGraph" in text and "S0 spike remains isolated" in text
 
 
-def test_readme_milestone_table_marks_only_m1_as_implemented():
+def test_readme_milestone_table_marks_only_m1_and_m2_as_implemented():
     rows = {
         m.group(1): m.group(2)
         for m in re.finditer(r"^\| (M[0-5]|S0)[^|]*\|[^|]*\|([^|]*)\|$", read(ROOT / "README.md"), re.M)
     }
-    assert "Implemented" in rows["M1"]
-    for later in ("M2", "M3", "M4", "M5"):
+    assert "Implemented" in rows["M1"] and "Implemented" in rows["M2"]
+    for later in ("M3", "M4", "M5"):
         assert rows[later].strip() == "Not started", later
 
 

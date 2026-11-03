@@ -41,6 +41,8 @@ class RunOptions:
     scope: tuple[str, ...] | None = None  # repo ids; None = every analyzed repository
     as_of: date = field(default_factory=date.today)
     limits: Limits = field(default_factory=Limits)
+    # M2: evaluate only these relationship ids (the ones a pull request touches); None = every relationship (M1)
+    relationships: frozenset[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -180,10 +182,21 @@ class Engine:
     def _evaluable(self, rel: Relationship, selected: set[str]) -> bool:
         return self.graph.evaluable(rel) and rel.source in selected and rel.target in selected
 
-    def plan(self, selected: set[str]) -> list[ArtifactRequest]:
+    def relationship_policies(self, relationship_id: str) -> list[Policy]:
+        """The policies that apply to a relationship after precedence (empty: declared, no policy evaluates it)."""
+        return list(self.plan_by_rel[relationship_id][0])
+
+    def relationship_requests(self, rel: Relationship) -> list[ArtifactRequest]:
+        """Every artifact the applicable policies read for ``rel`` (the static footprint used by C4)."""
+        return [r for p in self.relationship_policies(rel.id) for r in p.requests(self.configs[p.meta.id], rel)]
+
+    def authority_refs(self, policy_id: str) -> list[AuthorityRef]:
+        return self._authorities(policy_id)
+
+    def plan(self, selected: set[str], only: frozenset[str] | None = None) -> list[ArtifactRequest]:
         requests: list[ArtifactRequest] = []
         for rel in self.graph.trusted():
-            if not self._evaluable(rel, selected):
+            if not self._evaluable(rel, selected) or (only is not None and rel.id not in only):
                 continue
             for p in self.plan_by_rel[rel.id][0]:
                 requests.extend(p.requests(self.configs[p.meta.id], rel))
@@ -203,17 +216,24 @@ class Engine:
         targets = [
             RepoTarget(rid, self.graph.repositories[rid].slug, options.revisions.get(rid)) for rid in sorted(selected)
         ]
-        snapshot = collect(source, targets, self.plan(selected), options.limits)
+        snapshot = collect(source, targets, self.plan(selected, options.relationships), options.limits)
         outcomes: list[Outcome] = []
         authorities: list[AuthorityResult] = []
         verified_policies: dict[str, bool] = {}
         coverage: list[Coverage] = []
         superseded: list[Superseded] = []
-        for pid in sorted(self.policies):
+        checked = (
+            set(self.policies)
+            if options.relationships is None
+            else {p.meta.id for r in options.relationships if r in self.plan_by_rel for p in self.plan_by_rel[r][0]}
+        )
+        for pid in sorted(checked):
             results = [self._check_authority(pid, a, snapshot) for a in self._authorities(pid)]
             authorities.extend(results)
             verified_policies[pid] = all(r.verified or r.note.startswith("declared") for r in results)
         for rel in self.graph.trusted():
+            if options.relationships is not None and rel.id not in options.relationships:
+                continue  # not selected by the caller (M2: untouched by the pull request); neither evaluated nor covered
             policies, dropped = self.plan_by_rel[rel.id]
             if not self._evaluable(rel, selected):
                 reason = (

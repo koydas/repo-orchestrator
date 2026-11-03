@@ -121,3 +121,61 @@ def test_the_s0_workflow_is_isolated_from_the_m1_package():
     )
     for path in (ROOT / "prototypes" / "langgraph-spike").rglob("*.py"):
         assert "repo_orchestrator" not in path.read_text(), f"{path} must not depend on the M1 package"
+
+
+# ---- M2 (CLAUDE.md: M2 is authorized, no GitHub write of any kind, no new network path inside evaluation) -------------
+
+M2_PURE = ["impact.py", "delta.py", "lifecycle.py", "pr_report.py", "pr_runner.py"]
+
+
+@pytest.mark.parametrize("name", M2_PURE)
+def test_the_m2_analysis_layers_do_no_io_of_their_own(name):
+    """C4, the delta, the PR report and the PR pipeline work on what a source hands them: no socket, no file, no database.
+    (Persistence is ``store.py``; the network is the collector package.)"""
+    path = SRC / name
+    text = path.read_text()
+    assert not imports(path) & {
+        "socket", "urllib.request", "urllib.error", "http", "sqlite3", "shutil", "tempfile", "subprocess", "os", "pathlib",
+    }, name  # fmt: skip
+    assert "open(" not in text and "read_text" not in text and "write_text" not in text, name
+
+
+def test_no_github_write_endpoint_exists_anywhere_in_the_source():
+    """No PR comment, review, status check, issue, label or PR creation: the only endpoints are the read-only ones."""
+    forbidden = (
+        "/comments",
+        "/reviews",
+        "/statuses",
+        "/check-runs",
+        "/issues",
+        "/labels",
+        "/merge",
+        "/dispatches",
+        "/forks",
+    )
+    for path in FILES:
+        text = path.read_text()
+        for fragment in forbidden:
+            assert fragment not in text, f"{path.name} mentions {fragment}"
+
+
+def test_the_client_requests_exactly_the_documented_read_endpoints():
+    import re
+
+    text = (SRC / "collector" / "github.py").read_text()
+    templates = set(re.findall(r'f"(/repos/[^"]+)"', text))
+    assert templates == {
+        "/repos/{slug}",
+        "/repos/{slug}/commits/{target}",
+        "/repos/{slug}/git/trees/{sha}?recursive=1",
+        "/repos/{slug}/git/blobs/{entry.blob_sha}",
+        "/repos/{slug}/pulls/{number}",  # M2; its /files sub-resource is built from it
+    }
+    assert 'method="GET"' in text and text.count("urllib.request.Request(") == 1
+
+
+def test_only_the_cli_and_the_runners_construct_the_github_client():
+    for path in FILES:
+        if path.name in {"cli.py", "github.py", "__init__.py"}:
+            continue
+        assert "GitHubSource(" not in path.read_text(), path.name

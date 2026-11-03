@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "1693c3f791a6ebe8dae2cfb90ccc4b168327ae0e"
+  },
+  "changed_files": 1,
+  "files": [
+    {
+      "path": "src/lib/conversations.js",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/u2",
+    "sha": "2967f0553f1d0e7138b370ce8fc049cf9d53b80d",
+    "slug": "koydas/ollama-chat"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 102,
+  "schema_version": 1,
+  "slug": "koydas/ollama-chat",
+  "state": "open",
+  "synthetic": "U2: VISION_MODEL llava:7b \u2192 llava:13b in ollama-chat"
+}

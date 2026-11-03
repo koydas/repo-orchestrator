@@ -1,0 +1,46 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "caa4db661a779f07b4166ac756f82589f64ae8f9"
+  },
+  "changed_files": 5,
+  "files": [
+    {
+      "path": "README.md",
+      "previous_path": null,
+      "status": "modified"
+    },
+    {
+      "path": "apps/gpu-time-slicing/configmap.yaml",
+      "previous_path": null,
+      "status": "added"
+    },
+    {
+      "path": "docs/adr/0016-onboard-whisper-piper-cpu-only.md",
+      "previous_path": null,
+      "status": "modified"
+    },
+    {
+      "path": "docs/adr/0017-whisper-gpu-with-keep-alive.md",
+      "previous_path": null,
+      "status": "added"
+    },
+    {
+      "path": "docs/adr/README.md",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "pull/1/head",
+    "sha": "cedf083e28bf835ec3f66a89e2e6d965545c9d20",
+    "slug": "koydas/gitops-homelab"
+  },
+  "kind": "pull_request",
+  "merged": true,
+  "number": 1,
+  "provenance": "recorded from a local git clone, not from the REST API: gitops-homelab #1, merged by merge commit 4752a863 (base = its first parent)",
+  "schema_version": 1,
+  "slug": "koydas/gitops-homelab",
+  "state": "closed"
+}

@@ -11,6 +11,8 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Any
 
+PR_RUN_KIND = "pr_impact"  # run kind of a pull-request analysis (store namespace and report ``kind``)
+
 
 class RelType(StrEnum):
     RUNTIME_CONTRACT = "runtime_contract"
@@ -92,6 +94,10 @@ class Cause:
     BUDGET_EXHAUSTED = "api_budget_exhausted"
     NOT_CACHED = "not_cached_offline"
     INTEGRITY = "integrity_mismatch"
+    PR_NOT_FOUND = "pull_request_not_found"
+    # change set (M2): the list of files a pull request changes is missing, incomplete or contradicted by the trees
+    PR_FILES_TRUNCATED = "pr_files_truncated"
+    PR_FILE_LIST_MISMATCH = "pr_file_list_mismatch"
     # artifact
     NOT_FOUND = "artifact_not_found"
     TOO_LARGE = "artifact_too_large"
@@ -123,16 +129,20 @@ _COLLECTION = {
     Cause.BUDGET_EXHAUSTED,
     Cause.NOT_CACHED,
     Cause.INTEGRITY,
+    Cause.PR_NOT_FOUND,
 }
+_CHANGE_SET = {Cause.PR_FILES_TRUNCATED, Cause.PR_FILE_LIST_MISMATCH}
 _ARTIFACT = {Cause.NOT_FOUND, Cause.TOO_LARGE, Cause.TREE_TRUNCATED, Cause.NOT_COLLECTED, Cause.AUTHORITY_UNRESOLVED}
 _PARSE = {Cause.PARSE_ERROR, Cause.UNSUPPORTED_SYNTAX}
 _LOCATOR = {Cause.LOCATOR_NO_MATCH, Cause.LOCATOR_AMBIGUOUS, Cause.LOCATOR_INVALID, Cause.REF_NOT_PINNED}
 
 
 def cause_class(cause: str) -> str:
-    """collection | artifact | parse | locator | by_design | internal."""
+    """collection | change_set | artifact | parse | locator | by_design | internal."""
     if cause in _COLLECTION:
         return "collection"
+    if cause in _CHANGE_SET:
+        return "change_set"
     if cause in _ARTIFACT:
         return "artifact"
     if cause in _PARSE:
