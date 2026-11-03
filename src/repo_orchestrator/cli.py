@@ -1,4 +1,4 @@
-"""Command line: ``repo-orchestrator scan`` and ``validate``.
+"""Command line: ``repo-orchestrator scan``, ``validate`` and ``dashboard``.
 
 Exit codes: 0 scan complete, no findings · 1 scan complete, findings detected · 2 evaluation incomplete (evidence could
 not be collected or decided; takes precedence over 1) · 3 configuration or runtime failure.
@@ -20,6 +20,7 @@ from .collector.cache import CachingSource
 from .collector.github import GitHubSource
 from .collector.snapshot import Limits
 from .collector.source import SnapshotSource
+from .dashboard import build_dashboard
 from .declarations import load_declarations
 from .engine import Engine, RunOptions
 from .models import ConfigError
@@ -70,6 +71,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--max-requests", type=int, default=400, help="GitHub API request budget for the run")
     s.add_argument("--quiet", action="store_true")
+    d = sub.add_parser("dashboard", help="render report.json files as a static, read-only HTML dashboard")
+    d.add_argument(
+        "--reports", type=Path, default=Path("reports"), help="directory searched recursively for report.json"
+    )
+    d.add_argument("--out", type=Path, default=Path("_site"), help="output directory (build into a fresh one)")
+    d.add_argument("--quiet", action="store_true")
     return p
 
 
@@ -167,6 +174,15 @@ def _scan(args: argparse.Namespace) -> int:
     return report.exit_code
 
 
+def _dashboard(args: argparse.Namespace) -> int:
+    result = build_dashboard(args.reports, args.out)
+    for skipped in result.skipped:
+        print(f"warning: skipped {skipped.file}: {skipped.reason}", file=sys.stderr)
+    if not args.quiet:
+        print(f"dashboard: {result.reports} report(s), {len(result.skipped)} skipped → {args.out}")
+    return OK
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
@@ -178,6 +194,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"declarations OK: {len(engine.graph.repositories)} repositories, {len(trusted)} relationships, {len(engine.policies)} policies"
             )
             return OK
+        if args.command == "dashboard":
+            return _dashboard(args)
         return _scan(args)
     except (ConfigError, DeterminismError) as exc:
         print(f"error: {exc}", file=sys.stderr)

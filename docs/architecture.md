@@ -55,7 +55,7 @@ flowchart LR
     class col,grf,eng,store m1
 ```
 
-Green components are implemented in M1; C7 is implemented as report assembly and file output only (no review gate, no human decisions recorded). The others are proposed.
+Green components are implemented in M1; C7 is implemented as report assembly and file output only (no review gate, no human decisions recorded). A static [dashboard](m1/dashboard.md) reads the resulting `report.json`; it is a consumer of C7's output, not a component ([ADR-0012](adr/0012-static-report-dashboard.md)). The others are proposed.
 
 No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007-read-only-operation-and-human-gated-remediation.md)).
 
