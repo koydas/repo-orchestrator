@@ -23,4 +23,6 @@ requests are old: the profile README states the current ADR and incident counts 
 they are `pre-existing` (correctly not blamed on the pull request). An *open* pull request is analyzed against the present, where
 this anachronism does not arise.
 
+Records are named `<head>.<base>.json`, like the cache writes them.
+
 Like `tests/fixtures/baseline`, these files are history: never edited to make a test pass.

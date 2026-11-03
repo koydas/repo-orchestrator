@@ -41,7 +41,7 @@ def pr_exit_code(semantic: Mapping[str, Any]) -> int:
 
 def _delta_row(d: Delta, base: ScanResult | None, head: ScanResult | None) -> dict[str, Any]:
     outcome = d.outcome
-    result = head if d.head is outcome else base
+    result = head if head is not None and any(o is outcome for o in head.outcomes) else base
     assert result is not None
     row = outcome_json(outcome, result)
     row["delta"] = {

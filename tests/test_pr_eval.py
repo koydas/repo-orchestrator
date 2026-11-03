@@ -13,7 +13,7 @@ import json
 import pytest
 
 from pr_cases import ADL, ADT, CASES, CHAT, PROFILE, PRCase
-from repo_orchestrator.collector.overlay import delete_path, replace_text
+from repo_orchestrator.collector.overlay import add_file, delete_path, rename_path, replace_text
 from repo_orchestrator.collector.source import SourceError
 from repo_orchestrator.models import ConfigError
 from repo_orchestrator.pr_report import render_pr_markdown
@@ -373,3 +373,25 @@ class TestReports:
     def test_the_m1_scan_report_is_unchanged_by_the_m2_code(self):
         s = scan().semantic
         assert "kind" not in s and "gate" not in s and s["schema_version"] == 1  # the M1 report keeps its own shape
+
+
+class TestRenamedSubjectKeepsBaseEvidenceInTheReport:
+    def test_a_resolved_finding_is_reported_with_its_base_identity_and_evidence(self):
+        """A Service that duplicates an address is renamed by the PR: the duplicate persists under a new fingerprint (locators
+        move), so the old finding is resolved and a new one introduced. The report must show the old fingerprint with the
+        *base* evidence for the resolved row, and the new one with head evidence for the introduced row."""
+        from pr_cases import HOMELAB, SERVICE_244
+
+        world_dup = (add_file(HOMELAB, "apps/oldsvc/service.yaml", SERVICE_244),)
+        case = PRCase(
+            "renamed_dup", HOMELAB, 960, (rename_path(HOMELAB, "apps/oldsvc/service.yaml", "apps/newsvc/service.yaml"),),
+            base=world_dup,
+        )  # fmt: skip
+        a = analyze(case, world=PRWorld(case, pr=case.pull_request()))
+        resolved, introduced = findings(a, "resolved"), findings(a, "introduced")
+        assert len(resolved) == 1 and len(introduced) == 1 and not findings(a, "pre_existing")
+        assert resolved[0]["fingerprint"] != introduced[0]["fingerprint"]
+        assert any("apps/oldsvc/service.yaml" in e["path"] for e in resolved[0]["evidence"])
+        assert any("apps/newsvc/service.yaml" in e["path"] for e in introduced[0]["evidence"])
+        assert all(e["sha"] == case.base_sha for e in resolved[0]["evidence"] if e["repo"] == "homelab")
+        assert all(e["sha"] == case.head_sha for e in introduced[0]["evidence"] if e["repo"] == "homelab")

@@ -144,7 +144,7 @@ CASES: dict[str, PRCase] = {
 
 def fixture_path(case: PRCase, root: Path = PR_FIXTURES) -> Path:
     owner, name = case.slug.split("/")
-    return root / owner / name / "pulls" / str(case.number) / f"{case.head_sha}.json"
+    return root / owner / name / "pulls" / str(case.number) / f"{case.head_sha}.{case.base_sha}.json"
 
 
 def write_fixtures(root: Path = PR_FIXTURES) -> list[Path]:

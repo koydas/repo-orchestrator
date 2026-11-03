@@ -5,7 +5,7 @@ only). This tool builds the same facts from a local clone of the PR repository: 
 command line (a merged pull request's base is the first parent of its merge commit), and the changed files from
 ``git diff --name-status -M``. It then runs the product's own analysis through the product's own
 :class:`~repo_orchestrator.collector.cache.CachingSource`, so exactly what the analysis reads is recorded in
-``<out>/<owner>/<name>/<sha>/`` and ``<out>/<owner>/<name>/pulls/<n>/<head>.json``. Repositories other than the PR repository
+``<out>/<owner>/<name>/<sha>/`` and ``<out>/<owner>/<name>/pulls/<n>/<head>.<base>.json``. Repositories other than the PR repository
 come from the committed baseline fixtures; their already-committed directories are removed from the capture.
 
 Only ``git`` read commands run, on a clone the caller made; nothing from the repository is executed or imported.
@@ -70,7 +70,9 @@ class GitRepoSource:
             return self.fallback.read(slug, sha, entry)
         return git(self.clone, "cat-file", "blob", entry.blob_sha)
 
-    def pull_request(self, slug: str, number: int, head_sha: str | None = None) -> PullRequest:
+    def pull_request(
+        self, slug: str, number: int, head_sha: str | None = None, base_sha: str | None = None
+    ) -> PullRequest:
         if (slug, number) != (self.pr.slug, self.pr.number):
             raise SourceError("pull_request_not_found", f"{slug}#{number}")
         return self.pr
@@ -126,7 +128,7 @@ def main() -> int:
         for name in [p for p in owner.iterdir() if p.is_dir()]:
             if not any(name.iterdir()):
                 name.rmdir()
-    record = capture / args.slug / "pulls" / str(args.number) / f"{head}.json"
+    record = capture / args.slug / "pulls" / str(args.number) / f"{head}.{base}.json"
     data = json.loads(record.read_text())
     data["provenance"] = "recorded from a local git clone, not from the REST API: " + (
         args.note or "head and base given by the recorder; changed files from git diff --name-status -M"

@@ -33,7 +33,16 @@ def test_the_usage_doc_options_exist_in_the_analyze_pr_command():
         re.findall(r"`(--[a-z-]+)", read(M2 / "usage.md").split("## `analyze-pr` options")[1].split("## Exit codes")[0])
     )
     assert documented <= flags
-    assert {"--revisions", "--pin", "--head-sha", "--output-dir", "--offline", "--as-of", "--state-db"} <= documented
+    assert {
+        "--revisions",
+        "--pin",
+        "--head-sha",
+        "--base-sha",
+        "--output-dir",
+        "--offline",
+        "--as-of",
+        "--state-db",
+    } <= documented
 
 
 def test_the_exit_codes_documented_for_analyze_pr_are_the_cli_codes():

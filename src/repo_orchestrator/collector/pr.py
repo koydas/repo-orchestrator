@@ -55,9 +55,11 @@ class PullRequest:
 
 
 class PullRequestSource(Protocol):
-    def pull_request(self, slug: str, number: int, head_sha: str | None = None) -> PullRequest:
-        """Resolve ``slug#number`` to head SHA, base SHA and changed files. ``head_sha`` selects among recorded heads
-        when reading offline; a live source ignores it."""
+    def pull_request(
+        self, slug: str, number: int, head_sha: str | None = None, base_sha: str | None = None
+    ) -> PullRequest:
+        """Resolve ``slug#number`` to head SHA, base SHA and changed files. ``head_sha`` and ``base_sha`` select among
+        recorded inputs when reading offline (the same head can be recorded with another base); a live source ignores them."""
 
 
 def _sha(value: Any, where: str) -> str:
@@ -118,7 +120,12 @@ def parse_pull_request(slug: str, number: int, meta: Any, files: Sequence[Any]) 
     )
 
 
-# ---- fixture format (the cache family: <root>/<owner>/<name>/pulls/<number>/<head sha>.json) ---------------------------
+def record_name(pr: PullRequest) -> str:
+    """One record per (head, base): the base can move without a new head, and the file list follows the pair."""
+    return f"{pr.head_sha}.{pr.base_sha}.json"
+
+
+# ---- fixture format (the cache family: <root>/<owner>/<name>/pulls/<number>/<head sha>.<base sha>.json) ---------------------------
 
 
 def fixture_json(pr: PullRequest, *, synthetic: str | None = None) -> str:

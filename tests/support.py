@@ -171,11 +171,13 @@ class PRWorld:
         self._head = OverlaySource(self._base_src, list(case.mutations))
         self.requests: list[str] = []
 
-    def pull_request(self, slug: str, number: int, head_sha: str | None = None) -> PullRequest:
+    def pull_request(
+        self, slug: str, number: int, head_sha: str | None = None, base_sha: str | None = None
+    ) -> PullRequest:
         self.requests.append(f"pull_request {slug}#{number}")
         if "pull_request" in self.fail:
             raise self.fail["pull_request"]
-        return self._pr or self._records.pull_request(slug, number, head_sha)
+        return self._pr or self._records.pull_request(slug, number, head_sha, base_sha)
 
     def resolve(self, slug: str, ref: str | None) -> str:
         if ref is None:
@@ -215,6 +217,7 @@ def analyze(
     decl: Declarations | None = None,
     store: Any = None,
     head_sha: str | None = None,
+    base_sha: str | None = None,
 ) -> PRAnalysis:
     decl = decl or load_decl()
     world = world or PRWorld(case)

@@ -159,7 +159,9 @@ class GitHubSource:
             raise SourceError(Cause.FETCH_FAILED, f"malformed JSON from {path}") from exc
 
     # -- PullRequestSource (M2) ---------------------------------------------------------------------------
-    def pull_request(self, slug: str, number: int, head_sha: str | None = None) -> PullRequest:
+    def pull_request(
+        self, slug: str, number: int, head_sha: str | None = None, base_sha: str | None = None
+    ) -> PullRequest:
         path = f"/repos/{slug}/pulls/{number}"
         meta = self._json(self._get(path, not_found=Cause.PR_NOT_FOUND), path)
         declared = meta.get("changed_files") if isinstance(meta, dict) else None

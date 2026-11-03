@@ -170,7 +170,7 @@ class TestOfflineRecords:
     def test_a_live_answer_is_recorded_under_its_head_sha_and_replays_offline(self, tmp_path):
         s, _ = source(ok(meta()), ok([file(), file("b")]))
         live = CachingSource(s, tmp_path).pull_request("o/r", 7)
-        recorded = tmp_path / "o" / "r" / "pulls" / "7" / f"{HEAD}.json"
+        recorded = tmp_path / "o" / "r" / "pulls" / "7" / f"{HEAD}.{BASE}.json"
         assert recorded.is_file()
         assert CachingSource(None, tmp_path).pull_request("o/r", 7) == live
 
@@ -186,9 +186,9 @@ class TestOfflineRecords:
         d = tmp_path / "o" / "r" / "pulls" / "7"
         d.mkdir(parents=True)
         for head in (HEAD, "d" * 40):
-            (d / f"{head}.json").write_text(fixture_json(self.pr(head)))
+            (d / f"{head}.{BASE}.json").write_text(fixture_json(self.pr(head)))
         offline = CachingSource(None, tmp_path)
-        with pytest.raises(SourceError, match="several recorded heads"):
+        with pytest.raises(SourceError, match="several recorded inputs"):
             offline.pull_request("o/r", 7)
         assert offline.pull_request("o/r", 7, "d" * 40).head_sha == "d" * 40
         with pytest.raises(SourceError) as exc:
@@ -203,7 +203,7 @@ class TestOfflineRecords:
     def test_the_record_must_describe_the_pull_request_it_is_filed_under(self, tmp_path):
         d = tmp_path / "o" / "r" / "pulls" / "8"
         d.mkdir(parents=True)
-        (d / f"{HEAD}.json").write_text(fixture_json(self.pr()))  # a record of #7 filed as #8
+        (d / f"{HEAD}.{BASE}.json").write_text(fixture_json(self.pr()))  # a record of #7 filed as #8
         with pytest.raises(SourceError) as exc:
             CachingSource(None, tmp_path).pull_request("o/r", 8)
         assert exc.value.kind == "integrity_mismatch"
@@ -211,7 +211,7 @@ class TestOfflineRecords:
     def test_the_file_name_must_be_the_recorded_head(self, tmp_path):
         d = tmp_path / "o" / "r" / "pulls" / "7"
         d.mkdir(parents=True)
-        (d / f"{'d' * 40}.json").write_text(fixture_json(self.pr()))
+        (d / f"{'d' * 40}.{BASE}.json").write_text(fixture_json(self.pr()))
         with pytest.raises(SourceError) as exc:
             CachingSource(None, tmp_path).pull_request("o/r", 7)
         assert exc.value.kind == "integrity_mismatch"
@@ -253,3 +253,36 @@ class TestOfflineRecords:
 
         with pytest.raises(SourceError):
             CachingSource(Plain(), tmp_path).pull_request("o/r", 1)  # type: ignore[arg-type]
+
+
+class TestHeadAndBase:
+    """The same head can be analyzed against another base (the base branch moved): both inputs must survive."""
+
+    def record(self, root, base):
+        pr = parse_pull_request("o/r", 7, meta(base={"sha": base, "ref": "main"}), [file(), file("b")])
+        d = root / "o" / "r" / "pulls" / "7"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{HEAD}.{base}.json").write_text(fixture_json(pr))
+        return pr
+
+    def test_a_moved_base_does_not_overwrite_the_earlier_record(self, tmp_path):
+        other = "e" * 40
+        for base in (BASE, other):
+            s, _ = source(ok(meta(base={"sha": base, "ref": "main"})), ok([file(), file("b")]))
+            CachingSource(s, tmp_path).pull_request("o/r", 7)
+        names = sorted(p.name for p in (tmp_path / "o" / "r" / "pulls" / "7").iterdir())
+        assert names == sorted([f"{HEAD}.{BASE}.json", f"{HEAD}.{other}.json"])
+
+    def test_both_inputs_replay_offline_when_chosen_by_base(self, tmp_path):
+        other = "e" * 40
+        first, second = self.record(tmp_path, BASE), self.record(tmp_path, other)
+        offline = CachingSource(None, tmp_path)
+        with pytest.raises(SourceError, match="several recorded inputs"):
+            offline.pull_request("o/r", 7, HEAD)  # the head alone is ambiguous now
+        assert offline.pull_request("o/r", 7, HEAD, BASE) == first
+        assert offline.pull_request("o/r", 7, base_sha=other) == second
+        assert first.base_sha != second.base_sha
+
+    def test_an_invalid_base_selector_is_refused(self, tmp_path):
+        with pytest.raises(SourceError):
+            CachingSource(None, tmp_path).pull_request("o/r", 7, base_sha="nope")

@@ -130,3 +130,28 @@ def test_the_outcome_of_a_delta_is_the_head_finding_or_else_the_base_one():
     assert resolved.outcome.status is S.INCONSISTENT and resolved.head is not None
     introduced = classify_delta([out(S.CONSISTENT)], [out(S.INCONSISTENT)], ENUM)[0]
     assert introduced.outcome is introduced.head
+
+
+class TestTheDeltaCarriesItsOwnFinding:
+    """A subject that stays inconsistent under a new fingerprint is one resolved and one introduced finding: each delta must
+    point at the outcome that carries *its* fingerprint (base evidence for the resolved one)."""
+
+    def test_resolved_and_introduced_deltas_each_carry_their_own_outcome(self):
+        old = out(S.INCONSISTENT, fp="old")
+        new = out(S.INCONSISTENT, fp="new")
+        by_label = {d.label: d for d in classify_delta([old], [new], ENUM)}
+        assert by_label[DeltaLabel.RESOLVED].outcome is old and by_label[DeltaLabel.RESOLVED].fingerprint == "old"
+        assert by_label[DeltaLabel.INTRODUCED].outcome is new and by_label[DeltaLabel.INTRODUCED].fingerprint == "new"
+
+    def test_the_outcome_always_carries_the_fingerprint_of_the_delta(self):
+        cases = [
+            ([out(S.INCONSISTENT, fp="a")], [out(S.INCONSISTENT, fp="a")]),
+            ([out(S.INCONSISTENT, fp="a")], [out(S.CONSISTENT)]),
+            ([out(S.CONSISTENT)], [out(S.INCONSISTENT, fp="b")]),
+            ([out(S.INCONSISTENT, fp="a")], [out(S.CANNOT_EVALUATE)]),
+            ([out(S.CANNOT_EVALUATE)], [out(S.INCONSISTENT, fp="b")]),
+            ([out(S.INCONSISTENT, fp="a")], [out(S.INCONSISTENT, fp="b")]),
+        ]
+        for base, head in cases:
+            for d in classify_delta(base, head, ENUM):
+                assert d.outcome.fingerprint == d.fingerprint, (d.label, d.fingerprint)

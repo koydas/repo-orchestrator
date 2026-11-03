@@ -16,7 +16,7 @@ The other repositories are read at the revisions given by `--revisions` (default
 | `--declarations DIR` | `declarations` | Declaration files. |
 | `--revisions head\|<set>` | `head` | Revisions of the *other* repositories: `head`, or a pin set (`baseline`). A pin set's entry for the PR repository is ignored. |
 | `--pin ID=SHA` | — | Pin another repository (repeatable). Pinning the PR repository is a configuration error. |
-| `--head-sha SHA` | — | Offline: choose one recorded head when a pull request has several. |
+| `--head-sha SHA`, `--base-sha SHA` | — | Offline: choose among several recorded inputs of one pull request (the same head can be recorded with another base). |
 | `--output-dir DIR` | `reports/` | Where `pr-impact.md` and `pr-impact.json` are written (a scan's `report.md` is never overwritten). |
 | `--format md,json` | both | |
 | `--cache-dir DIR` | `.repo-orchestrator/cache` | Immutable artifacts and PR records. |
@@ -31,10 +31,10 @@ The other repositories are read at the revisions given by `--revisions` (default
 repo-orchestrator analyze-pr koydas/gitops-homelab#<number> --no-store
 # offline replay of a recorded pull request against the pinned baseline
 repo-orchestrator analyze-pr koydas/ollama-chat#<number> --revisions baseline --offline \
-    --cache-dir <cache with pulls/<number>/<head>.json and the head tree> --as-of 2026-11-02 --no-store
+    --cache-dir <cache with pulls/<number>/<head>.<base>.json and the head tree> --as-of 2026-11-02 --no-store
 ```
 
-A live run records the pull request under `<cache>/<owner>/<name>/pulls/<n>/<head sha>.json` next to the trees and files it fetched, which is also what makes it replayable offline.
+A live run records the pull request under `<cache>/<owner>/<name>/pulls/<n>/<head sha>.<base sha>.json` next to the trees and files it fetched, which is also what makes it replayable offline.
 
 ## Exit codes
 

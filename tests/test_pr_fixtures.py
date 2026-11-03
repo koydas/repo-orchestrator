@@ -25,7 +25,8 @@ def test_there_is_one_fixture_per_case_and_nothing_else():
 def test_every_fixture_is_versioned_pinned_and_flagged_synthetic(case):
     data = json.loads(fixture_path(case).read_text())
     assert data["schema_version"] == FIXTURE_SCHEMA_VERSION and data["kind"] == "pull_request"
-    assert data["base"]["sha"] == case.base_sha and data["head"]["sha"] == case.head_sha == fixture_path(case).stem
+    assert data["base"]["sha"] == case.base_sha and data["head"]["sha"] == case.head_sha
+    assert fixture_path(case).name == f"{case.head_sha}.{case.base_sha}.json"  # one record per (head, base)
     assert data["synthetic"]  # a replay of a mutation, never presented as a real pull request
 
 

@@ -178,6 +178,7 @@ def analyze_pull_request(
     options: RunOptions,
     *,
     head_sha: str | None = None,
+    base_sha: str | None = None,
     store: RunStore | None = None,
     stats: Callable[[], dict[str, int]] | None = None,
 ) -> PRAnalysis:
@@ -191,7 +192,7 @@ def analyze_pull_request(
     problems: list[Problem] = []
     pr: PullRequest | None = None
     try:
-        pr = source.pull_request(decl_slug, number, head_sha)
+        pr = source.pull_request(decl_slug, number, head_sha, base_sha)
     except SourceError as exc:
         problems.append(Problem("pull_request", exc.kind, exc.message))
 

@@ -31,7 +31,7 @@ What M2 does not do, and where its answers can be wrong. Nothing below is hidden
 - **Fork heads** are read through the base repository. If GitHub does not serve the commit there, the head is unavailable (incomplete).
 - **The other repositories are read at one revision per run.** With `--revisions head` that is the default-branch HEAD at the time of the run, so two analyses of the same pull request at different times can differ; pin them (`--revisions`, `--pin`) to compare.
 - **A merged pull request** is analyzed from its recorded base and head, not as a merge result: the analysis says what the change did against the base it was written on.
-- **Only the head recorded when the analysis ran.** A live run always asks GitHub for the current head; an offline replay needs the recorded head (`--head-sha` when several exist).
+- **Only the inputs recorded when the analysis ran.** A live run always asks GitHub for the current head and base and records them as `<head>.<base>.json`, so a base that moved without a new head does not overwrite the earlier record; an offline replay chooses among several with `--head-sha` / `--base-sha`.
 
 ## Evaluation
 

@@ -94,9 +94,8 @@ def _parser() -> argparse.ArgumentParser:
         metavar="ID=SHA",
         help="pin another repository (repeatable); not allowed for the PR repository",
     )
-    a.add_argument(
-        "--head-sha", default=None, metavar="SHA", help="offline: select one recorded head of the pull request"
-    )
+    a.add_argument("--head-sha", default=None, metavar="SHA", help="offline: select the recorded input with this head")
+    a.add_argument("--base-sha", default=None, metavar="SHA", help="offline: select the recorded input with this base")
     a.add_argument("--output-dir", type=Path, default=Path("reports"))
     a.add_argument("--format", default="md,json", help="comma-separated: md, json")
     a.add_argument("--cache-dir", type=Path, default=STATE_DIR / "cache", help="immutable artifact and PR-record cache")
@@ -293,7 +292,7 @@ def _analyze_pr(args: argparse.Namespace) -> int:
     store = None if args.no_store else RunStore(args.state_db)
     try:
         analysis = analyze_pull_request(
-            engine, source, slug, number, options, head_sha=args.head_sha, store=store,
+            engine, source, slug, number, options, head_sha=args.head_sha, base_sha=args.base_sha, store=store,
             stats=lambda: {"api_requests": github.requests if github else 0, "cache_hits": source.hits, "cache_misses": source.misses},
         )  # fmt: skip
     finally:

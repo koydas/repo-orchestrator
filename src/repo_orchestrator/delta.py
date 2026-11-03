@@ -39,13 +39,7 @@ class Delta:
     reason: str
     base: Outcome | None  # the outcome of the subject on base (None: no outcome)
     head: Outcome | None
-
-    @property
-    def outcome(self) -> Outcome:
-        """The finding itself: from head when it exists there, otherwise from base (resolved)."""
-        found = self.head if self.head is not None and self.head.status is Status.INCONSISTENT else self.base
-        assert found is not None
-        return found
+    outcome: Outcome  # the finding this delta is about, the one carrying ``fingerprint``: from head, or from base if resolved
 
 
 def _index(
@@ -85,6 +79,7 @@ def classify_delta(
                     "the same finding is present on base and on head: not caused by this pull request",
                     b_findings[fp],
                     h,
+                    h,
                 )
             )
             continue
@@ -110,7 +105,7 @@ def classify_delta(
                     DeltaLabel.UNDETERMINED,
                     "base has no outcome for this subject and cannot show it was absent",
                 )
-        deltas.append(Delta(label, h.policy_id, h.relationship_id, h.subject, fp, why, b, h))
+        deltas.append(Delta(label, h.policy_id, h.relationship_id, h.subject, fp, why, b, h, h))
 
     for fp, b in b_findings.items():
         if fp in h_findings:
@@ -126,6 +121,6 @@ def classify_delta(
                 label, why = DeltaLabel.RESOLVED, "the subject no longer exists on head (the policy completed there)"
             else:
                 label, why = DeltaLabel.UNDETERMINED, "head has no outcome for this subject and cannot show it is gone"
-        deltas.append(Delta(label, b.policy_id, b.relationship_id, b.subject, fp, why, b, hd))
+        deltas.append(Delta(label, b.policy_id, b.relationship_id, b.subject, fp, why, b, hd, b))
 
     return sorted(deltas, key=lambda d: (d.relationship_id, d.policy_id, d.subject, d.label.value))
