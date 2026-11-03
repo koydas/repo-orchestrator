@@ -6,8 +6,8 @@ What M1 does not do, and where its answers can be wrong. Nothing below is hidden
 
 - **Six repositories, eleven declared relationships.** Recall is bounded by the declarations ([ADR-0002](../adr/0002-explicit-typed-relationship-model.md)): an undeclared relationship produces nothing, and absence of a finding is not evidence of coherence. Automatic relationship discovery is outside M1.
 - **R4, R6, R10, R11 have no M1 policy** (conceptual or deployment edges). They are declared and listed in the coverage table as `no_policy` / `not_analyzed`. `fullstack-pilot`, `sync-engine` and this repository are declared but never collected.
-- **No PR analysis (M2)**: no base/head comparison, no `introduced` / `pre-existing` label in the product. The evaluation suite classifies by fingerprint in the test code only. The "manifest comment naming the consumer becomes false" part of baseline U2 is not detected.
-- **No P7, no investigation (M3), no remediation plans (M4), no opportunities (M5).** P7 (qualitative claims such as "12 extracted from the two repos above", baseline H2) is not evaluated; the profile's "100+ ADRs across these repos" and "11 integration failure modes" claims are not declared.
+- **PR analysis is M2** ([docs](../m2/README.md), [limitations](../m2/limitations.md)): `scan` itself still compares nothing, it reports the state of one snapshot. The "manifest comment naming the consumer becomes false" part of baseline U2 is not detected by M1 or M2.
+- **No P7, no investigation (M3), no remediation plans (M4), no opportunities (M5)** (M2 is implemented, see above). P7 (qualitative claims such as "12 extracted from the two repos above", baseline H2) is not evaluated; the profile's "100+ ADRs across these repos" and "11 integration failure modes" claims are not declared.
 - **Public repositories only** (Q6). A private repository is refused with `private_repository_out_of_scope`.
 
 ## Extractors are narrow on purpose

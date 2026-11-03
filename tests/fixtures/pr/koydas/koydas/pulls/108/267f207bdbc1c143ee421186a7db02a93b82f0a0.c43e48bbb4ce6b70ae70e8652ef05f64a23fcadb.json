@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "c43e48bbb4ce6b70ae70e8652ef05f64a23fcadb"
+  },
+  "changed_files": 1,
+  "files": [
+    {
+      "path": "README.md",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/fix_d2",
+    "sha": "267f207bdbc1c143ee421186a7db02a93b82f0a0",
+    "slug": "koydas/koydas"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 108,
+  "schema_version": 1,
+  "slug": "koydas/koydas",
+  "state": "open",
+  "synthetic": "a PR in the profile corrects the ADR count (D2)"
+}

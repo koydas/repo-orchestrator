@@ -1,6 +1,6 @@
 # MVP
 
-> **Status: M1 is implemented** ([docs](m1/README.md), [evaluation results](m1/evaluation.md)). **M2–M5 are proposed scope and not implemented.** The throwaway S0 spike remains isolated (see the milestone table).
+> **Status: M1 and M2 are implemented** ([M1 docs](m1/README.md), [M1 evaluation](m1/evaluation.md); [M2 docs](m2/README.md), [M2 evaluation](m2/evaluation.md)). **M3–M5 are proposed scope and not implemented.** The throwaway S0 spike remains isolated (see the milestone table).
 
 The first release is a **read-only, on-demand analyzer** of a small, declared set of repositories, with seven policies and an evaluation set built from the [ecosystem baseline](research/ecosystem-baseline.md).
 
@@ -9,9 +9,9 @@ The first release is a **read-only, on-demand analyzer** of a small, declared se
 | Dimension | MVP |
 |---|---|
 | Repositories | `autonomous-dev-loop`, `ai-dev-tools`, `agent-patterns`, `koydas`, `gitops-homelab`, `ollama-chat` (public, `koydas`) |
-| Relationships | Declared by hand: R1–R11 from the baseline. R6 (deployment) is used by impact analysis only; R4, R10, R11 (conceptual) are declared but no MVP policy evaluates them. |
+| Relationships | Declared by hand: R1–R11 from the baseline. R6 (deployment) is used by impact analysis only (M2: it has anchors, no policy); R4, R10, R11 (conceptual) are declared but no MVP policy evaluates them and no anchor lets a pull request touch them. |
 | Policies | P1–P7 ([coherence model](coherence-model.md#mvp-policy-catalog)); P1–P6 deterministic, P7 reasoning-assisted |
-| Triggers | A human runs a baseline scan (W1) or a PR analysis (W2) |
+| Triggers | A human runs a baseline scan (W1, M1) or a PR analysis (W2, M2) |
 | Output | Local Markdown and JSON report; SQLite run store |
 | GitHub access | Read-only token |
 | LLM | Only from M3, only in the Investigator, only for P7 and intent proposals |
@@ -23,7 +23,7 @@ The first release is a **read-only, on-demand analyzer** of a small, declared se
 | **M0 Design** (this repository today) | Documentation, ten Proposed ADRs | ADRs reviewed; open questions Q1–Q6 answered or explicitly deferred |
 | **S0 LangGraph validation spike** (first implementation activity, before or alongside M1) | Time-boxed, throwaway spike outside the core package, scripted Investigator stand-in, synthetic candidates ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5) | Resume after `interrupt()` across restarts, isolated fan-out, budget guard holding across resume, generated diagram matching the docs, pinned dependencies; outcome (adopt or fallback) recorded in ADR-0005 before M1 completes. No core code depends on it. **Status: executed** in [`prototypes/langgraph-spike`](../prototypes/langgraph-spike/README.md): experiments A–F pass (81 tests, Python 3.11 and 3.13), recommendation *adopt for M3 with explicit constraints*, not measured items listed in the [results](../prototypes/langgraph-spike/docs/results.md#remaining-architectural-risks). ADR-0005 remains Proposed until the owner decides; the exit criterion "outcome recorded in ADR-0005" is met by the pointer added there |
 | **M1 Deterministic baseline** | C1, C2 (declared relationships only), C3 with P1–P6, W1, report, run store with fingerprints | Evaluation set (below) passes: 100% recall on seeded and mutation cases for P1–P6, zero findings on negative controls, deterministic rerun produces an identical report. **Status: implemented, in review.** All three criteria are met on the pinned baseline by the offline suite ([results](m1/evaluation.md)); a live read-only scan of the six repositories succeeded and is recorded there. [ADR-0011](adr/0011-m1-outcome-contracts-and-reproducible-reports.md) (Proposed) records the contracts M1 introduced |
-| **M2 PR impact** | C4, W2 with base/head comparison | Mutation cases U1–U5 replayed as PRs against a coherent base yield the expected affected repository, impact class and `introduced` label; U5 replayed against the raw baseline (D1 already present) yields `pre-existing`, so no pre-existing finding is blamed on a PR |
+| **M2 PR impact** | C4, W2 with base/head comparison | Mutation cases U1–U5 replayed as PRs against a coherent base yield the expected affected repository, impact class and `introduced` label; U5 replayed against the raw baseline (D1 already present) yields `pre-existing`, so no pre-existing finding is blamed on a PR. **Status: implemented.** All criteria are met on the pinned fixtures by the offline suite ([results](m2/evaluation.md)): U1–U5 yield the expected affected repository, impact class, severity and `introduced` label; U5 on the raw baseline is `pre-existing` with D1's fingerprint; a PR that fixes D1 or D2 resolves it; a missing PR, base, head or file list is incomplete, never a pass. [ADR-0013](adr/0013-m2-pr-impact-contracts.md) (Proposed) records the contracts M2 introduced |
 | **M3 Bounded investigation** | LangGraph-backed Investigator on the S0-validated design (or the S0 fallback); C5; P7; quote verification; validation status and entailment checks; interrupts | H2 ends in `needs_validation` with verified quotes (a human decides) or `insufficient_evidence`; zero `confirmed` findings with an unverified quote or without validation; every `breaks` reasoning claim without an entailment check routed to a human; LLM cost per run reported |
 | **M4 Remediation plans** | C6, W5, prevention steps, regression detection | D1/D2 plans name the correct fix sites and order; a plan for N3 surfaces `ai-dev-tools` ADR-018 as a conflict and cannot be approved until resolved; no report states "compatible"; a reintroduced mutation reopens its finding as a regression |
 | **M5 Optimization opportunities** | Opportunity lifecycle and W6 ([ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)): discovery from findings history, shared contracts and recorded guardrails; benefit/cost/risk assessment; human decision | Every proposed opportunity has pinned benefit evidence; N3 consolidations discarded against ADR-018; the R3 `status.json` schema candidate assessed with H4 as benefit evidence; declined opportunities never re-proposed |
@@ -45,7 +45,7 @@ M1 alone is useful: it would have caught D1 and D2 with no LLM.
 
 ## Evaluation
 
-The evaluation design is part of the MVP, not an afterthought. **The M1 part is implemented** as `tests/test_baseline_eval.py` and companions, offline against committed fixtures ([results](m1/evaluation.md)); the P7, history-replay and M2–M4 rows below are still specification.
+The evaluation design is part of the MVP, not an afterthought. **The M1 part is implemented** as `tests/test_baseline_eval.py` and companions, offline against committed fixtures ([results](m1/evaluation.md)), and **the M2 part** (the U1–U5 mutation row replayed as pull requests, with the `introduced` / `pre-existing` labels) as `tests/test_pr_eval.py` ([results](m2/evaluation.md)); the P7, history-replay and M3–M4 rows below are still specification.
 
 ### Evaluation set
 
@@ -95,7 +95,7 @@ In order, each gated by the previous one's measurements: optimization opportunit
 
 | Risk | Mitigation in this design |
 |---|---|
-| LangGraph adopted before it has a job, or validated too late | Not used in M1–M2; validated early by the isolated S0 spike (executed, see above), built only at M3 ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)) |
+| LangGraph adopted before it has a job, or validated too late | Not used in M1–M2 (both implemented without it); validated early by the isolated S0 spike (executed, see above), built only at M3 ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md)) |
 | A policy framework larger than seven policies need | Python functions with metadata; no DSL ([ADR-0003](adr/0003-policy-driven-coherence-with-scoped-exceptions.md)) |
 | Generic multi-agent design | One Investigator; everything else deterministic ([ADR-0004](adr/0004-deterministic-checks-before-agentic-reasoning.md)) |
 | Graph DB, vector store, services | Explicitly excluded with revisit triggers ([architecture](architecture.md#complexity-budget)) |

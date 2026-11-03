@@ -1,0 +1,41 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "0f00ecd25b6e3c43e2d3227116bb1a1d34621357"
+  },
+  "changed_files": 4,
+  "files": [
+    {
+      "path": "README.md",
+      "previous_path": null,
+      "status": "modified"
+    },
+    {
+      "path": "apps/ollama/application.yaml",
+      "previous_path": null,
+      "status": "modified"
+    },
+    {
+      "path": "docs/adr/0018-ghcr-public-visibility-no-pull-secret.md",
+      "previous_path": null,
+      "status": "added"
+    },
+    {
+      "path": "docs/adr/README.md",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "pull/2/head",
+    "sha": "27097c54773064c060846736264608ae9aff774b",
+    "slug": "koydas/gitops-homelab"
+  },
+  "kind": "pull_request",
+  "merged": true,
+  "number": 2,
+  "provenance": "recorded from a local git clone, not from the REST API: gitops-homelab #2, merged by merge commit 9e0eb102 (base = its first parent)",
+  "schema_version": 1,
+  "slug": "koydas/gitops-homelab",
+  "state": "closed"
+}

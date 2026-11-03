@@ -1,6 +1,6 @@
 # Cross-repository coherence report
 
-`repo-orchestrator` 0.1.0 · scope adl, adt, ap, chat, homelab, profile · as of 2026-11-02 · run **complete** · result digest `e39eef41dda9b3b7`
+`repo-orchestrator` 0.1.0 · scope adl, adt, ap, chat, homelab, profile · as of 2026-11-02 · run **complete** · result digest `48b8d80560cb88d4`
 
 ## Summary
 
@@ -255,4 +255,4 @@ None.
 | `koydas/gitops-homelab` | a8a9d7db5e72 | `a8a9d7db5e725fd47061e8ae7fbfa70d81be3603` |  |
 | `koydas/koydas` | c43e48bbb4ce | `c43e48bbb4ce6b70ae70e8652ef05f64a23fcadb` |  |
 
-Declarations digest `9c9b18902df8c687`. Everything above is a function of the pinned revisions and the declarations; run metadata is in the JSON report only.
+Declarations digest `01ca03f47401aa24`. Everything above is a function of the pinned revisions and the declarations; run metadata is in the JSON report only.

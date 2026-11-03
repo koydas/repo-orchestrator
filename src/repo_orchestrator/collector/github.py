@@ -3,6 +3,8 @@
 Endpoints used (all read-only; ``contents: read`` on public repositories is enough, a token only raises the rate limit):
 ``GET /repos/{slug}``, ``GET /repos/{slug}/commits/{ref}`` (SHA media type),
 ``GET /repos/{slug}/git/trees/{sha}?recursive=1`` and ``GET /repos/{slug}/git/blobs/{blob_sha}``.
+M2 adds two more, for a pull request: ``GET /repos/{slug}/pulls/{n}`` and ``GET /repos/{slug}/pulls/{n}/files`` (paginated);
+on a public repository they need no scope, a token only raises the rate limit (fine-grained: ``pull_requests: read``).
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from ..models import Cause
+from .pr import MAX_FILES, PullRequest, parse_pull_request
 from .source import SHA_RE, SourceError, Tree, TreeEntry, git_blob_sha
 
 API = "https://api.github.com"
@@ -154,6 +157,28 @@ class GitHubSource:
             return json.loads(response.body)
         except ValueError as exc:
             raise SourceError(Cause.FETCH_FAILED, f"malformed JSON from {path}") from exc
+
+    # -- PullRequestSource (M2) ---------------------------------------------------------------------------
+    def pull_request(
+        self, slug: str, number: int, head_sha: str | None = None, base_sha: str | None = None
+    ) -> PullRequest:
+        path = f"/repos/{slug}/pulls/{number}"
+        meta = self._json(self._get(path, not_found=Cause.PR_NOT_FOUND), path)
+        declared = meta.get("changed_files") if isinstance(meta, dict) else None
+        files: list[Any] = []
+        page = 1
+        # stop when GitHub's own count is reached, a short page arrives, or the 3000-file cap is hit; whatever is
+        # missing stays visible as ``files_complete == False`` and makes the analysis incomplete
+        while isinstance(declared, int) and len(files) < min(declared, MAX_FILES):
+            fpath = f"{path}/files?per_page=100&page={page}"
+            batch = self._json(self._get(fpath, not_found=Cause.PR_NOT_FOUND), fpath)
+            if not isinstance(batch, list):
+                raise SourceError(Cause.FETCH_FAILED, f"unexpected file list payload for {slug}#{number}")
+            files.extend(batch)
+            if len(batch) < 100:
+                break
+            page += 1
+        return parse_pull_request(slug, number, meta, files)
 
     # -- SnapshotSource --------------------------------------------------------------------------------
     def resolve(self, slug: str, ref: str | None) -> str:

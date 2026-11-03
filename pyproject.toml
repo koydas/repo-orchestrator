@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "repo-orchestrator"
 version = "0.1.0"
-description = "Deterministic cross-repository coherence engine (M1): read-only, pinned, evidence-backed."
+description = "Deterministic cross-repository coherence engine (M1 baseline scan, M2 PR impact): read-only, pinned, evidence-backed."
 requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0"]
 

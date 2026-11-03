@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "1607f6107b1f50f4e9baa1916a187c7bc16ca18a"
+  },
+  "changed_files": 7,
+  "files": [
+    {
+      "path": "scripts/lib/findings_export.mjs",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/truncated",
+    "sha": "2638f808fdc77e30fc9a94448b455e2f48bcc620",
+    "slug": "koydas/autonomous-dev-loop"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 110,
+  "schema_version": 1,
+  "slug": "koydas/autonomous-dev-loop",
+  "state": "open",
+  "synthetic": "GitHub reports 7 changed files, 1 was listed"
+}

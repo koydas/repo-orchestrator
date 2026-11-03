@@ -15,7 +15,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .models import Outcome, Status, digest, to_jsonable
+from .delta import Delta
+from .lifecycle import subject_vanished
+from .models import PR_RUN_KIND, Outcome, Status, digest, to_jsonable
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -41,7 +43,29 @@ CREATE TABLE IF NOT EXISTS finding_events (
 );
 """
 
+PR_SCHEMA = """
+CREATE TABLE IF NOT EXISTS pr_runs (
+  run_key TEXT PRIMARY KEY, inputs_digest TEXT NOT NULL, result_digest TEXT NOT NULL, run_status TEXT NOT NULL,
+  gate_result TEXT NOT NULL, repo_slug TEXT NOT NULL, pr_number INTEGER NOT NULL, base_sha TEXT, head_sha TEXT,
+  as_of TEXT NOT NULL, tool_version TEXT NOT NULL, declarations_digest TEXT NOT NULL, summary_json TEXT NOT NULL,
+  first_executed_at TEXT NOT NULL, last_executed_at TEXT NOT NULL, executions INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS pr_runs_inputs ON pr_runs(inputs_digest);
+CREATE INDEX IF NOT EXISTS pr_runs_pr ON pr_runs(repo_slug, pr_number);
+CREATE TABLE IF NOT EXISTS pr_deltas (
+  run_key TEXT NOT NULL REFERENCES pr_runs(run_key), ordinal INTEGER NOT NULL, label TEXT NOT NULL, policy_id TEXT NOT NULL,
+  relationship_id TEXT NOT NULL, subject TEXT NOT NULL, fingerprint TEXT, reason TEXT NOT NULL,
+  PRIMARY KEY (run_key, ordinal)
+);
+"""
+
 _LIVE = {Status.INCONSISTENT: "open", Status.EXCEPTED: "excepted", Status.POLICY_CONFLICT: "conflict"}
+
+
+@dataclass
+class PRRecordResult:
+    run_key: str
+    new: bool
 
 
 @dataclass
@@ -49,28 +73,6 @@ class RecordResult:
     run_key: str
     new: bool
     transitions: dict[str, list[str]] = field(default_factory=dict)  # event → fingerprints
-
-
-def _vanished(
-    row: Mapping[str, Any],
-    outcomes: Sequence[Outcome],
-    pair: set[Status],
-    statuses: set[Status],
-    enumerated: Mapping[str, tuple[str, ...]],
-) -> bool:
-    """The subject is gone, not merely unevaluated: it belongs to a policy's enumerated family, the family was enumerated
-    in this run (an outcome of that family exists for the relationship) and nothing in the pair failed to evaluate."""
-    prefixes = enumerated.get(row["policy_id"], ())
-    if statuses or not prefixes or not row["subject"].startswith(prefixes):
-        return False
-    if pair & {Status.CANNOT_EVALUATE, Status.FAILED}:
-        return False
-    return any(
-        o.policy_id == row["policy_id"]
-        and o.relationship_id == row["relationship_id"]
-        and o.subject.startswith(prefixes)
-        for o in outcomes
-    )
 
 
 class RunStore:
@@ -81,6 +83,7 @@ class RunStore:
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA foreign_keys = ON")
         self._db.executescript(SCHEMA)
+        self._db.executescript(PR_SCHEMA)  # a separate run kind: pr_runs / pr_deltas never touch findings
 
     def close(self) -> None:
         self._db.close()
@@ -163,7 +166,7 @@ class RunStore:
                 continue
             statuses = by_subject.get((row["policy_id"], row["relationship_id"], row["subject"]), set())
             pair = by_pair.get((row["policy_id"], row["relationship_id"]), set())
-            vanished = _vanished(row, outcomes, pair, statuses, enumerated)
+            vanished = subject_vanished(row, outcomes, pair, statuses, enumerated)
             if Status.CONSISTENT in statuses or statuses & set(_LIVE) or vanished:
                 # the subject was evaluated and this fingerprint is no longer present, or the subject itself is gone
                 # (a removed link, an address no longer claimed) while its policy completed on the relationship
@@ -210,6 +213,60 @@ class RunStore:
         """Complete runs with identical inputs but different results: a determinism violation."""
         rows = self._db.execute(
             "SELECT DISTINCT result_digest FROM runs WHERE inputs_digest = ? AND run_status = 'complete'",
+            (inputs_digest,),
+        ).fetchall()
+        return [r[0] for r in rows] if len(rows) > 1 else []
+
+    # -- pull-request analyses (M2): their own tables, never the baseline-scan finding history ------------------
+    def record_pr(
+        self, semantic: Mapping[str, Any], deltas: Sequence[Delta], now: datetime | None = None
+    ) -> PRRecordResult:
+        """Idempotent by ``digest(inputs, result)``. Records the run and its deltas; ``findings`` and ``finding_events`` are
+        not read or written: a pull request analysis says what *this change* does, not what the repositories' state is."""
+        stamp = (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        inputs_digest = digest(semantic["inputs"])
+        run_key = digest([PR_RUN_KIND, inputs_digest, semantic["result_digest"]])[:32]
+        pr = semantic["inputs"]["pull_request"]
+        with self._db:
+            row = self._db.execute("SELECT 1 FROM pr_runs WHERE run_key = ?", (run_key,)).fetchone()
+            if row is not None:
+                self._db.execute(
+                    "UPDATE pr_runs SET executions = executions + 1, last_executed_at = ? WHERE run_key = ?",
+                    (stamp, run_key),
+                )
+                return PRRecordResult(run_key, False)
+            self._db.execute(
+                "INSERT INTO pr_runs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (run_key, inputs_digest, semantic["result_digest"], semantic["run_status"], semantic["gate"]["result"], pr["slug"],
+                 pr["number"], pr["base_sha"], pr["head_sha"], semantic["inputs"]["as_of"], semantic["tool"]["version"],
+                 semantic["inputs"]["declarations_digest"], json.dumps(semantic["summary"], sort_keys=True), stamp, stamp, 1),
+            )  # fmt: skip
+            for i, d in enumerate(deltas):
+                self._db.execute(
+                    "INSERT INTO pr_deltas VALUES (?,?,?,?,?,?,?,?)",
+                    (run_key, i, d.label.value, d.policy_id, d.relationship_id, d.subject, d.fingerprint, d.reason),
+                )
+        return PRRecordResult(run_key, True)
+
+    def pr_run(self, run_key: str) -> dict[str, Any] | None:
+        row = self._db.execute("SELECT * FROM pr_runs WHERE run_key = ?", (run_key,)).fetchone()
+        return dict(row) if row else None
+
+    def pr_runs(self, slug: str | None = None, number: int | None = None) -> list[dict[str, Any]]:
+        rows = self._db.execute(
+            "SELECT * FROM pr_runs WHERE (? IS NULL OR repo_slug = ?) AND (? IS NULL OR pr_number = ?) "
+            "ORDER BY rowid", (slug, slug, number, number),
+        )  # fmt: skip
+        return [dict(r) for r in rows]
+
+    def pr_deltas(self, run_key: str) -> list[dict[str, Any]]:
+        rows = self._db.execute("SELECT * FROM pr_deltas WHERE run_key = ? ORDER BY ordinal", (run_key,))
+        return [dict(r) for r in rows]
+
+    def divergent_complete_pr_runs(self, inputs_digest: str) -> list[str]:
+        """Complete PR runs with identical inputs but different results: a determinism violation."""
+        rows = self._db.execute(
+            "SELECT DISTINCT result_digest FROM pr_runs WHERE inputs_digest = ? AND run_status = 'complete'",
             (inputs_digest,),
         ).fetchall()
         return [r[0] for r in rows] if len(rows) > 1 else []
