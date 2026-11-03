@@ -6,6 +6,7 @@ Deterministic, no I/O: the engine, the declarations and a text reader handed in 
 
 * ``anchor``     a declared anchor (a file, or a directory: everything below it);
 * ``request``    an artifact one of its policies reads (a path or a glob such as ``apps/*/service.yaml``);
+* ``listing``    a path below a directory whose listing a policy reads (counted ADR directories, an adopter's skills);
 * ``reference``  a file that a living document of the *other* repository links (P5): a rename or removal there dangles it;
 * ``authority``  a policy, exception or repository authority artifact: changing it changes what the policy may conclude;
 * ``unresolved`` the footprint could not be computed (an unreadable linking document): the relationship is treated as
@@ -52,7 +53,7 @@ class FootprintUnavailable(Exception):
 
 @dataclass(frozen=True)
 class Trigger:
-    kind: str  # anchor | request | reference | authority | unresolved
+    kind: str  # anchor | request | listing | reference | authority | unresolved
     repo: str
     path: str  # the changed path (or the unreadable document for ``unresolved``)
     matched: str  # the anchor, request, link target or authority it fell into
@@ -121,6 +122,7 @@ def analyze(engine: Engine, pr_repo: str, changed: Iterable[str], read_document:
         if incident:
             triggers.extend(_anchor_triggers(rel, pr_repo, paths))
             triggers.extend(_request_triggers(engine, rel, pr_repo, paths))
+            triggers.extend(_listing_triggers(engine, rel, pr_repo, paths))
             triggers.extend(_reference_triggers(engine, rel, pr_repo, paths, read_document))
         auth = _authority_triggers(engine, rel, pr_repo, paths)
         if auth:
@@ -177,6 +179,17 @@ def _request_triggers(engine: Engine, rel: Relationship, pr_repo: str, paths: Se
             regex = glob_regex(req.glob)
             found.extend(Trigger("request", pr_repo, p, req.glob) for p in paths if regex.match(p))
     return found
+
+
+def _listing_triggers(engine: Engine, rel: Relationship, pr_repo: str, paths: Sequence[str]) -> list[Trigger]:
+    """A path added, removed or renamed below a directory a policy lists (skills, counted ADR or pattern directories)."""
+    return [
+        Trigger("listing", pr_repo, p, directory)
+        for repo, directory in engine.relationship_listings(rel)
+        if repo == pr_repo
+        for p in paths
+        if _under(p, directory)
+    ]
 
 
 def _reference_triggers(

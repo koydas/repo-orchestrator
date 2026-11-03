@@ -16,7 +16,7 @@ A pure function of the declarations digest, the pull request's head, base and ch
 | `gate` | `result` (`pass` \| `fail` \| `incomplete`), `exit_code` (0, 1, 2), counts, `incomplete_reasons`, the rule text |
 | `summary` | Changed paths, touched and not-touched relationships, affected repositories, delta counts, unevaluated count |
 | `changed_files` | Path, status, previous path |
-| `impact` | Per touched relationship: type, **impact class**, `direction`, `affected_repos`, `triggers` (kind, changed path, what matched), evaluated policies, `evaluated`, and its deltas |
+| `impact` | Per touched relationship: type, **impact class**, `direction`, `affected_repos`, `triggers` (kind: `anchor`, `request`, `listing`, `reference`, `authority`, `unresolved`; changed path; what matched), evaluated policies, `evaluated`, and its deltas |
 | `value_changes` | Per `(policy, relationship, subject)` whose base and head extracted values differ |
 | `findings` | `introduced`, `undetermined`, `pre_existing`, `resolved`: each row is an M1 finding (same fields, evidence verified by code) plus `delta` (`label`, `reason`, base and head status) |
 | `problems` | PR-level causes: side (`pull_request`, `base`, `head`, `change_set`), cause, detail |

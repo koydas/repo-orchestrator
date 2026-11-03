@@ -405,4 +405,9 @@ def _table(
     )
 
 
-POLICY = Policy(META, prepare, applies, requests, evaluate)
+def listings(cfg: Config, rel: Relationship) -> Sequence[tuple[str, str]]:
+    """The adopter's skills directory: a skill added or removed changes the adopter table comparison."""
+    return [(rel.target, cfg.skills_dir.strip("/"))]
+
+
+POLICY = Policy(META, prepare, applies, requests, evaluate, listings)

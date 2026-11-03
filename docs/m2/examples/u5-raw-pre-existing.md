@@ -1,6 +1,6 @@
 # Pull request impact: `koydas/agent-patterns#106`
 
-`repo-orchestrator` 0.1.0 · base `6d00841fc67d` → head `560133333e72` · as of 2026-11-02 · run **complete** · gate **pass** (exit 0) · result digest `c7d1287fba1b838d`
+`repo-orchestrator` 0.1.0 · base `6d00841fc67d` → head `560133333e72` · as of 2026-11-02 · run **complete** · gate **pass** (exit 0) · result digest `a20d75319f03c392`
 
 > Gate rule: exit 0: evaluation complete, no introduced finding · exit 1: complete, at least one introduced finding · exit 2: incomplete (missing PR, base, head, file list or evidence; undetermined delta): never a pass · exit 3: configuration or runtime failure. Pre-existing findings never fail a PR gate by themselves.
 
@@ -82,7 +82,7 @@ None.
 
 | Relationship | Type | Impact | Affected | Direction | Triggers | Policies | Deltas |
 |---|---|---|---|---|---|---|---|
-| R1.ap | documentary | **falsifies** | `profile` | downstream | anchor `README.md` (README.md); anchor `patterns/new-pattern/README.md` (patterns); request `README.md` (README.md) | P1, P5 | pre-existing `claim:patterns` |
+| R1.ap | documentary | **falsifies** | `profile` | downstream | anchor `README.md` (README.md); anchor `patterns/new-pattern/README.md` (patterns); listing `patterns/new-pattern/README.md` (patterns); request `README.md` (README.md) | P1, P5 | pre-existing `claim:patterns` |
 
 ## Changed values (base → head)
 

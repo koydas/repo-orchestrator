@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from pr_cases import ADL, ADT, CASES, CHAT, PROFILE, PRCase
+from pr_cases import ADL, ADT, AP, CASES, CHAT, PROFILE, PRCase
 from repo_orchestrator.collector.overlay import add_file, delete_path, rename_path, replace_text
 from repo_orchestrator.collector.source import SourceError
 from repo_orchestrator.models import ConfigError
@@ -407,3 +407,21 @@ def test_the_scan_dashboard_skips_a_pr_report_instead_of_misreading_it(tmp_path)
     (reports / "pr-impact.json").write_text(json.dumps({"semantic": a.semantic, "execution": a.execution}))
     result = build_dashboard(reports, tmp_path / "site")
     assert result.reports == 0 and [s.file for s in result.skipped] == ["pr-impact.json"]
+
+
+class TestListingDependencies:
+    def test_a_skill_added_to_an_adopter_is_evaluated_and_introduced_like_a_scan_finds_it(self):
+        """Codex finding: P6 reads the adopter's skills directory. A scan of the mutated snapshot finds the adopter-table
+        inconsistency; the PR analysis of the same change must too, not report 'no impact, exit 0'."""
+        from repo_orchestrator.models import Status
+        from support import find
+        from support import scan as scan_mutation
+
+        add = add_file(AP, ".claude/skills/new-skill/SKILL.md", "# a new skill\n")
+        oracle = find(scan_mutation([add]), "P6", "R5.ap", "adopter_table")
+        assert oracle and oracle[0].status is Status.INCONSISTENT  # independent of the PR analysis
+        case = PRCase("new_skill", AP, 970, (add,))
+        a = analyze(case, world=PRWorld(case, pr=case.pull_request()))
+        f = only(a, "introduced")
+        assert (f["policy_id"], f["relationship_id"], f["subject"]) == ("P6", "R5.ap", "adopter_table")
+        assert "listing" in {t["kind"] for t in entry(a, "R5.ap")["triggers"]} and a.exit_code == 1

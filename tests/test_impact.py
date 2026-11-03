@@ -27,7 +27,7 @@ def touched(engine, repo, paths, reader=no_read):
 class TestAnchoring:
     def test_a_directory_anchor_covers_everything_below_it(self, engine):
         t = touched(engine, "adl", ["docs/adr/0100-new.md"])
-        assert {"R1.adl"} <= set(t) and {x.kind for x in t["R1.adl"].triggers} == {"anchor"}
+        assert {"R1.adl"} <= set(t) and "anchor" in {x.kind for x in t["R1.adl"].triggers}
 
     def test_a_file_anchor_matches_exactly_and_not_by_prefix(self, engine):
         assert "R2" in touched(engine, "adl", ["scripts/lib/findings_export.mjs"])
@@ -181,3 +181,44 @@ class TestValueChanges:
 
     def test_outcomes_without_a_comparison_carry_no_value(self):
         assert value_changes([Outcome("P1", "1", "R", "s", Status.CANNOT_EVALUATE, "")], []) == []
+
+
+class TestEveryListingAPolicyReadsIsAFootprint:
+    """A policy that lists a directory depends on what is *in* it, not only on the files it reads: C4 must see a file added or
+    removed there. The test records every ``ctx.entries`` call of a real evaluation and requires it to be declared."""
+
+    def test_every_directory_listing_read_during_a_scan_is_declared_by_its_policy(self, engine, monkeypatch):
+        from repo_orchestrator.policies.base import EvalContext
+        from support import scan
+
+        recorded: set[tuple[str, str, str]] = set()
+        original = EvalContext.entries
+
+        def spy(self, repo, prefix):
+            recorded.add((self.meta.id, repo, prefix.strip("/")))
+            return original(self, repo, prefix)
+
+        monkeypatch.setattr(EvalContext, "entries", spy)
+        scan()
+        declared = {
+            (p.meta.id, repo, directory)
+            for rel in engine.graph.trusted()
+            for p in engine.relationship_policies(rel.id)
+            for repo, directory in p.listings(engine.configs[p.meta.id], rel)
+        }
+        assert {r[0] for r in recorded} >= {"P1", "P5", "P6"}  # the spy really observed the listing policies
+        undeclared = {r for r in recorded - declared if not (r[0] == "P5" and r[2] == "")}
+        # P5 lists the whole target tree to resolve links: its footprint is the link targets (reference triggers)
+        assert not undeclared, f"policies list directories that C4 does not watch: {sorted(undeclared)}"
+
+    def test_a_skill_added_in_an_adopter_touches_the_adoption_relationship(self, engine):
+        t = touched(engine, "ap", [".claude/skills/new-skill/SKILL.md"])
+        assert "listing" in {x.kind for x in t["R5.ap"].triggers} and t["R5.ap"].affected_repos == ("ap",)
+
+    def test_an_adr_added_to_a_counted_directory_touches_the_count_relationship(self, engine):
+        t = touched(engine, "homelab", ["docs/adr/0099-new.md"])
+        assert "listing" in {x.kind for x in t["R1.homelab"].triggers}
+        assert "R1.adl" not in touched(engine, "homelab", ["docs/adr/0099-new.md"])  # another repository's count
+
+    def test_a_listing_of_another_repository_is_not_a_footprint_of_this_one(self, engine):
+        assert "R5.ap" not in touched(engine, "adl", [".claude/skills/new-skill/SKILL.md"])

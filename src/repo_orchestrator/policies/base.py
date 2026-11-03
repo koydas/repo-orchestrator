@@ -59,6 +59,10 @@ class CannotEvaluate(Exception):
         self.evidence = evidence
 
 
+def no_listings(cfg: Any, rel: Relationship) -> Sequence[tuple[str, str]]:
+    return ()
+
+
 @dataclass(frozen=True)
 class Policy:
     meta: PolicyMeta
@@ -66,6 +70,10 @@ class Policy:
     applies: Callable[[Relationship], bool]
     requests: Callable[[Any, Relationship], Sequence[ArtifactRequest]]
     evaluate: Callable[[Any, EvalContext, Relationship], list[Outcome]]
+    # (repo id, directory) pairs whose *listing* (``ctx.entries``) the policy reads: a file added, removed or renamed below
+    # one changes its outcome even though no file the policy reads was edited. Used by C4 as a footprint (M2); a policy that
+    # lists a directory must declare it here, and ``tests/test_impact.py`` fails if one does not.
+    listings: Callable[[Any, Relationship], Sequence[tuple[str, str]]] = no_listings
 
 
 @dataclass

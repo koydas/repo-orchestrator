@@ -190,6 +190,10 @@ class Engine:
         """Every artifact the applicable policies read for ``rel`` (the static footprint used by C4)."""
         return [r for p in self.relationship_policies(rel.id) for r in p.requests(self.configs[p.meta.id], rel)]
 
+    def relationship_listings(self, rel: Relationship) -> list[tuple[str, str]]:
+        """Every (repo, directory) whose listing the applicable policies read for ``rel`` (a footprint used by C4)."""
+        return [x for p in self.relationship_policies(rel.id) for x in p.listings(self.configs[p.meta.id], rel)]
+
     def authority_refs(self, policy_id: str) -> list[AuthorityRef]:
         return self._authorities(policy_id)
 

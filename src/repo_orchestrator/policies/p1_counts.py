@@ -374,4 +374,14 @@ def _mismatch(
     )
 
 
-POLICY = Policy(META, prepare, applies, requests, evaluate)
+def listings(cfg: Config, rel: Relationship) -> Sequence[tuple[str, str]]:
+    """The directories whose entries are counted (``numbered_adr_files``, ``pattern_dirs``)."""
+    rc = cfg.rels[rel.id]
+    return [
+        (rc.described, c.params["dir"].strip("/"))
+        for c in rc.claims
+        if c.rule in ("numbered_adr_files", "pattern_dirs")
+    ]
+
+
+POLICY = Policy(META, prepare, applies, requests, evaluate, listings)

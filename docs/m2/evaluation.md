@@ -9,7 +9,7 @@ The M2 exit criteria of the [MVP](../mvp.md) and the [evaluation set](../mvp.md#
 | Lint | `ruff check src tests` | pass |
 | Format | `ruff format --check src tests` | pass (76 files) |
 | Types | `mypy` (strict, 33 source files) | pass |
-| Tests | `pytest` | **737 passed**, on Python 3.11.18 and on 3.13.18 |
+| Tests | `pytest` | **742 passed**, on Python 3.11.18 and on 3.13.18 |
 | Offline baseline scan (CLI) | `repo-orchestrator scan --revisions baseline --offline …` | exit 1 (D1, D2), as before |
 | Offline PR analysis (CLI) | `repo-orchestrator analyze-pr koydas/autonomous-dev-loop#101 --revisions baseline --offline …` | exit 1 (one introduced finding) |
 
@@ -18,8 +18,8 @@ The 737 tests are the 420 of the M1 merge base, the tests that `main` gained wit
 | Area | Tests |
 |---|---|
 | PR source (GET client, validation, offline records) | `test_pr_source.py` 41, `test_pr_fixtures.py` 32 |
-| C4 and delta rules | `test_impact.py` 29, `test_delta.py` 30 |
-| Evaluation (U1–U5, pre-existing, resolved, missing evidence, determinism, persistence, reports) | `test_pr_eval.py` 47 |
+| C4 and delta rules | `test_impact.py` 33, `test_delta.py` 30 |
+| Evaluation (U1–U5, pre-existing, resolved, missing evidence, determinism, persistence, reports) | `test_pr_eval.py` 48 |
 | Real pull requests (offline replay) | `test_real_pr.py` 6 |
 | CLI | `test_pr_cli.py` 28 |
 | Constraints and docs | `test_architecture_constraints.py` (+ the M2 checks), `test_docs_m2.py` 11 (including the parse of every workflow file and a run of the CI step's own script) |
@@ -46,7 +46,7 @@ Each case is a PR whose head is the pinned snapshot plus the mutation; the base 
 | U5 | `agent-patterns` | new pattern directory, README 21 | `profile` | falsifies | medium | P1 R1.ap `claim:patterns` (20 vs 21) | **introduced** |
 | U5 raw | `agent-patterns` | same, on the raw baseline | `profile` | falsifies | medium | P1 R1.ap `claim:patterns` (17 vs 21) | **pre-existing**, exit 0 |
 
-Each of U1–U5 yields exactly one finding and no other delta. U4's trigger is a `reference` (the renamed file is a link target in an `autonomous-dev-loop` document, found by reading that document), U3's a `request` (the new file matches the claim glob `apps/*/service.yaml`), the others are anchors. U1 also touches R3 (same producer file), reported with no finding.
+Each of U1–U5 yields exactly one finding and no other delta. U4's trigger is a `reference` (the renamed file is a link target in an `autonomous-dev-loop` document, found by reading that document), U3's a `request` (the new file matches the claim glob `apps/*/service.yaml`), the others are anchors. U1 also touches R3 (same producer file), reported with no finding. A skill added to an adopter (`.claude/skills/<name>/SKILL.md`) is a `listing` trigger: the PR analysis finds the same P6 adopter-table inconsistency that a scan of the mutated snapshot finds (the scan is the oracle in the test).
 
 ## Resolved, no impact, and the other pre-existing finding
 

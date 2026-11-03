@@ -32,6 +32,7 @@ A relationship is **touched** when a changed path falls into its footprint on th
 |---|---|---|
 | `anchor` | A declared anchor: a file, or a directory (everything below it) | `docs/adr/` of `autonomous-dev-loop` for the ADR count |
 | `request` | An artifact one of the relationship's policies reads: a path or a glob | `apps/*/service.yaml` for P4 claims |
+| `listing` | A path below a directory whose *listing* a policy reads (`Policy.listings`): a counted ADR or pattern directory (P1), an adopter's `.claude/skills/` (P6). Adding or removing a file there changes the outcome although no file the policy reads was edited | a new `SKILL.md` in `agent-patterns` |
 | `reference` | A file linked by a living document of the *other* repository (P5), read at its pinned revision | the renamed `ADR-001-human-as-gate.md` (U4) |
 | `authority` | A policy authority, exception authority or repository authority artifact | a quote removed from the P3 authority ADR |
 | `unresolved` | The footprint could not be computed (the linking document is unreadable) | the relationship is treated as touched |
