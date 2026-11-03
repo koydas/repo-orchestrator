@@ -39,7 +39,7 @@ Each finding shows **Open issue**, **Create prompt** and **Create PR** ([ADR-001
 
 | Action | What it is |
 |---|---|
-| Open issue | Link to the target repository's *new issue* form, title and body pre-filled from the report. You submit it. |
+| Open issue | Link to the target repository's *new issue* form, title and body pre-filled from the report, with the neutral label `repo-orchestrator` (never a pipeline label). You submit it. |
 | Create prompt | The finding plus instructions, in an expandable block to select and paste into an agent session. It asks for a commit on `repo-orchestrator/<fingerprint>`, pushed, and no PR. |
 | Create PR | Link to the *compare* form for that branch, pre-filled. Works once the branch is pushed. |
 

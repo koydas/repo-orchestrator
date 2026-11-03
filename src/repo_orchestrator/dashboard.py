@@ -566,6 +566,7 @@ def _json_pre(value: object) -> str:
 _BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _URL_BUDGET = 5000  # percent-encoded characters of title + body kept in a link (GitHub rejects URLs past ~8 KB)
 BRANCH_PREFIX = "repo-orchestrator/"
+ISSUE_LABEL = "repo-orchestrator"  # neutral: no pipeline reacts to it (ADR-0013 §6)
 
 
 def _one_line(text: object, limit: int = 200) -> str:
@@ -626,7 +627,7 @@ def _fit(text: str, budget: int) -> str:
 def _issue_url(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str:
     title = f"[repo-orchestrator] {o['policy_id']}: {_one_line(o['subject'], 100)}"
     body = _fit(_brief(o, ctx), _URL_BUDGET - len(quote(title, safe="")))
-    return f"https://github.com/{slug}/issues/new?title={quote(title, safe='')}&body={quote(body, safe='')}"
+    return f"https://github.com/{slug}/issues/new?labels={ISSUE_LABEL}&title={quote(title, safe='')}&body={quote(body, safe='')}"
 
 
 def _pr_url(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str | None:

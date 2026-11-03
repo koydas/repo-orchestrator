@@ -556,7 +556,8 @@ def test_each_finding_offers_an_issue_link_a_prompt_and_a_pr_link_on_its_fix_rep
     f = base["semantic"]["findings"][0]
     html = _first_finding_html(tmp_path, base)
     assert "Open issue</a>" in html and "Create prompt</summary>" in html and "Create PR</a>" in html
-    assert 'href="https://github.com/koydas/koydas/issues/new?title=' in html
+    assert 'href="https://github.com/koydas/koydas/issues/new?labels=repo-orchestrator&amp;title=' in html
+    assert "ready-for-dev" not in html
     assert (
         f'href="https://github.com/koydas/koydas/compare/{BRANCH_PREFIX}{f["fingerprint"]}?expand=1&amp;title=' in html
     )

@@ -17,7 +17,8 @@ A reader of a finding on the [report dashboard](0012-static-report-dashboard.md)
 3. **One target repository per finding**: the repository of the first fix site, else the first affected repository, resolved through the run's pinned revisions. If none resolves, no action is shown.
 4. **The three actions share one brief**, built from the report only (policy, relationship, subject, severity, impact, fingerprint, reason, pinned revisions, fix sites with links at the pinned commit, investigate list). Every string is cleaned of control characters, URL-encoded, and clipped so the link stays under 5 000 encoded characters.
 5. **Create PR depends on a branch that must already exist.** The prompt instructs the agent to commit on `repo-orchestrator/<fingerprint>`, push it, and **not** open the PR nor touch another repository; the link is the human step that follows. The link is dropped when the fingerprint is not a safe branch name.
-6. **Machine origin is stated in the text** ("Finding reported by repo-orchestrator (run …)") and in the branch prefix. No label is requested through the link, so nothing carries a label that `autonomous-dev-loop` reacts to; a label added by hand is the human's decision (ADR-0007 §4).
+6. **Machine origin is stated in the text** ("Finding reported by repo-orchestrator (run …)") and in the branch prefix. The issue link requests exactly one label, the neutral `repo-orchestrator` (traceability, filtering, duplicate search). It is never a label a pipeline reacts to: `ready-for-dev` and the review labels of `autonomous-dev-loop` are never requested, and adding one by hand is the human's decision to enter that pipeline (ADR-0007 §4). The PR link requests no label. GitHub ignores a label that does not exist in the target repository.
+7. **No write path before M4.** Creating the issue or the PR from the dashboard (a distinct identity with write scope, or an agent producing the patch) is deferred to M4 and its own ADR; this ADR covers drafts only.
 
 ## Rationale
 
@@ -30,13 +31,14 @@ A reader of a finding on the [report dashboard](0012-static-report-dashboard.md)
 - **Buttons that call the GitHub API.** Rejected: needs a script and a write token, i.e. ADR-0007 level 2/3 with a distinct identity, and breaks ADR-0012 §1.
 - **A "copy" button.** Rejected: needs JavaScript.
 - **Create PR with a generated patch.** Rejected: M4 (remediation plans); the report carries no diff.
-- **Labels on the issue link** (for example `repo-orchestrator`). Rejected: re-entry risk with label-driven pipelines, and `labels=` is silently dropped for people without triage rights.
+- **No label at all.** Rejected: no way to filter or deduplicate by origin. **A pipeline label** (`ready-for-dev`). Rejected: finding → issue → code → PR with no human between, the re-entry ADR-0007 describes.
 
 ## Consequences
 
 - ✅ One click from a finding to a reviewed draft; no new permission, dependency or service.
 - ⚠️ The issue and PR texts are not updated if the finding changes; they quote the run they came from.
 - ⚠️ Create PR 404s until the branch is pushed; the note under the buttons says so.
+- ⚠️ If a target repository's workflows react to any newly opened issue (not only to a label), the neutral label does not prevent that; not verified for the six repositories.
 - ⚠️ Nothing prevents duplicate issues for the same fingerprint; the fingerprint in the body is what to search for.
 - ⚠️ The prompt is advice to an agent, not a guarantee; its output is reviewed in the target repository like any change.
 
