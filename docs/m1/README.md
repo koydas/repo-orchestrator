@@ -8,9 +8,10 @@
 | [Declarations](declarations.md) | Repositories, relationships, contracts, locators, pins, exceptions, open questions |
 | [Policies](policies.md) | P1–P6 as implemented, the policy interface, how to add or extend one |
 | [Report format](report-format.md) | Outcomes, causes, evidence, fingerprints, the semantic/execution split |
+| [Report dashboard](dashboard.md) | Static, read-only HTML viewer for `report.json` files, and its Pages deployment |
 | [Evaluation](evaluation.md) | The offline suite against the pinned baseline, results, live scan record |
 | [Limitations](limitations.md) | What M1 does not do and where it can be wrong |
-| [Decision record](../adr/0011-m1-outcome-contracts-and-reproducible-reports.md) | ADR-0011 (Proposed) |
+| [Decision records](../adr/README.md) | ADR-0011 (outcomes and reports), ADR-0012 (dashboard), both Proposed |
 | [M2: PR impact](../m2/README.md) | `analyze-pr`, C4, the PR report, [ADR-0013](../adr/0013-m2-pr-impact-contracts.md) (Proposed) |
 
 ## Data flow as implemented
@@ -29,6 +30,7 @@ flowchart LR
     out --> rep["Report<br/>semantic part (digest) +<br/>execution metadata"]
     rep --> md["report.md"]
     rep --> js["report.json"]
+    js --> dash["dashboard command<br/>static HTML, read-only"]
     out --> store[("SQLite run store<br/>runs · outcomes · fingerprints · history")]
 ```
 
@@ -43,6 +45,7 @@ One Python process, one SQLite file, no service. Policy evaluation reads only th
 | `extract.py`, `evidence.py` | Narrow safe extractors; evidence records and their verification |
 | `policies/`, `engine.py` | C3: P1–P6, applicability and precedence, exceptions, repository authorities, fingerprints |
 | `report.py`, `store.py`, `runner.py`, `cli.py` | C7 (M1 subset): report, run store, pipeline, command line |
+| `dashboard.py` | Consumer of `report.json`: validates, deduplicates, renders static HTML ([dashboard](dashboard.md)); imports `models` and `report` only |
 
 ## CI
 

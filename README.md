@@ -2,7 +2,7 @@
 
 **Cross-repository coherence for independent GitHub repositories: model how they relate, detect where one repository's claims about another have become false, and explain the impact with evidence a human can check.**
 
-> **Status: M1 and M2 implemented, M3–M5 design only.** [M1](docs/m1/README.md) is a working, read-only, deterministic scan of six public repositories: declared relationships, six policies (P1–P6), pinned evidence, Markdown and JSON reports, a local SQLite run store, no LLM. [M2](docs/m2/README.md) adds the impact analysis of one pull request: which other repositories it can break, falsify or outdate, and whether it introduces, leaves untouched or resolves each finding (read-only, deterministic, no GitHub write). Everything else below (bounded investigation, remediation plans, optimization opportunities) is **intended**, not implemented. The throwaway [S0 spike](prototypes/langgraph-spike/README.md) validated LangGraph on synthetic data and stays isolated from M1 (outcome: all six experiments passed, with constraints; the framework decision is the owner's: [results](prototypes/langgraph-spike/docs/results.md), [ADR-0005](docs/adr/0005-langgraph-for-investigation-workflows-only.md), still Proposed). All ADRs, including [ADR-0011](docs/adr/0011-m1-outcome-contracts-and-reproducible-reports.md) written for M1 and [ADR-0013](docs/adr/0013-m2-pr-impact-contracts.md) written for M2, are Proposed.
+> **Status: M1 and M2 implemented, M3–M5 design only.** [M1](docs/m1/README.md) is a working, read-only, deterministic scan of six public repositories: declared relationships, six policies (P1–P6), pinned evidence, Markdown and JSON reports, a local SQLite run store, no LLM. [M2](docs/m2/README.md) adds the impact analysis of one pull request: which other repositories it can break, falsify or outdate, and whether it introduces, leaves untouched or resolves each finding (read-only, deterministic, no GitHub write). Everything else below (bounded investigation, remediation plans, optimization opportunities) is **intended**, not implemented. The throwaway [S0 spike](prototypes/langgraph-spike/README.md) validated LangGraph on synthetic data and stays isolated from M1 (outcome: all six experiments passed, with constraints; the framework decision is the owner's: [results](prototypes/langgraph-spike/docs/results.md), [ADR-0005](docs/adr/0005-langgraph-for-investigation-workflows-only.md), still Proposed). All ADRs, including [ADR-0011](docs/adr/0011-m1-outcome-contracts-and-reproducible-reports.md) and [ADR-0012](docs/adr/0012-static-report-dashboard.md) written for M1 and [ADR-0013](docs/adr/0013-m2-pr-impact-contracts.md) written for M2, are Proposed.
 
 ## The problem
 
@@ -26,6 +26,16 @@ repo-orchestrator analyze-pr koydas/ollama-chat#<n>   # M2: impact of one pull r
 ```
 
 Exit codes: 0 no finding · 1 findings · 2 incomplete evaluation · 3 configuration/runtime error ([usage](docs/m1/usage.md)); for `analyze-pr` 1 means an *introduced* finding, and a pre-existing finding never fails it ([usage](docs/m2/usage.md)). On the pinned baseline the scan reports exactly the two documented inconsistencies (D1, D2, with D2 attributed to `autonomous-dev-loop`'s own README), two policy questions (N2, H1) and no false finding on the negative controls ([evaluation](docs/m1/evaluation.md)).
+
+## Report dashboard (M1)
+
+`repo-orchestrator dashboard` turns the `report.json` files into a static, read-only site: **Overview** (latest run), **Reports** (history) and **Report** detail (findings, other outcomes, pinned evidence). No service, no script, no new dependency; confirmed inconsistencies, unknowns and policy questions are never mixed, and a partial run says it may be missing findings. The mockup below is the visual reference; what it shows that M1 does not produce (coherence percentages, trends, a "Run" button) is deliberately not implemented ([details](docs/m1/dashboard.md#the-mockup-is-a-reference-not-a-specification), [ADR-0012](docs/adr/0012-static-report-dashboard.md)).
+
+![Visual mockup of the report dashboard: overview and report detail, dark theme](docs/m1/assets/dashboard-mockup.webp)
+
+```bash
+repo-orchestrator dashboard --reports reports --out _site   # then open _site/index.html
+```
 
 ## What this project intends to do
 
@@ -60,6 +70,7 @@ flowchart LR
     imp --> plan
     plan --> gate{{"Human review"}}
     gate --> report["Report<br/>Markdown + JSON"]
+    report --> dash["Static dashboard<br/>read-only, M1"]
 ```
 
 The [M1 data flow as implemented](docs/m1/README.md#data-flow-as-implemented) covers the Collector, Relationship graph, Policy engine, report and run store, and the [M2 data flow](docs/m2/README.md#data-flow-as-implemented) adds the pull-request boundary and the Impact analyzer; the Investigator and Remediation planner above are the M3–M4 design. One Python process, one SQLite file, no services. The Investigator is the only component that calls an LLM, and its output is verified in code before it can become a finding. LangGraph is the candidate engine for the investigation and approval workflow only; the isolated S0 spike [validated it](prototypes/langgraph-spike/docs/results.md) on synthetic data, with explicit constraints, without coupling the core to it. Details: [architecture](docs/architecture.md), [workflows](docs/workflows.md).
@@ -114,8 +125,9 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [S0 spike](prototypes/langgraph-spike/README.md) | LangGraph validation on synthetic data: architecture, experiments A–F, results, recommendation |
 | [Ecosystem baseline](docs/research/ecosystem-baseline.md) | Verified relationships and inconsistencies, hypotheses, open questions, with revisions |
 | [M1](docs/m1/README.md) | What is implemented: usage, declarations, policies, report format, evaluation, limitations |
+| [Report dashboard](docs/m1/dashboard.md) | Static, read-only viewer for the reports (Overview, Reports, Report detail) and its GitHub Pages deployment |
 | [M2](docs/m2/README.md) | What is implemented for PR analysis: usage, impact model, report format, evaluation, limitations |
-| [ADRs](docs/adr/README.md) | Twelve Proposed decisions |
+| [ADRs](docs/adr/README.md) | Thirteen Proposed decisions |
 | [Claude Code](docs/claude-code.md) | `ai-dev-tools` toolbox, repository rules (`CLAUDE.md`) and skills |
 
 ## Relation to the rest of the ecosystem

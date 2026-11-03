@@ -1,0 +1,81 @@
+name: Report dashboard
+
+# Builds the static report dashboard (ADR-0012) from report.json files and deploys it to GitHub Pages.
+# One-time setup: repository Settings → Pages → Source: GitHub Actions.
+# Manual only: scheduled scans are not authorized (CLAUDE.md). History lives on the published site itself: every run
+# restores the reports listed in the site's reports/index.json, adds the new one, and republishes them all.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/repo_orchestrator/dashboard.py"
+      - ".github/workflows/dashboard.yml"
+  workflow_dispatch:
+    inputs:
+      scan:
+        description: "Report to add before building: none (rebuild from the published history), baseline (offline, pinned fixtures) or live (read-only scan of the six public repositories)"
+        type: choice
+        options: [none, baseline, live]
+        default: none
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e .
+      - name: Restore the published history
+        env:
+          SITE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: |
+          mkdir -p _reports
+          if curl -fsS --max-time 30 "$SITE/reports/index.json" -o "$RUNNER_TEMP/manifest.json"; then
+            for f in $(jq -r '.reports[]' "$RUNNER_TEMP/manifest.json"); do
+              if [[ "$f" =~ ^[0-9a-f]{32}\.json$ ]]; then
+                curl -fsS --max-time 30 "$SITE/reports/$f" -o "_reports/$f" || echo "not restored: $f"
+              else
+                echo "ignored manifest entry: $f"
+              fi
+            done
+          else
+            echo "no published history yet"
+          fi
+      - name: Add the offline baseline report
+        if: inputs.scan == 'baseline'
+        run: |
+          repo-orchestrator scan --revisions baseline --offline --cache-dir tests/fixtures/baseline \
+            --as-of 2026-11-02 --no-store --format json --quiet --output-dir _reports/new || test $? -le 2
+      - name: Add a live, read-only report
+        if: inputs.scan == 'live'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: repo-orchestrator scan --no-store --format json --quiet --output-dir _reports/new || test $? -le 2
+      - name: Build the dashboard
+        run: repo-orchestrator dashboard --reports _reports --out _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

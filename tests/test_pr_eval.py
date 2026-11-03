@@ -395,3 +395,15 @@ class TestRenamedSubjectKeepsBaseEvidenceInTheReport:
         assert any("apps/newsvc/service.yaml" in e["path"] for e in introduced[0]["evidence"])
         assert all(e["sha"] == case.base_sha for e in resolved[0]["evidence"] if e["repo"] == "homelab")
         assert all(e["sha"] == case.head_sha for e in introduced[0]["evidence"] if e["repo"] == "homelab")
+
+
+def test_the_scan_dashboard_skips_a_pr_report_instead_of_misreading_it(tmp_path):
+    """The dashboard (M1) consumes scan reports; a PR report in the same directory is skipped with a reason, never rendered."""
+    from repo_orchestrator.dashboard import build_dashboard
+
+    a = analyze(CASES["u1"])
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    (reports / "pr-impact.json").write_text(json.dumps({"semantic": a.semantic, "execution": a.execution}))
+    result = build_dashboard(reports, tmp_path / "site")
+    assert result.reports == 0 and [s.file for s in result.skipped] == ["pr-impact.json"]

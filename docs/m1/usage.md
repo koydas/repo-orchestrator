@@ -49,3 +49,11 @@ repo-orchestrator scan --output-dir reports/
 Public repositories work without a token (60 requests per hour); a scan needs about 50, so set a token for repeated runs. `GITHUB_TOKEN` or `GH_TOKEN` is read if present and sent as a bearer header. **No write scope is needed or used**: a fine-grained token with *Contents: read* on the analyzed repositories is enough. The client issues `GET` requests only, to four endpoints (`/repos/{slug}`, `/repos/{slug}/commits/{ref}`, `/repos/{slug}/git/trees/{sha}?recursive=1`, `/repos/{slug}/git/blobs/{id}`). Transient failures (network errors, 5xx, 429, rate-limit 403) are retried up to 4 attempts with exponential backoff, honouring `Retry-After` up to 30 s; permanent errors are not retried. A private repository is refused (baseline Q6).
 
 The cache directory is safe to delete; it only saves requests.
+
+## `dashboard`
+
+```bash
+repo-orchestrator dashboard --reports reports --out _site
+```
+
+Renders every `report.json` under `--reports` as a static HTML dashboard in `--out` (default `_site`). Exit 0, or 3 if `--reports` does not exist; unusable files are warned about and skipped. See [Report dashboard](dashboard.md).
