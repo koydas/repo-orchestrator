@@ -59,7 +59,7 @@ jobs:
         run: mypy
       - name: Unit tests, offline baseline evaluation, documentation and architecture checks
         run: pytest
-      - name: Offline PR evaluation (M2: U1-U5 replayed as pull requests, missing-evidence cases, determinism)
+      - name: "Offline PR evaluation (M2 - U1-U5 replayed as pull requests, missing-evidence cases, determinism)"
         run: pytest tests/test_pr_eval.py tests/test_pr_fixtures.py tests/test_pr_cli.py tests/test_delta.py tests/test_impact.py tests/test_pr_source.py
       - name: Offline baseline scan (CLI smoke test)
         run: |

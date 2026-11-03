@@ -108,3 +108,46 @@ def test_the_adr_for_m2_is_indexed_and_answers_the_two_open_questions_of_adr_001
     index = read(DOCS / "adr" / "README.md")
     assert "ADR-0012" in index and 'A12["' in index
     assert "ADR-0012" in read(DOCS / "adr" / "0011-m1-outcome-contracts-and-reproducible-reports.md")
+
+
+def test_every_workflow_file_is_valid_yaml_with_the_expected_shape():
+    """A workflow that does not parse is rejected by GitHub and runs nothing: parse them all, check the M2 steps by structure."""
+    import yaml
+
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        wf = yaml.safe_load(read(path))
+        assert isinstance(wf, dict) and wf["jobs"], path.name
+        for job in wf["jobs"].values():
+            assert all("uses" in s or "run" in s for s in job["steps"]), path.name
+
+    wf = yaml.safe_load(read(ROOT / ".github" / "workflows" / "m1.yml"))
+    triggers = wf.get("on", wf.get(True))
+    assert set(triggers["workflow_dispatch"]["inputs"]) == {"live_scan", "live_pr"}
+    names = [s.get("name", "") for s in wf["jobs"]["test"]["steps"]]
+    assert any(n.startswith("Offline PR evaluation") for n in names)
+    assert any(n.startswith("Offline PR analysis") for n in names)
+    assert set(wf["jobs"]) == {"test", "live-scan", "live-pr"}
+
+
+def test_the_ci_pr_smoke_step_runs_as_written(tmp_path):
+    """Run the workflow's own offline PR analysis step (its shell script, extracted from the YAML) and check its exit code."""
+    import os
+    import subprocess
+    import sys
+
+    import yaml
+
+    wf = yaml.safe_load(read(ROOT / ".github" / "workflows" / "m1.yml"))
+    step = next(s for s in wf["jobs"]["test"]["steps"] if s.get("name", "").startswith("Offline PR analysis"))
+    bin_dir = os.path.dirname(sys.executable)
+    env = {
+        **os.environ,
+        "RUNNER_TEMP": str(tmp_path),
+        "PATH": bin_dir + os.pathsep + os.environ["PATH"],
+        "PYTHONPATH": str(ROOT / "src"),
+    }
+    done = subprocess.run(
+        ["bash", "-e", "-c", step["run"]], cwd=ROOT, env=env, capture_output=True, text=True, timeout=300
+    )
+    assert done.returncode == 0, done.stdout + done.stderr  # the step itself asserts exit code 1 of analyze-pr
+    assert "exit code: 1" in done.stdout and (tmp_path / "m2-report" / "pr-impact.json").is_file()
