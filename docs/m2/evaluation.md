@@ -9,11 +9,11 @@ The M2 exit criteria of the [MVP](../mvp.md) and the [evaluation set](../mvp.md#
 | Lint | `ruff check src tests` | pass |
 | Format | `ruff format --check src tests` | pass (76 files) |
 | Types | `mypy` (strict, 33 source files) | pass |
-| Tests | `pytest` | **675 passed**, on Python 3.11.18 and on 3.13.18 |
+| Tests | `pytest` | **677 passed**, on Python 3.11.18 and on 3.13.18 |
 | Offline baseline scan (CLI) | `repo-orchestrator scan --revisions baseline --offline …` | exit 1 (D1, D2), as before |
 | Offline PR analysis (CLI) | `repo-orchestrator analyze-pr koydas/autonomous-dev-loop#101 --revisions baseline --offline …` | exit 1 (one introduced finding) |
 
-The 675 tests are the 420 of M1 plus 255 new ones. The M1 tests are unchanged except two documentation-scope tests in `tests/test_docs.py`, which asserted "only M1 is authorized / implemented" and now assert "M1 and M2 are authorized / implemented, M3–M5 and every GitHub write are not" (the closed list is checked item by item, and C4 and M2 must no longer be on it). The M1 example report was regenerated: its two digests changed because R6 gained anchors; its content did not. The M1 evaluation results are otherwise untouched ([M1 evaluation](../m1/evaluation.md)).
+The 677 tests are the 420 of M1 plus 257 new ones. The M1 tests are unchanged except two documentation-scope tests in `tests/test_docs.py`, which asserted "only M1 is authorized / implemented" and now assert "M1 and M2 are authorized / implemented, M3–M5 and every GitHub write are not" (the closed list is checked item by item, and C4 and M2 must no longer be on it). The M1 example report was regenerated: its two digests changed because R6 gained anchors; its content did not. The M1 evaluation results are otherwise untouched ([M1 evaluation](../m1/evaluation.md)).
 
 | Area | Tests |
 |---|---|
@@ -22,7 +22,7 @@ The 675 tests are the 420 of M1 plus 255 new ones. The M1 tests are unchanged ex
 | Evaluation (U1–U5, pre-existing, resolved, missing evidence, determinism, persistence, reports) | `test_pr_eval.py` 45 |
 | Real pull requests (offline replay) | `test_real_pr.py` 6 |
 | CLI | `test_pr_cli.py` 28 |
-| Constraints and docs | `test_architecture_constraints.py` (+ the M2 checks), `test_docs_m2.py` 9 |
+| Constraints and docs | `test_architecture_constraints.py` (+ the M2 checks), `test_docs_m2.py` 11 (including the parse of every workflow file and a run of the CI step's own script) |
 
 ## M2 exit criteria
 
