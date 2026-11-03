@@ -11,7 +11,7 @@
 | [Evaluation](evaluation.md) | The offline suite against the pinned baseline, results, live scan record |
 | [Limitations](limitations.md) | What M1 does not do and where it can be wrong |
 | [Decision record](../adr/0011-m1-outcome-contracts-and-reproducible-reports.md) | ADR-0011 (Proposed) |
-| [M2: PR impact](../m2/README.md) | `analyze-pr`, C4, the PR report, [ADR-0012](../adr/0012-m2-pr-impact-contracts.md) (Proposed) |
+| [M2: PR impact](../m2/README.md) | `analyze-pr`, C4, the PR report, [ADR-0013](../adr/0013-m2-pr-impact-contracts.md) (Proposed) |
 
 ## Data flow as implemented
 

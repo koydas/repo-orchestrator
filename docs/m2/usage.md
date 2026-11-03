@@ -49,7 +49,7 @@ A live run records the pull request under `<cache>/<owner>/<name>/pulls/<n>/<hea
 
 **A pre-existing finding never fails a PR gate by itself.** A finding present on base and head is not caused by the pull request; it is listed (so it is not forgotten) and does not change the exit code. Only an *introduced* finding gives exit 1, and only a *complete* analysis can give 0. A baseline scan (`repo-orchestrator scan`) is the tool that fails on state; the PR analysis fails on change.
 
-`policy_clarification` outcomes never change the exit code ([ADR-0012](../adr/0012-m2-pr-impact-contracts.md) §12).
+`policy_clarification` outcomes never change the exit code ([ADR-0013](../adr/0013-m2-pr-impact-contracts.md) §12).
 
 ## GitHub access
 

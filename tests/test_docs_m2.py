@@ -59,7 +59,7 @@ def test_the_gate_rule_is_stated_in_the_code_the_docs_and_claude_md():
     assert "Pre-existing findings never fail a PR gate by themselves" in GATE_RULE
     assert "**A pre-existing finding never fails a PR gate by itself.**" in read(M2 / "usage.md")
     assert "never fails a PR gate by itself" in read(ROOT / "CLAUDE.md")
-    assert "never fails a PR gate by itself" in read(DOCS / "adr" / "0012-m2-pr-impact-contracts.md")
+    assert "never fails a PR gate by itself" in read(DOCS / "adr" / "0013-m2-pr-impact-contracts.md")
 
 
 def test_every_pr_cause_and_label_is_documented():
@@ -108,15 +108,15 @@ def test_the_ci_workflow_runs_the_m2_checks_offline_and_the_live_check_only_by_h
 
 
 def test_the_adr_for_m2_is_indexed_and_answers_the_two_open_questions_of_adr_0011():
-    adr = read(DOCS / "adr" / "0012-m2-pr-impact-contracts.md")
+    adr = read(DOCS / "adr" / "0013-m2-pr-impact-contracts.md")
     assert (
         "- **Status:** Proposed" in adr
         and "Report-schema versioning" in adr
         and "`policy_clarification` and exit codes" in adr
     )
     index = read(DOCS / "adr" / "README.md")
-    assert "ADR-0012" in index and 'A12["' in index
-    assert "ADR-0012" in read(DOCS / "adr" / "0011-m1-outcome-contracts-and-reproducible-reports.md")
+    assert "ADR-0013" in index and 'A13["' in index
+    assert "ADR-0013" in read(DOCS / "adr" / "0011-m1-outcome-contracts-and-reproducible-reports.md")
 
 
 def test_every_workflow_file_is_valid_yaml_with_the_expected_shape():

@@ -19,7 +19,7 @@ Format: `NNNN-kebab-title.md`, sections Context / Decision / Rationale / Alterna
 | [ADR-0009](./0009-optimization-opportunities-as-first-class-output.md) | Optimization opportunities are a first-class output with their own lifecycle | Proposed |
 | [ADR-0010](./0010-claude-code-toolbox-adoption.md) | Adopt the ai-dev-tools toolbox and the ecosystem's Claude Code conventions | Proposed |
 | [ADR-0011](./0011-m1-outcome-contracts-and-reproducible-reports.md) | M1 outcome contracts, reproducible reports and run identity | Proposed |
-| [ADR-0012](./0012-m2-pr-impact-contracts.md) | M2 pull-request analysis contracts: change set, impact, delta, gate and persistence | Proposed |
+| [ADR-0013](./0013-m2-pr-impact-contracts.md) | M2 pull-request analysis contracts: change set, impact, delta, gate and persistence | Proposed |
 
 ## Dependencies between records
 
@@ -42,8 +42,8 @@ flowchart LR
     A4 --> A11["0011 M1 outcomes & reports"]
     A6 --> A11
     A8 --> A11
-    A7 --> A12["0012 M2 PR impact contracts"]
-    A11 --> A12
-    A6 --> A12
-    A8 --> A12
+    A7 --> A13["0013 M2 PR impact contracts"]
+    A11 --> A13
+    A6 --> A13
+    A8 --> A13
 ```

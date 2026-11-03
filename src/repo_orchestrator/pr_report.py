@@ -1,4 +1,4 @@
-"""C7 report assembly for a pull-request analysis (W2). Same two-part contract as the M1 report (ADR-0011 §4, ADR-0012):
+"""C7 report assembly for a pull-request analysis (W2). Same two-part contract as the M1 report (ADR-0011 §4, ADR-0013):
 the *semantic* part is a pure function of the inputs (declarations, pull request head/base/files, pinned SHAs, as-of date,
 policy and extractor versions) and ends with ``result_digest``; volatile metadata (run id, timestamps, PR state, request
 counts) lives in the ``execution`` part and is never hashed."""

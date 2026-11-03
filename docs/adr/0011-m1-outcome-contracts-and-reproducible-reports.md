@@ -56,5 +56,5 @@ M1 is the first code that turns the design into observable behaviour ([MVP](../m
 
 ## Open questions
 
-- Should a `policy_clarification` that persists across many runs eventually raise the exit code (a gate that nobody answers)? Decided for M2 in [ADR-0012](0012-m2-pr-impact-contracts.md) §12 (no; still open for persistent history).
-- Report schema versioning policy once a second consumer (M2 PR gate) reads it. Proposed in [ADR-0012](0012-m2-pr-impact-contracts.md) §11.
+- Should a `policy_clarification` that persists across many runs eventually raise the exit code (a gate that nobody answers)? Decided for M2 in [ADR-0013](0013-m2-pr-impact-contracts.md) §12 (no; still open for persistent history).
+- Report schema versioning policy once a second consumer (M2 PR gate) reads it. Proposed in [ADR-0013](0013-m2-pr-impact-contracts.md) §11.

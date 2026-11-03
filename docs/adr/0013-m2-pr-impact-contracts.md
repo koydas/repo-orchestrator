@@ -1,4 +1,4 @@
-# ADR-0012: M2 pull-request analysis contracts: change set, impact, delta, gate and persistence
+# ADR-0013: M2 pull-request analysis contracts: change set, impact, delta, gate and persistence
 
 - **Date:** 2026-11-03
 - **Status:** Proposed

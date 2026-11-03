@@ -1,6 +1,6 @@
 # PR report format
 
-Decisions: [ADR-0012](../adr/0012-m2-pr-impact-contracts.md) (builds on [ADR-0011](../adr/0011-m1-outcome-contracts-and-reproducible-reports.md) and the [M1 report format](../m1/report-format.md)). Examples: [Markdown](examples/u1-introduced.md), [JSON](examples/u1-introduced.json) (both generated from the offline fixtures and checked by a test).
+Decisions: [ADR-0013](../adr/0013-m2-pr-impact-contracts.md) (builds on [ADR-0011](../adr/0011-m1-outcome-contracts-and-reproducible-reports.md) and the [M1 report format](../m1/report-format.md)). Examples: [Markdown](examples/u1-introduced.md), [JSON](examples/u1-introduced.json) (both generated from the offline fixtures and checked by a test).
 
 `pr-impact.json` is `{"semantic": …, "execution": …}`, like M1. `pr-impact.md` renders the semantic part only.
 

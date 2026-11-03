@@ -25,7 +25,7 @@ What M2 does not do, and where its answers can be wrong. Nothing below is hidden
 
 ## Snapshots and the change set
 
-- **The base is taken as GitHub reports it** (`base.sha`). When it is not the merge base (the base branch moved after the PR was opened and the PR was not updated), the trees differ in paths the PR did not change: that is `pr_file_list_mismatch`, an incomplete run, not a guess. Rebase or merge the base into the PR, or analyze it after merge. Using the merge base would need the compare endpoint (open question in ADR-0012).
+- **The base is taken as GitHub reports it** (`base.sha`). When it is not the merge base (the base branch moved after the PR was opened and the PR was not updated), the trees differ in paths the PR did not change: that is `pr_file_list_mismatch`, an incomplete run, not a guess. Rebase or merge the base into the PR, or analyze it after merge. Using the merge base would need the compare endpoint (open question in ADR-0013).
 - **The file list is capped at 3000 files** by GitHub; a PR at the cap, or whose list is shorter than GitHub's own count, is `pr_files_truncated` (incomplete). The trees remain the evidence for the paths they show, but the run is not a pass.
 - **A truncated tree** (very large repositories) cannot be cross-checked: `tree_truncated`, incomplete.
 - **Fork heads** are read through the base repository. If GitHub does not serve the commit there, the head is unavailable (incomplete).
