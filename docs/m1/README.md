@@ -1,6 +1,6 @@
 # M1 — deterministic baseline
 
-> **Status: implemented.** M1 is the first production-capable slice: a read-only, on-demand scan of the six declared repositories with six deterministic policies, evidence-backed reports and a local run store. It uses no LLM and no agent framework. M2–M5 are **not** implemented ([MVP](../mvp.md)).
+> **Status: implemented.** M1 is the first production-capable slice: a read-only, on-demand scan of the six declared repositories with six deterministic policies, evidence-backed reports and a local run store. It uses no LLM and no agent framework. M2 (PR impact analysis) builds on it ([M2 docs](../m2/README.md)); M3–M5 are **not** implemented ([MVP](../mvp.md)).
 
 | Page | Contents |
 |---|---|
@@ -11,6 +11,7 @@
 | [Evaluation](evaluation.md) | The offline suite against the pinned baseline, results, live scan record |
 | [Limitations](limitations.md) | What M1 does not do and where it can be wrong |
 | [Decision record](../adr/0011-m1-outcome-contracts-and-reproducible-reports.md) | ADR-0011 (Proposed) |
+| [M2: PR impact](../m2/README.md) | `analyze-pr`, C4, the PR report, [ADR-0012](../adr/0012-m2-pr-impact-contracts.md) (Proposed) |
 
 ## Data flow as implemented
 
@@ -42,3 +43,7 @@ One Python process, one SQLite file, no service. Policy evaluation reads only th
 | `extract.py`, `evidence.py` | Narrow safe extractors; evidence records and their verification |
 | `policies/`, `engine.py` | C3: P1–P6, applicability and precedence, exceptions, repository authorities, fingerprints |
 | `report.py`, `store.py`, `runner.py`, `cli.py` | C7 (M1 subset): report, run store, pipeline, command line |
+
+## CI
+
+`.github/workflows/m1.yml` (the S0 spike keeps `spike-langgraph.yml`, untouched) runs on Python 3.11 and 3.13, fully offline: `ruff check`, `ruff format --check`, `mypy` (strict), `pytest` (unit tests, the M1 and M2 evaluations against committed fixtures, documentation and architecture checks), an offline baseline scan (`exit 1` expected: D1 and D2) and an **offline PR analysis** (the M2 evaluation tests, run as their own step, then `analyze-pr` on a recorded pull request, `exit 1` expected). Two manual `workflow_dispatch` inputs add read-only live checks: `live_scan` (six repositories) and `live_pr` (`owner/repo#n`, GET only, `contents: read` and `pull_requests: read`); neither is part of the default gate, and an exit code of 0, 1 or 2 is a result, 3 a failure.

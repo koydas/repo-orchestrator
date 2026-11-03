@@ -71,7 +71,7 @@ An exception is the only way a finding becomes `intentional`. The Investigator c
 
 ## Prioritization
 
-Severity derives from the impact class of the policy and the relationship type, not from an LLM.
+Severity derives from the impact class of the policy and the relationship type, not from an LLM. In a PR analysis (M2) the same severity is shown on each finding, and the *affected repository* is the one the change can break, falsify or outdate by the relationship's type ([impact model](m2/impact-model.md#4-direction-and-impact-class)); a pre-existing finding keeps its severity but never fails the gate.
 
 | Severity | When | Examples |
 |---|---|---|
@@ -157,3 +157,5 @@ Seven policies, six deterministic. Detailed scope and milestones in [mvp.md](mvp
 P6 is deliberately the policy with open questions (baseline Q1, Q3): it exercises `undetermined` intent, exceptions and policy conflicts on real data.
 
 **M1 status.** P1–P6 are implemented at version 1.0.0 ([policies](m1/policies.md)); P7 is not (M3). Ambiguous applicability is a distinct outcome, `policy_clarification` (N2 and H1 on the baseline), not a weak finding. The policy-conflict path (precedence rule 1) and expiring exceptions are implemented and exercised by the offline suite on synthetic declarations, because the pinned baseline needs neither.
+
+**M2 status.** The policies are unchanged. A pull request analysis evaluates the policies of the touched relationships on the PR base and head and labels each finding `introduced`, `pre-existing`, `resolved` or `undetermined` ([ADR-0012](adr/0012-m2-pr-impact-contracts.md)); `cannot_evaluate` on either side is never `introduced` or `resolved`.

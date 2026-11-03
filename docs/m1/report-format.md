@@ -27,7 +27,8 @@ Decisions: [ADR-0006](../adr/0006-evidence-provenance-uncertainty-and-reproducib
 
 | Class | Causes |
 |---|---|
-| collection | `repository_not_found`, `private_repository_out_of_scope`, `permission_denied`, `revision_unresolved`, `fetch_failed`, `rate_limited`, `api_budget_exhausted`, `not_cached_offline`, `integrity_mismatch` |
+| collection | `repository_not_found`, `private_repository_out_of_scope`, `permission_denied`, `revision_unresolved`, `fetch_failed`, `rate_limited`, `api_budget_exhausted`, `not_cached_offline`, `integrity_mismatch`, `pull_request_not_found` (M2) |
+| change set (M2) | `pr_files_truncated`, `pr_file_list_mismatch` ([PR report](../m2/report-format.md)); only `analyze-pr` produces them |
 | artifact | `artifact_not_found`, `artifact_too_large`, `tree_truncated`, `artifact_not_collected`, `authority_unresolved` |
 | parse | `parse_error`, `unsupported_syntax` |
 | locator | `locator_no_match`, `locator_ambiguous`, `locator_invalid`, `reference_not_pinned` |
