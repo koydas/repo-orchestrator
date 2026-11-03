@@ -1,6 +1,6 @@
 # Report dashboard
 
-> **Status: implemented.** A static, read-only viewer for the `report.json` files that `scan` writes. It evaluates nothing, adds no service and no dependency. Decision: [ADR-0012](../adr/0012-static-report-dashboard.md) (Proposed).
+> **Status: implemented.** A static, read-only viewer for the `report.json` files that `scan` writes. It evaluates nothing, adds no service and no dependency. Decisions: [ADR-0012](../adr/0012-static-report-dashboard.md), [ADR-0013](../adr/0013-finding-actions-as-human-submitted-drafts.md) (Proposed).
 
 ![Visual mockup of the dashboard: overview and report detail, dark theme](assets/dashboard-mockup.webp)
 
@@ -32,6 +32,18 @@ Semantics preserved:
 - The **run status** (`complete` / `partial`) is an outlined badge, distinct from outcome badges. A partial run says it may be missing findings and that an absent finding is **not** resolved.
 - A finding's **evidence verification** (quotes re-checked in code) and **conclusion validation** (`validated_by_check`) are two separate labels. There is no confidence score.
 - Run-store history (`execution.history`) is shown when present; a report written with `--no-store` says "not recorded". Nothing is inferred.
+
+## Finding actions
+
+Each finding shows **Open issue**, **Create prompt** and **Create PR** ([ADR-0013](../adr/0013-finding-actions-as-human-submitted-drafts.md)). They are drafts: the dashboard creates, posts and pushes nothing.
+
+| Action | What it is |
+|---|---|
+| Open issue | Link to the target repository's *new issue* form, title and body pre-filled from the report. You submit it. |
+| Create prompt | The finding plus instructions, in an expandable block to select and paste into an agent session. It asks for a commit on `repo-orchestrator/<fingerprint>`, pushed, and no PR. |
+| Create PR | Link to the *compare* form for that branch, pre-filled. Works once the branch is pushed. |
+
+Target repository: first fix site, else first affected repository. None resolvable: no actions. Only confirmed findings get actions.
 
 ## Data flow
 

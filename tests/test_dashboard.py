@@ -15,6 +15,7 @@ import pytest
 from repo_orchestrator import cli
 from repo_orchestrator.collector.overlay import replace_text
 from repo_orchestrator.dashboard import (
+    BRANCH_PREFIX,
     LOOP_DASHBOARD_URL,
     TOOLS_DASHBOARD_URL,
     Report,
@@ -539,3 +540,67 @@ def test_the_dashboard_workflow_is_manual_read_only_and_keeps_history_on_pages()
     assert "--no-store" in wf and "repo-orchestrator dashboard" in wf and "deploy-pages" in wf
     assert "^[0-9a-f]{32}\\.json$" in wf  # the manifest is data: file names are validated before use
     assert "pull_request" not in wf
+
+
+# ---- finding actions (ADR-0013) ------------------------------------------------------------------------------------
+
+
+def _first_finding_html(tmp_path, report):
+    out, _ = built(tmp_path, a=report)
+    html = detail(out, run_key(report["semantic"]))
+    start = html.index('class="actions"')
+    return html[start : html.index("</article>", start)]
+
+
+def test_each_finding_offers_an_issue_link_a_prompt_and_a_pr_link_on_its_fix_repository(tmp_path, base):
+    f = base["semantic"]["findings"][0]
+    html = _first_finding_html(tmp_path, base)
+    assert "Open issue</a>" in html and "Create prompt</summary>" in html and "Create PR</a>" in html
+    assert 'href="https://github.com/koydas/koydas/issues/new?title=' in html
+    assert (
+        f'href="https://github.com/koydas/koydas/compare/{BRANCH_PREFIX}{f["fingerprint"]}?expand=1&amp;title=' in html
+    )
+    assert f"branch {BRANCH_PREFIX}{f['fingerprint']} and push it" in html and "Do not open a pull request" in html
+
+
+def test_actions_create_nothing_the_dashboard_stays_scriptless_and_posts_no_form(tmp_path, base):
+    html = _first_finding_html(tmp_path, base)
+    assert "<form" not in html and "<script" not in html and "onclick" not in html and "<button" not in html
+    assert "nothing is created until you submit it on GitHub" in html
+
+
+def test_only_findings_get_actions_not_other_outcomes(tmp_path, base, policy):
+    out, _ = built(tmp_path, a=policy)
+    html = detail(out, run_key(policy["semantic"]))
+    assert html.count('class="actions"') == len(policy["semantic"]["findings"])
+
+
+def test_a_finding_without_a_resolvable_repository_has_no_actions(tmp_path, base):
+    def edit(sem):
+        sem["findings"][0]["fix_sites"] = []
+        sem["findings"][0]["affected_repos"] = ["unknown-id"]
+
+    forged = forge(base, edit)
+    out, _ = built(tmp_path, a=forged)
+    html = detail(out, run_key(forged["semantic"]))
+    first = html.index(f'id="f-{base["semantic"]["findings"][0]["fingerprint"]}"')
+    assert 'class="actions"' not in html[first : html.index("</article>", first)]
+
+
+def test_an_unsafe_fingerprint_drops_the_pr_link_but_keeps_issue_and_prompt(tmp_path, base):
+    def edit(sem):
+        sem["findings"][0]["fingerprint"] = "../x y"
+
+    html = _first_finding_html(tmp_path, forge(base, edit))
+    assert "Create PR</a>" not in html and "Open issue</a>" in html and "Create prompt</summary>" in html
+
+
+def test_issue_and_pr_links_stay_within_the_url_budget_and_hostile_text_is_inert(tmp_path, base):
+    def edit(sem):
+        sem["findings"][0]["reason"] = XSS + " x" * 20000
+        sem["findings"][0]["subject"] = "s\n" + XSS
+
+    html = _first_finding_html(tmp_path, forge(base, edit))
+    for href in re.findall(r'href="(https://github.com/[^"]*(?:issues/new|compare)/?[^"]*)"', html):
+        assert len(href.replace("&amp;", "&")) < 7000
+    assert "<script" not in html and "<img" not in html

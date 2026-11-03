@@ -424,6 +424,7 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; border-top: 0; } td
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; min-height: 36px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-bg); color: var(--ink); font-weight: 600; } .btn:hover { text-decoration: none; background: var(--surface-2); }
 .notice { padding: 10px 14px; border: 1px solid var(--border); border-left: 4px solid var(--neutral); border-radius: 10px; background: var(--surface); color: var(--ink-2); font-size: 13px; margin: 0 0 16px; }
 .notice.warn { border-left-color: var(--warn); } .notice strong { color: var(--ink); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; align-items: flex-start; } .actions summary { cursor: pointer; list-style: none; } .actions summary::-webkit-details-marker { display: none; } .act-prompt[open] { flex-basis: 100%; order: 3; } .act-prompt pre { white-space: pre-wrap; user-select: all; }
 .item { padding: 14px 0; border-top: 1px solid var(--border); } .item:first-of-type { border-top: 0; padding-top: 4px; }
 .item-head { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; } .item p { margin: 8px 0; }
 dl.meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 8px 0; font-size: 13px; } dl.meta dt { color: var(--muted); } dl.meta dd { margin: 0; }
@@ -494,6 +495,7 @@ class _Ctx:
     revs: dict[str, tuple[str, str | None]]
     questions: dict[str, str]
     history: dict[str, str]  # fingerprint → run-store event of this run
+    run: str  # run key, quoted in the drafts of a finding's actions
 
 
 def _ctx(r: Report) -> _Ctx:
@@ -501,7 +503,10 @@ def _ctx(r: Report) -> _Ctx:
     revs = {x["repo"]: (x["slug"], x["sha"]) for x in sem["inputs"]["revisions"]}
     events = {fp: ev for ev, fps in r.execution.get("history", {}).items() for fp in fps}
     return _Ctx(
-        revs, {q["id"]: q.get("text", "") for q in sem["open_questions"] if isinstance(q.get("id"), str)}, events
+        revs,
+        {q["id"]: q.get("text", "") for q in sem["open_questions"] if isinstance(q.get("id"), str)},
+        events,
+        r.key,
     )
 
 
@@ -552,6 +557,106 @@ def _fmt_value(v: object) -> str:
 
 def _json_pre(value: object) -> str:
     return f"<pre>{e(json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False))}</pre>"
+
+
+# ---- finding actions (ADR-0013) ----------------------------------------------------------------------------------
+# Static links and a text block: nothing is created, posted or pushed by the dashboard. A link opens a pre-filled
+# GitHub form that a human reviews and submits; the prompt is text to paste into an agent session.
+
+_BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_URL_BUDGET = 5000  # percent-encoded characters of title + body kept in a link (GitHub rejects URLs past ~8 KB)
+BRANCH_PREFIX = "repo-orchestrator/"
+
+
+def _one_line(text: object, limit: int = 200) -> str:
+    flat = " ".join(_CTRL.sub(" ", str(text)).split())
+    return flat if len(flat) <= limit else flat[: limit - 1] + "…"
+
+
+def _action_target(o: Mapping[str, Any], ctx: _Ctx) -> str | None:
+    """The repository the actions point at: the first fix site, else the first affected repository, of this run."""
+    for repo_id in [f["repo"] for f in o["fix_sites"]] + list(o["affected_repos"]):
+        slug = ctx.revs.get(repo_id, (None, None))[0]
+        if slug and _gh_url(slug, "repo"):
+            return slug
+    return None
+
+
+def _brief(o: Mapping[str, Any], ctx: _Ctx) -> str:
+    """The finding as plain text, from the report only. Shared by the issue, the PR description and the prompt."""
+    lines = [
+        f"Finding reported by repo-orchestrator (run {ctx.run}). Draft: a human reviews it before it is submitted.",
+        f"Policy {o['policy_id']} v{o['policy_version']} · relationship {o['relationship_id']} · subject {_one_line(o['subject'])}",
+        f"Severity {o['severity']} · impact {o['impact']} · fingerprint {o['fingerprint']}",
+        "",
+        _one_line(o["reason"], 1200),
+    ]
+    pins = [f"{ctx.revs[r][0]}@{ctx.revs[r][1]}" for r in o["affected_repos"] if r in ctx.revs and ctx.revs[r][1]]
+    if pins:
+        lines += ["", "Pinned revisions: " + ", ".join(pins)]
+    if o["fix_sites"]:
+        lines += ["", "Where to fix, in order:"]
+        for f in o["fix_sites"]:
+            slug, sha = ctx.revs.get(f["repo"], (None, None))
+            url = _gh_url(slug, "blob", sha, f["path"]) if slug else None
+            lines.append(f"- {f['repo']}:{f['path']} — {_one_line(f['reason'])}" + (f" {url}" if url else ""))
+    if o["investigate"]:
+        lines += ["", "Investigate: " + ", ".join(_one_line(x, 120) for x in o["investigate"])]
+    return "\n".join(lines)
+
+
+def _prompt(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str:
+    return (
+        f"{_brief(o, ctx)}\n\n"
+        "Task:\n"
+        f"1. Check the finding against the pinned revisions above; if the evidence does not hold, stop and say so.\n"
+        f"2. In {slug}, change only the fix sites listed, in order, with the smallest diff that removes the inconsistency.\n"
+        "3. Follow that repository's own rules and run its local checks.\n"
+        f"4. Commit on branch {BRANCH_PREFIX}{o['fingerprint']} and push it. Do not open a pull request and do not "
+        "touch any other repository: a human opens it.\n"
+    )
+
+
+def _fit(text: str, budget: int) -> str:
+    while len(quote(text, safe="")) > budget:
+        text = text[: int(len(text) * 0.8)].rstrip() + "…"
+    return text
+
+
+def _issue_url(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str:
+    title = f"[repo-orchestrator] {o['policy_id']}: {_one_line(o['subject'], 100)}"
+    body = _fit(_brief(o, ctx), _URL_BUDGET - len(quote(title, safe="")))
+    return f"https://github.com/{slug}/issues/new?title={quote(title, safe='')}&body={quote(body, safe='')}"
+
+
+def _pr_url(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str | None:
+    """The compare page for the branch the prompt asks for; None when the fingerprint is not a safe branch name."""
+    if not _BRANCH.match(str(o["fingerprint"])):
+        return None
+    title = f"fix: {_one_line(o['subject'], 100)} ({o['policy_id']})"
+    body = _fit(_brief(o, ctx), _URL_BUDGET - len(quote(title, safe="")))
+    return (
+        f"https://github.com/{slug}/compare/{quote(BRANCH_PREFIX + o['fingerprint'], safe='/')}"
+        f"?expand=1&title={quote(title, safe='')}&body={quote(body, safe='')}"
+    )
+
+
+def _actions_html(o: Mapping[str, Any], ctx: _Ctx) -> str:
+    slug = _action_target(o, ctx)
+    if slug is None:
+        return ""
+    pr = _pr_url(o, ctx, slug)
+    links = _link(_issue_url(o, ctx, slug), "Open issue").replace("<a ", '<a class="btn" ', 1)
+    prompt = (
+        f'<details class="act-prompt"><summary class="btn">Create prompt</summary>'
+        f"<pre>{e(_prompt(o, ctx, slug))}</pre></details>"
+    )
+    pr_html = _link(pr, "Create PR").replace("<a ", '<a class="btn" ', 1) if pr else ""
+    return (
+        f'<div class="actions">{links}{prompt}{pr_html}</div>'
+        f'<p class="note">Drafts in {_code(slug)}: nothing is created until you submit it on GitHub. '
+        f"Create PR opens the pull request form for branch {_code(BRANCH_PREFIX + str(o['fingerprint']))}, which the prompt asks the agent to push.</p>"
+    )
 
 
 def _outcome_html(o: Mapping[str, Any], ctx: _Ctx, anchor: str, *, finding: bool) -> str:
@@ -624,7 +729,7 @@ def _outcome_html(o: Mapping[str, Any], ctx: _Ctx, anchor: str, *, finding: bool
     tech = f"<details><summary>Technical metadata</summary>{_json_pre(technical)}</details>" if technical else ""
     return (
         f'<article class="item" id="{e(anchor)}"><div class="item-head">{"".join(head)}</div>'
-        f'<p>{e(o["reason"])}</p><dl class="meta">{dl}</dl>{evidence}{tech}</article>'
+        f'<p>{e(o["reason"])}</p><dl class="meta">{dl}</dl>{_actions_html(o, ctx) if finding else ""}{evidence}{tech}</article>'
     )
 
 
