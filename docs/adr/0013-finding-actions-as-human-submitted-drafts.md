@@ -38,7 +38,6 @@ A reader of a finding on the [report dashboard](0012-static-report-dashboard.md)
 - ✅ One click from a finding to a reviewed draft; no new permission, dependency or service.
 - ⚠️ The issue and PR texts are not updated if the finding changes; they quote the run they came from.
 - ⚠️ Create PR 404s until the branch is pushed; the note under the buttons says so.
-- ⚠️ If a target repository's workflows react to any newly opened issue (not only to a label), the neutral label does not prevent that; not verified for the six repositories.
 - ⚠️ Nothing prevents duplicate issues for the same fingerprint; the fingerprint in the body is what to search for.
 - ⚠️ The prompt is advice to an agent, not a guarantee; its output is reviewed in the target repository like any change.
 
