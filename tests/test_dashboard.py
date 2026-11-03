@@ -605,3 +605,22 @@ def test_issue_and_pr_links_stay_within_the_url_budget_and_hostile_text_is_inert
     for href in re.findall(r'href="(https://github.com/[^"]*(?:issues/new|compare)/?[^"]*)"', html):
         assert len(href.replace("&amp;", "&")) < 7000
     assert "<script" not in html and "<img" not in html
+
+
+def test_fit_terminates_and_returns_empty_when_the_budget_cannot_hold_the_ellipsis():
+    from urllib.parse import quote
+
+    from repo_orchestrator.dashboard import _fit
+
+    assert _fit("abc", -5) == "" and _fit("abc", 0) == "" and _fit("abc", 2) == ""
+    assert _fit("abc", 9) == "abc" and len(quote(_fit("x" * 500, 9), safe="")) <= 9
+    assert len(quote(_fit("é" * 500, 40), safe="")) <= 40
+
+
+def test_an_oversized_policy_id_is_clipped_in_titles_and_never_hangs_the_build(tmp_path, base):
+    def edit(sem):
+        sem["findings"][0]["policy_id"] = "P" * 20000
+
+    html = _first_finding_html(tmp_path, forge(base, edit))
+    for href in re.findall(r'href="(https://github.com/[^"]*(?:issues/new|compare)/?[^"]*)"', html):
+        assert len(href.replace("&amp;", "&")) < 7000

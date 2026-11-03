@@ -619,13 +619,17 @@ def _prompt(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str:
 
 
 def _fit(text: str, budget: int) -> str:
+    """``text`` shortened until its percent-encoding fits ``budget``; empty when not even the ellipsis fits."""
+    if budget < len(quote("…", safe="")):
+        return ""
     while len(quote(text, safe="")) > budget:
-        text = text[: int(len(text) * 0.8)].rstrip() + "…"
+        text = text.rstrip("…")
+        text = (text[: int(len(text) * 0.8)].rstrip() + "…") if len(text) > 1 else "…"
     return text
 
 
 def _issue_url(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str:
-    title = f"[repo-orchestrator] {o['policy_id']}: {_one_line(o['subject'], 100)}"
+    title = f"[repo-orchestrator] {_one_line(o['policy_id'], 40)}: {_one_line(o['subject'], 100)}"
     body = _fit(_brief(o, ctx), _URL_BUDGET - len(quote(title, safe="")))
     return f"https://github.com/{slug}/issues/new?labels={ISSUE_LABEL}&title={quote(title, safe='')}&body={quote(body, safe='')}"
 
@@ -634,7 +638,7 @@ def _pr_url(o: Mapping[str, Any], ctx: _Ctx, slug: str) -> str | None:
     """The compare page for the branch the prompt asks for; None when the fingerprint is not a safe branch name."""
     if not _BRANCH.match(str(o["fingerprint"])):
         return None
-    title = f"fix: {_one_line(o['subject'], 100)} ({o['policy_id']})"
+    title = f"fix: {_one_line(o['subject'], 100)} ({_one_line(o['policy_id'], 40)})"
     body = _fit(_brief(o, ctx), _URL_BUDGET - len(quote(title, safe="")))
     return (
         f"https://github.com/{slug}/compare/{quote(BRANCH_PREFIX + o['fingerprint'], safe='/')}"
