@@ -57,6 +57,9 @@ _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
 # ---------------------------------------------------------------------------------------------------------
 
 
+_INV_STATES = ("confirmed", "needs_validation", "insufficient_evidence", "dismissed", "policy_question")
+
+
 class ReportError(ValueError):
     """A report file that does not honour the M1 report contract."""
 
@@ -162,6 +165,15 @@ def validate_report(raw: object, name: str = "report") -> tuple[dict[str, Any], 
         for i, o in enumerate(_rows(sem, section, p)):
             _check_outcome(o, section, f"{p}.{section}[{i}]")
         counted[status.value] += len(sem[section])
+    if "investigation" in sem:  # M3, additive (ADR-0013 §11): only the counts the dashboard shows are checked
+        inv_by = _obj(
+            _obj(_obj(sem["investigation"], f"{p}.investigation").get("summary"), f"{p}.investigation.summary").get(
+                "by_state"
+            ),
+            f"{p}.investigation.summary.by_state",
+        )
+        for state in _INV_STATES:
+            _need(inv_by, state, int, f"{p}.investigation.summary.by_state")
     summary = _obj(sem.get("summary"), f"{p}.summary")
     by_status = _obj(summary.get("by_status"), f"{p}.summary.by_status")
     for status_name in _STATUSES:
@@ -788,14 +800,39 @@ def _breakdown(sem: Mapping[str, Any]) -> str:
     return f'<ul class="plain legend">{items}</ul>'
 
 
+def _investigation_note(sem: Mapping[str, Any]) -> str:
+    """M3: what the bounded investigation left undecided, from the counts in the report (empty for an M1/M2 report)."""
+    inv = sem.get("investigation")
+    if not isinstance(inv, dict):
+        return ""
+    by = inv["summary"]["by_state"]
+    parts = []
+    if by["confirmed"]:
+        parts.append(f"{by['confirmed']} confirmed by a check or a human")
+    if by["needs_validation"]:
+        parts.append(f"{by['needs_validation']} awaiting a human validation")
+    if by["insufficient_evidence"]:
+        parts.append(f"{by['insufficient_evidence']} with insufficient evidence")
+    return "Investigation: " + ", ".join(parts) if parts else ""
+
+
 def _status_line(r: Report) -> str:
     sem = r.semantic
     n, partial = sem["summary"]["by_status"]["inconsistent"], sem["run_status"] == "partial"
+    n += int(
+        (sem.get("investigation") or {}).get("summary", {}).get("by_state", {}).get("confirmed", 0)
+    )  # confirmed by a check or a human
+    undecided = bool(_investigation_note(sem)) and (
+        sem["investigation"]["summary"]["by_state"]["needs_validation"]
+        or sem["investigation"]["summary"]["by_state"]["insufficient_evidence"]
+    )
     if n:
         tone, mark = "bad", "✕"
         title = f"{n} confirmed {'inconsistency' if n == 1 else 'inconsistencies'}"
     elif partial:
         tone, mark, title = "warn", "!", "No confirmed inconsistency, but the run is partial"
+    elif undecided:
+        tone, mark, title = "warn", "!", "No confirmed inconsistency, but the investigation left claims undecided"
     else:
         tone, mark, title = "good", "✓", "No confirmed inconsistency"
     sub = f"Run {sem['run_status']} · {_plural(sem['summary']['outcomes'], 'outcome')} · {_when(r)}"
@@ -1040,6 +1077,11 @@ def render_report(r: Report, latest: Report) -> str:
         )
     else:
         caution = f'<div class="notice"><strong>Complete run.</strong> No outcome was left undecided; {sm["not_checkable_by_design"]} claim(s) not checkable by design are reported, not counted as failures.</div>'
+    if _investigation_note(sem):
+        caution += (
+            f'<div class="notice warn"><strong>{e(_investigation_note(sem))}.</strong> The reasoning-assisted candidates are in the '
+            f'<a href="{r.key}.json">report.json</a> and in report.md; a verified quote never confirms a claim.</div>'
+        )
     findings = (
         "".join(_outcome_html(f, ctx, f"f-{f['fingerprint']}", finding=True) for f in sem["findings"])
         or '<p class="note">No confirmed inconsistency in this run.</p>'

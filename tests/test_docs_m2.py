@@ -131,11 +131,11 @@ def test_every_workflow_file_is_valid_yaml_with_the_expected_shape():
 
     wf = yaml.safe_load(read(ROOT / ".github" / "workflows" / "m1.yml"))
     triggers = wf.get("on", wf.get(True))
-    assert set(triggers["workflow_dispatch"]["inputs"]) == {"live_scan", "live_pr"}
+    assert set(triggers["workflow_dispatch"]["inputs"]) == {"live_scan", "live_pr", "live_investigation"}
     names = [s.get("name", "") for s in wf["jobs"]["test"]["steps"]]
     assert any(n.startswith("Offline PR evaluation") for n in names)
     assert any(n.startswith("Offline PR analysis") for n in names)
-    assert set(wf["jobs"]) == {"test", "live-scan", "live-pr"}
+    assert set(wf["jobs"]) == {"test", "live-scan", "live-pr", "live-investigation"}
 
 
 def test_the_ci_pr_smoke_step_runs_as_written(tmp_path):

@@ -1,0 +1,50 @@
+{
+ "entries": {
+  "795894c6cb6172dd3859249a53483f781e36e87c83c3a66b46b5ccf323bd6ac4": {
+   "input_tokens": 600,
+   "latency_ms": 0,
+   "model": "claude-sonnet-5-5",
+   "output_tokens": 150,
+   "request": {
+    "effort": "medium",
+    "max_tokens": 2000,
+    "messages": 1,
+    "model": "claude-sonnet-5-5",
+    "system_sha256": "510be80da17e00fa0494df063d65c57ba463a6cfb6fb21e2a86a377dd04ff1af"
+   },
+   "stop_reason": "end_turn",
+   "text": "{\"final\": {\"finding\": \"divergent\", \"claim\": \"The repository documents that it is not in the plugin scope.\", \"quotes\": [{\"repo\": \"adt\", \"sha\": \"62f30ed888201deb713126db90975983c4d6fab0\", \"path\": \"docs/adr/ADR-018-consumer-repo-adoption.md\", \"line_start\": 12, \"line_end\": 12, \"text\": \"1. **Every repository worked on with Claude Code declares the plugin** in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`, exactly the two keys of ADR-013 \\u00a72). The file is identical across repos.\"}], \"values\": {}, \"intent\": {\"proposal\": \"intentional\", \"justification\": \"ADR-018 scopes the plugin to repositories worked on with Claude Code\", \"quote\": 0}}}"
+  },
+  "db9eaaab583df7e928d05ddb76a7960c09ebb8e4ef673b99a9c537ef766e38ec": {
+   "input_tokens": 600,
+   "latency_ms": 0,
+   "model": "claude-sonnet-5-5",
+   "output_tokens": 150,
+   "request": {
+    "effort": "medium",
+    "max_tokens": 2000,
+    "messages": 1,
+    "model": "claude-sonnet-5-5",
+    "system_sha256": "510be80da17e00fa0494df063d65c57ba463a6cfb6fb21e2a86a377dd04ff1af"
+   },
+   "stop_reason": "end_turn",
+   "text": "{\"final\": {\"finding\": \"divergent\", \"claim\": \"The repository documents that it is not in the plugin scope.\", \"quotes\": [{\"repo\": \"adt\", \"sha\": \"62f30ed888201deb713126db90975983c4d6fab0\", \"path\": \"docs/adr/ADR-018-consumer-repo-adoption.md\", \"line_start\": 12, \"line_end\": 12, \"text\": \"1. **Every repository worked on with Claude Code declares the plugin** in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`, exactly the two keys of ADR-013 \\u00a72). The file is identical across repos.\"}], \"values\": {}, \"intent\": {\"proposal\": \"intentional\", \"justification\": \"ADR-018 scopes the plugin to repositories worked on with Claude Code\", \"quote\": 0}}}"
+  },
+  "f9e5e0394480df4848fa8bef8d4db3ce296930b9d1f10966438bc6e922c2c16d": {
+   "input_tokens": 600,
+   "latency_ms": 0,
+   "model": "claude-sonnet-5-5",
+   "output_tokens": 150,
+   "request": {
+    "effort": "medium",
+    "max_tokens": 2000,
+    "messages": 1,
+    "model": "claude-sonnet-5-5",
+    "system_sha256": "510be80da17e00fa0494df063d65c57ba463a6cfb6fb21e2a86a377dd04ff1af"
+   },
+   "stop_reason": "end_turn",
+   "text": "{\"final\": {\"finding\": \"divergent\", \"claim\": \"The profile says 12 patterns were extracted; agent-patterns says 16 of 20 have public implementations.\", \"quotes\": [{\"repo\": \"profile\", \"sha\": \"c43e48bbb4ce6b70ae70e8652ef05f64a23fcadb\", \"path\": \"README.md\", \"line_start\": 13, \"line_end\": 13, \"text\": \"12 extracted from the two repos above\"}, {\"repo\": \"ap\", \"sha\": \"6d00841fc67d0dbeb3e35e7c2109d201b3979925\", \"path\": \"README.md\", \"line_start\": 5, \"line_end\": 5, \"text\": \"16 of 20 have implementations in public repos\"}], \"values\": {}, \"intent\": null}}"
+  }
+ },
+ "format": 1
+}

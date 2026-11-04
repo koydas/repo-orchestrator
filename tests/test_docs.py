@@ -76,21 +76,31 @@ def test_every_adr_is_indexed_and_still_proposed():
 
 def test_the_readme_counts_the_adrs_correctly():
     n = len(list((DOCS / "adr").glob("[0-9][0-9][0-9][0-9]-*.md")))
-    words = {10: "Ten", 11: "Eleven", 12: "Twelve", 13: "Thirteen", 14: "Fourteen"}
+    words = {
+        10: "Ten",
+        11: "Eleven",
+        12: "Twelve",
+        13: "Thirteen",
+        14: "Fourteen",
+        15: "Fifteen",
+        16: "Sixteen",
+        17: "Seventeen",
+    }
     assert f"| {words[n]} Proposed decisions |" in read(ROOT / "README.md")
 
 
 # ---- scope statements --------------------------------------------------------------------------------------------
 
 
-def test_claude_md_authorizes_m1_and_m2_and_keeps_the_later_milestones_closed():
+def test_claude_md_authorizes_m1_to_m3_and_keeps_the_later_milestones_closed():
     text = read(ROOT / "CLAUDE.md")
     assert "**M1 is authorized**" in text and "**M2 is authorized**" in text and "src/repo_orchestrator/" in text
+    assert "**M3 is authorized**" in text
     assert "**Not authorized yet:**" in text
     closed = text.split("**Not authorized yet:**")[1].split("\n")[0]
-    for later in ("C5", "M3", "C6", "M4", "M5", "PR comments", "issue or PR creation", "any other GitHub write"):
+    for later in ("C6", "M4", "M5", "PR comments", "issue or PR creation", "any other GitHub write", "analyze-pr"):
         assert later in closed, later
-    for opened in ("C4", "M2"):
+    for opened in ("C4", "M2", "C5", "M3", "P7"):
         assert opened not in closed, f"{opened} is authorized, it must not be listed as closed"
     m2 = text.split("**M2 is authorized**")[1].split("- **M1 is authorized**")[0]
     assert (
@@ -99,15 +109,26 @@ def test_claude_md_authorizes_m1_and_m2_and_keeps_the_later_milestones_closed():
         and "never writes to the baseline-scan finding history" in m2
     )
     assert "no LLM call, no agent framework, no LangGraph" in text and "S0 spike remains isolated" in text
+    m3 = text.split("**M3 is authorized**")[1].split("- **M2 is authorized**")[0]
+    for clause in (
+        "exactly one component calls an LLM: C5",
+        "the LLM proposes, code decides",
+        "budgets are code constants",
+        "never logged, stored, fixtured or reported",
+        "`findings`, `finding_events` and `pr_*` are never read or written by M3",
+        "`scan --investigate` only",
+    ):
+        assert clause in m3, clause
 
 
-def test_readme_milestone_table_marks_only_m1_and_m2_as_implemented():
+def test_readme_milestone_table_marks_only_m1_to_m3_as_implemented():
     rows = {
         m.group(1): m.group(2)
         for m in re.finditer(r"^\| (M[0-5]|S0)[^|]*\|[^|]*\|([^|]*)\|$", read(ROOT / "README.md"), re.M)
     }
-    assert "Implemented" in rows["M1"] and "Implemented" in rows["M2"]
-    for later in ("M3", "M4", "M5"):
+    for done in ("M1", "M2", "M3"):
+        assert "Implemented" in rows[done], done
+    for later in ("M4", "M5"):
         assert rows[later].strip() == "Not started", later
 
 

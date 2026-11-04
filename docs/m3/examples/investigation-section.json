@@ -1,0 +1,303 @@
+{
+  "deterministic_digest": "48b8d80560cb88d43b8947a47c04200c02ce43314595c4de1025e825fe985aeb",
+  "investigation": {
+    "candidates": [
+      {
+        "acknowledged": false,
+        "cause": null,
+        "claim": "The profile says 12 patterns were extracted; agent-patterns says 16 of 20 have public implementations.",
+        "claim_text": "| [`agent-patterns`](https://github.com/koydas/agent-patterns) | 17 multi-agent patterns indexed by the problem they solve — diagrams, trade-offs, failure modes, runnable code. 12 extracted from the two repos above. |",
+        "decision": null,
+        "deterministic_evidence": [
+          {
+            "content_sha256": "f76996195127182167b5aadcec33bccf3861e1e6d1975d78944b40ac5160bcf3",
+            "line_end": 13,
+            "line_start": 13,
+            "locator": "line matching /^\\| \\[`agent-patterns`\\]/",
+            "path": "README.md",
+            "quote": "| [`agent-patterns`](https://github.com/koydas/agent-patterns) | 17 multi-agent patterns indexed by the problem they solve — diagrams, trade-offs, failure modes, runnable code. 12 extracted from the two repos above. |",
+            "repo": "profile",
+            "sha": "c43e48bbb4ce6b70ae70e8652ef05f64a23fcadb",
+            "side": "claimant",
+            "slug": "koydas/koydas"
+          },
+          {
+            "content_sha256": "8d1fa0778d3bdf82a6a6aed9f065c04a99b5396f22e7f951c081c22f87a089e2",
+            "line_end": 5,
+            "line_start": 5,
+            "locator": "line matching /have implementations in public repos/",
+            "path": "README.md",
+            "quote": "Not a framework. Every pattern here was named after the problem it solved in a pipeline that runs: 16 of 20 have implementations in public repos, [`autonomous-dev-loop`](https://github.com/koydas/autonomous-dev-loop) (GitHub Actions, headless) and [`ai-dev-tools`](https://github.com/koydas/ai-dev-tools) (Claude Code, interactive), and every row names where. The remaining patterns are marked as reference implementations. 11 patterns also have a **Where it came from** section linking the incident or ADR that forced them — for example, `loop-with-guard` exists because an auto-fix agent replaced a 26-test suite with an 18-line stub.",
+            "repo": "ap",
+            "sha": "6d00841fc67d0dbeb3e35e7c2109d201b3979925",
+            "side": "upstream",
+            "slug": "koydas/agent-patterns"
+          }
+        ],
+        "entailment": null,
+        "evidence_digest": "e1108904430dd1ebe53fc6e0c5428790398e7aae4d5a804677ae50214efb5a22",
+        "evidence_status": "supported",
+        "finding": "divergent",
+        "impact": "falsifies",
+        "intent": null,
+        "key": "c7c7ed61fdd533a3",
+        "kind": "qualitative_claim",
+        "observations": [],
+        "open_questions": [],
+        "origin_status": null,
+        "policy_id": "P7",
+        "policy_version": "1.0.0",
+        "question": "The profile README says of agent-patterns \"N extracted from the two repos above\". agent-patterns' own README describes how many of its patterns have implementations in public repositories and how many link the incident that forced them. Does the profile's phrase agree with what agent-patterns says about itself? Locate and quote both statements.",
+        "quotes": [
+          {
+            "content_sha256": "f76996195127182167b5aadcec33bccf3861e1e6d1975d78944b40ac5160bcf3",
+            "line_end": 13,
+            "line_start": 13,
+            "path": "README.md",
+            "reason": "ok",
+            "repo": "profile",
+            "sha": "c43e48bbb4ce6b70ae70e8652ef05f64a23fcadb",
+            "status": "verified",
+            "text": "12 extracted from the two repos above"
+          },
+          {
+            "content_sha256": "8d1fa0778d3bdf82a6a6aed9f065c04a99b5396f22e7f951c081c22f87a089e2",
+            "line_end": 5,
+            "line_start": 5,
+            "path": "README.md",
+            "reason": "ok",
+            "repo": "ap",
+            "sha": "6d00841fc67d0dbeb3e35e7c2109d201b3979925",
+            "status": "verified",
+            "text": "16 of 20 have implementations in public repos"
+          }
+        ],
+        "reason": "all quotes are verified but the conclusion needs validation: the policy declares no entailment check, a human decides.",
+        "relationship_id": "R1.ap",
+        "relationship_type": "documentary",
+        "requires_triage": false,
+        "severity": null,
+        "stale_decisions": [],
+        "state": "needs_validation",
+        "subject": "claim:extracted_from",
+        "validation": "not_validated",
+        "values": {}
+      },
+      {
+        "acknowledged": false,
+        "cause": null,
+        "claim": "The repository documents that it is not in the plugin scope.",
+        "claim_text": "koydas/ollama-chat has 3 repository skill(s) but declares no .claude/settings.json; whether ADR-018 covers it is undecided (Q1)",
+        "decision": null,
+        "deterministic_evidence": [
+          {
+            "content_sha256": "6fd39429f2f4cc572cde57e09ecef74d8abeac3cd71aab2f1faf8c2fd5043657",
+            "line_end": null,
+            "line_start": null,
+            "locator": "skill directories under .claude/skills/",
+            "path": ".claude/skills",
+            "quote": "homelab-deploy\nnew-adr\ntest-and-lint",
+            "repo": "chat",
+            "sha": "1693c3f791a6ebe8dae2cfb90ccc4b168327ae0e",
+            "side": "adopter",
+            "slug": "koydas/ollama-chat"
+          },
+          {
+            "content_sha256": "1a337fe8ad8719c2cabff2cf95ff242ab1dc897cccaabb9c710e82f96ccec186",
+            "line_end": 12,
+            "line_start": 12,
+            "locator": "ADR-018 §1: the two plugin keys",
+            "path": "docs/adr/ADR-018-consumer-repo-adoption.md",
+            "quote": "1. **Every repository worked on with Claude Code declares the plugin** in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`, exactly the two keys of ADR-013 §2). The file is identical across repos.",
+            "repo": "adt",
+            "sha": "62f30ed888201deb713126db90975983c4d6fab0",
+            "side": "authority",
+            "slug": "koydas/ai-dev-tools"
+          }
+        ],
+        "entailment": null,
+        "evidence_digest": "3eaaa1f0a518bdc13e6cf57b75e0f25a0319d8fc481d77996b9662faf55e71f5",
+        "evidence_status": "supported",
+        "finding": "divergent",
+        "impact": "outdates",
+        "intent": {
+          "applied": false,
+          "justification": "ADR-018 scopes the plugin to repositories worked on with Claude Code",
+          "justification_verified": true,
+          "note": "a proposal; it becomes real only through an exception recorded by a human",
+          "proposal": "intentional",
+          "quote": 0
+        },
+        "key": "5211682f9281cbab",
+        "kind": "intent_review",
+        "observations": [],
+        "open_questions": [
+          "Q1"
+        ],
+        "origin_status": "policy_clarification",
+        "policy_id": "P7",
+        "policy_version": "1.0.0",
+        "question": "The deterministic policy cannot say whether this repository is inside the scope of ai-dev-tools ADR-018 (\"every repository worked on with Claude Code\", open question Q1). Does the repository state, in its own documents, that it is outside that scope or that it intentionally does not declare the plugin? Propose an intent only with a verified quote.",
+        "quotes": [
+          {
+            "content_sha256": "1a337fe8ad8719c2cabff2cf95ff242ab1dc897cccaabb9c710e82f96ccec186",
+            "line_end": 12,
+            "line_start": 12,
+            "path": "docs/adr/ADR-018-consumer-repo-adoption.md",
+            "reason": "ok",
+            "repo": "adt",
+            "sha": "62f30ed888201deb713126db90975983c4d6fab0",
+            "status": "verified",
+            "text": "1. **Every repository worked on with Claude Code declares the plugin** in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`, exactly the two keys of ADR-013 §2). The file is identical across repos."
+          }
+        ],
+        "reason": "the deterministic outcome is unchanged and stays a question for the owner; the intent below is only a proposal.",
+        "relationship_id": "R5.chat",
+        "relationship_type": "tooling_adoption",
+        "requires_triage": false,
+        "severity": null,
+        "stale_decisions": [],
+        "state": "policy_question",
+        "subject": "intent:P6/plugin_keys",
+        "validation": "not_validated",
+        "values": {}
+      },
+      {
+        "acknowledged": false,
+        "cause": null,
+        "claim": "The repository documents that it is not in the plugin scope.",
+        "claim_text": "koydas/gitops-homelab has 3 repository skill(s) but declares no .claude/settings.json; whether ADR-018 covers it is undecided (Q1)",
+        "decision": null,
+        "deterministic_evidence": [
+          {
+            "content_sha256": "4ec00cf97d25f0a4295e5cd2a3c97ec35d7b93a40c4189b16535ae7487289a70",
+            "line_end": null,
+            "line_start": null,
+            "locator": "skill directories under .claude/skills/",
+            "path": ".claude/skills",
+            "quote": "adr-new\ngitops-model-bump\ngpu-metrics-visibility",
+            "repo": "homelab",
+            "sha": "a8a9d7db5e725fd47061e8ae7fbfa70d81be3603",
+            "side": "adopter",
+            "slug": "koydas/gitops-homelab"
+          },
+          {
+            "content_sha256": "1a337fe8ad8719c2cabff2cf95ff242ab1dc897cccaabb9c710e82f96ccec186",
+            "line_end": 12,
+            "line_start": 12,
+            "locator": "ADR-018 §1: the two plugin keys",
+            "path": "docs/adr/ADR-018-consumer-repo-adoption.md",
+            "quote": "1. **Every repository worked on with Claude Code declares the plugin** in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`, exactly the two keys of ADR-013 §2). The file is identical across repos.",
+            "repo": "adt",
+            "sha": "62f30ed888201deb713126db90975983c4d6fab0",
+            "side": "authority",
+            "slug": "koydas/ai-dev-tools"
+          }
+        ],
+        "entailment": null,
+        "evidence_digest": "f880c6a70aedf1edb9299d57f02062ff8438d7deaa9595e504529cf443227745",
+        "evidence_status": "supported",
+        "finding": "divergent",
+        "impact": "outdates",
+        "intent": {
+          "applied": false,
+          "justification": "ADR-018 scopes the plugin to repositories worked on with Claude Code",
+          "justification_verified": true,
+          "note": "a proposal; it becomes real only through an exception recorded by a human",
+          "proposal": "intentional",
+          "quote": 0
+        },
+        "key": "8de24bc11bfb996f",
+        "kind": "intent_review",
+        "observations": [],
+        "open_questions": [
+          "Q1"
+        ],
+        "origin_status": "policy_clarification",
+        "policy_id": "P7",
+        "policy_version": "1.0.0",
+        "question": "The deterministic policy cannot say whether this repository is inside the scope of ai-dev-tools ADR-018 (\"every repository worked on with Claude Code\", open question Q1). Does the repository state, in its own documents, that it is outside that scope or that it intentionally does not declare the plugin? Propose an intent only with a verified quote.",
+        "quotes": [
+          {
+            "content_sha256": "1a337fe8ad8719c2cabff2cf95ff242ab1dc897cccaabb9c710e82f96ccec186",
+            "line_end": 12,
+            "line_start": 12,
+            "path": "docs/adr/ADR-018-consumer-repo-adoption.md",
+            "reason": "ok",
+            "repo": "adt",
+            "sha": "62f30ed888201deb713126db90975983c4d6fab0",
+            "status": "verified",
+            "text": "1. **Every repository worked on with Claude Code declares the plugin** in `.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`, exactly the two keys of ADR-013 §2). The file is identical across repos."
+          }
+        ],
+        "reason": "the deterministic outcome is unchanged and stays a question for the owner; the intent below is only a proposal.",
+        "relationship_id": "R5.homelab",
+        "relationship_type": "tooling_adoption",
+        "requires_triage": false,
+        "severity": null,
+        "stale_decisions": [],
+        "state": "policy_question",
+        "subject": "intent:P6/plugin_keys",
+        "validation": "not_validated",
+        "values": {}
+      }
+    ],
+    "inputs": {
+      "budget": {
+        "max_claim_chars": 600,
+        "max_input_tokens": 24000,
+        "max_investigations": 12,
+        "max_justification_chars": 400,
+        "max_list_entries": 60,
+        "max_llm_calls": 6,
+        "max_malformed_retries": 1,
+        "max_output_tokens": 4000,
+        "max_quote_chars": 600,
+        "max_quote_lines": 20,
+        "max_quotes": 6,
+        "max_read_lines": 80,
+        "max_run_cost_micro_usd": 2000000,
+        "max_run_tokens": 150000,
+        "max_search_hits": 10,
+        "max_tokens_per_call": 2000,
+        "max_tool_calls": 8,
+        "max_tool_result_chars": 6000,
+        "max_transient_retries": 1,
+        "min_quote_chars": 8
+      },
+      "candidates_digest": "852e1e77af268587defee86a46b14ca3b76458f1d905cac07ec0b632cea9823a",
+      "claims": {
+        "declarations_digest": "3524ca21564a75ce514ac81822153a0e5ad100313790ae78bd1143412b4deb6e",
+        "policy": {
+          "id": "P7",
+          "version": "1.0.0"
+        }
+      },
+      "decisions_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "effort": "medium",
+      "model": "claude-sonnet-5-5",
+      "prompt_version": "c5-1",
+      "run_id": "02fa9d0a1f7a1d2f"
+    },
+    "recorded_digest": "2b95ab0c49f020a0dad09d8db18c609e5132610d2ba86e0866b2fb90d8d30a26",
+    "schema": 1,
+    "skipped": [],
+    "status": "awaiting_validation",
+    "summary": {
+      "awaiting_human": 1,
+      "by_state": {
+        "confirmed": 0,
+        "dismissed": 0,
+        "insufficient_evidence": 0,
+        "needs_validation": 1,
+        "policy_question": 2
+      },
+      "candidates": 3,
+      "observations": 0,
+      "pending": 0,
+      "quotes_unverified": 0,
+      "quotes_verified": 4
+    }
+  },
+  "result_digest": "1d18cced413014c56bdccf0207bbd78aaf1adb8b2cb694fd75f9c4f18ea64a2c"
+}

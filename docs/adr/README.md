@@ -22,6 +22,9 @@ Format: `NNNN-kebab-title.md`, sections Context / Decision / Rationale / Alterna
 | [ADR-0012](./0012-static-report-dashboard.md) | A static, read-only report dashboard generated from `report.json` | Proposed |
 | [ADR-0013](./0013-m2-pr-impact-contracts.md) | M2 pull-request analysis contracts: change set, impact, delta, gate and persistence | Proposed |
 | [ADR-0014](./0014-finding-actions-as-human-submitted-drafts.md) | Finding actions on the dashboard are human-submitted drafts | Proposed |
+| [ADR-0015](./0015-m3-llm-boundary-budgets-and-replay.md) | M3 LLM boundary, code-constant budgets, and recorded-response replay | Proposed |
+| [ADR-0016](./0016-m3-reasoning-verification-and-validation.md) | M3 reasoning claims: quote verification, validation, entailment checks and exit codes | Proposed |
+| [ADR-0017](./0017-m3-investigation-state-and-langgraph-confinement.md) | M3 investigation state: LangGraph confined to one module, checkpoints, ledger and a separate decision namespace | Proposed |
 
 ## Dependencies between records
 
@@ -54,4 +57,13 @@ flowchart LR
     A8 --> A13
     A12 --> A14["0014 Finding actions"]
     A7 --> A14
+    A4 --> A15["0015 M3 LLM boundary & replay"]
+    A6 --> A15
+    A8 --> A15
+    A15 --> A16["0016 M3 verification & validation"]
+    A6 --> A16
+    A5 --> A17["0017 M3 state & LangGraph"]
+    A8 --> A17
+    A15 --> A17
+    A16 --> A17
 ```

@@ -1,6 +1,6 @@
 # Policies
 
-Six deterministic policies. A policy is a plain Python module with typed metadata and four functions; there is no DSL and nothing is evaluated from configuration text. **No policy, no finding.**
+Six deterministic policies. (P7, the reasoning-assisted seventh, is not part of M1: it runs only under `scan --investigate`, see [M3](../m3/README.md#candidates-and-p7).) A policy is a plain Python module with typed metadata and four functions; there is no DSL and nothing is evaluated from configuration text. **No policy, no finding.**
 
 ## Interface
 

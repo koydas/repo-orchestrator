@@ -1,6 +1,6 @@
 # M1 — deterministic baseline
 
-> **Status: implemented.** M1 is the first production-capable slice: a read-only, on-demand scan of the six declared repositories with six deterministic policies, evidence-backed reports and a local run store. It uses no LLM and no agent framework. M2 (PR impact analysis) builds on it ([M2 docs](../m2/README.md)); M3–M5 are **not** implemented ([MVP](../mvp.md)).
+> **Status: implemented.** M1 is the first production-capable slice: a read-only, on-demand scan of the six declared repositories with six deterministic policies, evidence-backed reports and a local run store. It uses no LLM and no agent framework. M2 (PR impact analysis, [M2 docs](../m2/README.md)) and M3 (an opt-in bounded investigation, [M3 docs](../m3/README.md)) build on it without changing its behaviour; M4–M5 are **not** implemented ([MVP](../mvp.md)).
 
 | Page | Contents |
 |---|---|

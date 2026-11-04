@@ -1,15 +1,15 @@
 # Workflows
 
-> **Status: W1 is implemented in M1** (`repo-orchestrator scan`, [usage](m1/usage.md)) and **W2 in M2** (`repo-orchestrator analyze-pr`, [usage](m2/usage.md)); W4 is manual. **W3, W5, W6 and the LangGraph workflow are proposed design**; their command names are placeholders.
+> **Status: W1 is implemented in M1** (`repo-orchestrator scan`, [usage](m1/usage.md)), **W2 in M2** (`repo-orchestrator analyze-pr`, [usage](m2/usage.md)) and **W3, the LangGraph workflow and the decision part of W4 in M3** (`scan --investigate`, `investigations ...`, [usage](m3/usage.md)). **W5 and W6 are proposed design**; their command names are placeholders. The investigation is **not** part of `analyze-pr` in M3.
 
 Operational workflows, the LangGraph graph proposed for milestone M3, failure handling and human intervention points. Components C1–C7 are defined in [architecture.md](architecture.md#components).
 
 | ID | Workflow | Trigger | Milestone |
 |---|---|---|---|
 | W1 | Baseline scan | Human runs it on the declared repositories | M1 (**implemented**) |
-| W2 | Cross-repository PR analysis | Human runs it on one PR | M2 (**implemented**, without the investigation and acknowledge steps of M3) |
-| W3 | Bounded investigation | Inside W1/W2, for reasoning candidates | M3 |
-| W4 | Triage and exceptions | Human, on a report | M1 (manual), M3 (in-graph) |
+| W2 | Cross-repository PR analysis | Human runs it on one PR | M2 (**implemented**, without an investigation step: M3 did not extend it) |
+| W3 | Bounded investigation | Inside W1 (`scan --investigate`), for reasoning candidates | M3 (**implemented**; W2 not extended) |
+| W4 | Triage and exceptions | Human, on a report | M1 (manual exceptions), M3 (**implemented**: decisions and approval in the graph) |
 | W5 | Remediation planning | Inside W1/W2, for confirmed findings | M4 |
 | W6 | Opportunity assessment | Human runs it, from findings history and declared relationships | M5 |
 | — | Scheduled scans, PR comments, coordinated issues/PRs | — | Deferred ([mvp.md](mvp.md#deferred)) |
@@ -22,7 +22,7 @@ Operational workflows, the LangGraph graph proposed for milestone M3, failure ha
 4. C3 evaluates every applicable policy on every relationship; transitions findings by fingerprint against the run store (new, unchanged, resolved, regressed).
 5. C7 writes the report: findings by severity, `cannot_evaluate` list, policy conflicts, proposed relationships, opportunities, and the delta since the previous run.
 
-No LLM call in M1–M2. Expected cost: GitHub reads only (W1 about 50 requests; W2 is bounded by `--max-requests`, default 400, and its measured cost is recorded in the [M2 evaluation](m2/evaluation.md#live-read-only-analysis)).
+No LLM call in M1–M2 or in the default `scan`; with `--investigate` step 4 is followed by W3 below. Expected cost: GitHub reads only (W1 about 50 requests; W2 is bounded by `--max-requests`, default 400, and its measured cost is recorded in the [M2 evaluation](m2/evaluation.md#live-read-only-analysis)).
 
 **As implemented in M1** (`runner.run_scan`):
 
@@ -58,7 +58,7 @@ sequenceDiagram
     Grf-->>Imp: relationships touching the change
     Imp->>Eng2: evaluate affected policies on PR head vs other repos
     Eng2->>Eng2: deterministic checks, exceptions, precedence
-    alt reasoning candidates exist (M3)
+    alt reasoning candidates exist (not in M3's W2: scan only)
         Eng2->>Inv: candidate + evidence (bounded)
         Inv-->>Eng2: claim + quotes
         Eng2->>Eng2: verify quotes at pinned SHAs
@@ -84,91 +84,69 @@ Notes:
 3. C4 maps the changed paths to relationships (anchor, policy read, P5 link target, authority; one hop), classifies the impact by relationship type and lists the changed values.
 4. C3 evaluates **only the touched relationships**, on base and on head. Findings are labelled by fingerprint: `introduced`, `pre-existing`, `resolved`, or `undetermined` when a side could not be evaluated ([impact model](m2/impact-model.md#6-delta-labels-by-fingerprint)).
 5. C7 writes `pr-impact.md` and `pr-impact.json` and records a separate run kind in the store (`pr_runs`, `pr_deltas`; baseline finding history untouched). Exit code: 0 no introduced finding, 1 introduced finding, 2 incomplete, 3 failure. **A pre-existing finding never fails the gate by itself.**
-6. No investigation (M3), no acknowledgement or dismissal step, no PR comment, no write of any kind: the report is local files.
+6. No investigation (M3 did not extend W2), no PR comment, no write of any kind: the report is local files.
+
+## W3 Bounded investigation (`scan --investigate`)
+
+**As implemented in M3** (`investigation/pipeline.run_investigation`, [docs](m3/README.md)):
+
+1. The deterministic scan runs and is recorded exactly as in M1. Its report is the base of the investigated one.
+2. Candidates are built by code from `declarations/investigation.yaml`: the P7 pre-filter locates each declared claim and the statements it must agree with in the pinned snapshots (a locator that no longer matches is `insufficient_evidence`, not a pass); intent reviews take the undetermined outcomes (H1). They are frozen in the store (`candidates_digest`) under a run id derived from the inputs.
+3. The workflow below runs: one worker per candidate, each reserving its slot in the ledger, then a bounded tool loop with the Investigator ([architecture](architecture.md#c5-investigator)).
+4. C3-side code verifies every quote at its pinned location, runs the entailment check when the policy declares one and applies the decision rule ([ADR-0016](adr/0016-m3-reasoning-verification-and-validation.md)).
+5. A `breaks` claim in `needs_validation` pauses the run at **triage**; every run pauses at **approval**. Decisions are recorded with `investigations decide` / `approve` ([usage](m3/usage.md#human-workflow-w4)).
+6. The report gains the `investigation` section; exit codes 0/1/2/3 as before plus 4 (a human decision is pending). Responses are recorded; `--replay` reproduces the run offline.
 
 ## LangGraph workflow
 
-Validated first by the isolated S0 spike ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5; [results](../prototypes/langgraph-spike/docs/results.md)), built at M3. S0 exercised a reduced shape of this graph (fan-out, retry loop, one approval interrupt, synthetic candidates; its node names are its own, see its [architecture](../prototypes/langgraph-spike/docs/architecture.md)); the nodes below are not implemented. Nodes call the core functions of C1–C7; the graph adds routing, fan-out, checkpoints and interrupts.
+Validated first by the isolated S0 spike ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §5; [results](../prototypes/langgraph-spike/docs/results.md)) and **implemented in M3** in `src/repo_orchestrator/investigation/workflow.py`, the only module that imports LangGraph ([ADR-0017](adr/0017-m3-investigation-state-and-langgraph-confinement.md)). The graph is new code on the S0 design, with its constraints applied (one facade, budget authority and effects outside the checkpoint, no side effect before `interrupt()`, workers catch every exception, `durability="sync"`, pinned dependencies). Pinning the snapshots, building the relationship graph and evaluating the policies stay in the plain-Python pipeline that precedes the graph; the graph starts from frozen candidates.
 
 ```mermaid
 flowchart TD
-    runStart([Run request:<br/>scope, optional PR]) --> pin
+    runStart([Run: frozen candidates<br/>in the store]) --> init["init_run<br/>validate run id,<br/>candidates digest"]
+    init --> dispatch["dispatch<br/>routing budget check:<br/>MAX_INVESTIGATIONS"]
+    dispatch -- "Send per pending candidate" --> investigate
+    dispatch -- "none pending" --> aggregate
 
-    subgraph cp1["Checkpoint boundary 1: inputs pinned"]
-        pin["pin_snapshots<br/>C1 · retry transient x3"]
-        build["build_graph<br/>C2"]
+    subgraph w["Parallel workers, results stored per candidate"]
+        investigate["investigate<br/>ledger slot (authoritative check),<br/>C5 tool loop, retry once,<br/>verify quotes, decide"]
     end
-    pin --> build
-    build --> evaluate
-
-    subgraph cp2["Checkpoint boundary 2: deterministic results"]
-        evaluate["evaluate_policies<br/>C3 deterministic + pre-filters"]
-        isPR{PR run?}
-        impact["assess_impact<br/>C4"]
-    end
-    evaluate --> isPR
-    isPR -- yes --> impact
-    isPR -- no --> route
-    impact --> route
-
-    route{"reasoning candidates?<br/>budget left?"}
-    route -- "none" --> classify
-    route -- "Send per candidate<br/>max MAX_INVESTIGATIONS" --> investigate
-
-    subgraph cp3["Checkpoint per investigation"]
-        investigate["investigate<br/>C5 · bounded tool calls<br/>retry once on malformed output"]
-        verify["verify_quotes<br/>C3 · code check"]
-    end
-    investigate --> verify
-    verify --> outcome{verification}
-    outcome -- "supported" --> entail{"entailment check<br/>declared by policy?"}
-    entail -- "yes, passes" --> classify
-    entail -- "yes, fails" --> dismiss
-    entail -- "no" --> needsVal["mark_needs_validation"]
-    needsVal --> classify
-    outcome -- "unverified /<br/>budget exhausted" --> insufficient["mark_insufficient_evidence"]
-    outcome -- "refuted" --> dismiss["mark_dismissed"]
-    insufficient --> classify
-    dismiss --> classify
-
-    classify["classify_intent<br/>exceptions · precedence"] --> triageQ{"breaks claim needing validation,<br/>or high severity with<br/>undetermined intent?"}
-    triageQ -- yes --> triage[["human_triage<br/>interrupt()"]]
-    triageQ -- no --> plan
-    triage --> plan["plan_remediation<br/>C6 · M4"]
-    plan --> assemble["assemble_report<br/>C7"]
-    assemble --> approve[["approve_report<br/>interrupt()"]]
-    approve -- approved --> publish["publish<br/>MVP: local files + store"]
-    approve -- "changes requested" --> classify
-    publish --> runEnd([End])
+    investigate --> aggregate["aggregate<br/>missing candidates become<br/>insufficient_evidence (budget)"]
+    aggregate --> triage[["triage<br/>interrupt() while a breaks claim<br/>is needs_validation"]]
+    triage --> approve[["approve<br/>interrupt() until a reviewer approves"]]
+    approve --> finalize["finalize<br/>idempotent: first approval wins"]
+    finalize --> runEnd([End])
 
     classDef human fill:#fde68a,stroke:#b45309,color:#111;
     class triage,approve human;
 ```
 
-| Element | Rule |
+| Element | Rule as implemented |
 |---|---|
-| State | Run request (input schema: scope and PR reference only), pinned SHAs, candidate list, per-candidate investigation result, findings, budget counters, human decisions. Budgets and outcome are not settable through the input ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md) §4). |
-| Fan-out | `Send` per candidate, capped by `MAX_INVESTIGATIONS`. Investigations are independent: one failure does not affect the others. Justified because candidates read disjoint evidence; the deterministic stages are not fanned out (they are fast and sequential). |
-| Retries | Transient GitHub errors: in `pin_snapshots`, bounded backoff, 3 attempts. Malformed Investigator output: 1 retry, then `insufficient_evidence`. No retry on a refuted quote. |
-| Checkpoints | After inputs are pinned, after deterministic evaluation, after each investigation, at each interrupt. A resumed run never re-pins snapshots. |
-| Human points | `human_triage` (`breaks` claims in `needs_validation`, and high-severity findings whose intent is undetermined), `approve_report` (always; a plan with an unresolved candidate ADR conflict cannot be approved). In the MVP, approval records decisions and marks the run reviewed; in a future level ≥ 2 it gates any GitHub write ([ADR-0007](adr/0007-read-only-operation-and-human-gated-remediation.md)). |
-| Termination | Routing checks budgets before every fan-out; `investigate` re-checks them before spending (two checks, as in `autonomous-dev-loop` ADR-0039). A loop from `approve_report` back to `classify_intent` re-uses existing investigations; it cannot start new ones. |
+| State | Run id (the only start input), phase, candidate keys, per-candidate result summaries. Candidates, results, the ledger and decisions are in the store, not in the checkpoint, so state edits cannot reset a budget or an outcome. |
+| Fan-out | `Send` per pending candidate, capped by `MAX_INVESTIGATIONS` at routing and again in the worker (ledger). Investigations are independent: a worker catches every exception. |
+| Retries | Inside C5 (not graph loops): one retry for malformed output, one for a transient provider error. No retry on an unverified quote. |
+| Checkpoints | After every step (`durability="sync"`); results are written as soon as an investigation ends. A resumed run rebuilds the snapshots offline at the recorded SHAs, re-verifies the evidence and never repeats a finished investigation. |
+| Human points | `triage` (a `breaks` claim in `needs_validation`; the run cannot pass it until it is decided) and `approve` (always). Approval records the reviewer and marks the run reviewed; in the MVP nothing is published outside local files and the store. |
+| Termination | No loop: each candidate is investigated at most once per run; budgets are checked at routing and spent through the ledger. |
+
+**Still proposed (not implemented):** `classify_intent` as a graph node with exceptions and precedence (exceptions are applied by C3 before the graph), `plan_remediation` (M4), `assemble_report` as a node, and the loop from `approve_report` back to classification.
 
 ## Insufficient evidence
 
-A candidate ends in `insufficient_evidence` when: a quote cannot be verified (`unverified`), a needed file cannot be read, the Investigator's budget runs out, or its output stays malformed after one retry.
+A candidate ends in `insufficient_evidence` when: a quote cannot be verified (`unverified`), a needed file cannot be read, the Investigator's budget runs out, or its output stays malformed after one retry (**implemented in M3**, with cause codes: [report format](m3/report-format.md#cause-codes-cause)).
 
 - It is **listed in the report** with the reason and what evidence would settle it. It never becomes a confirmed finding by default, and it is never silently dropped.
-- It does **not** interrupt the run (batched, default proposed in ADR-0005). A human can dismiss it, or add a declaration (a relationship anchor, a counting rule) that lets the next run decide it.
+- It does **not** interrupt the run (batched, default proposed in ADR-0005; **implemented that way**). It makes the run incomplete: exit 2. A human can dismiss it, or add a declaration (a relationship anchor, a counting rule) that lets the next run decide it.
 - The ratio of `insufficient_evidence` to candidates is an evaluation metric ([mvp.md](mvp.md#evaluation)).
 
 ## W4 Triage and exceptions
 
 | Human action | Effect |
 |---|---|
-| Validate a reasoning claim | `needs_validation` → `confirmed` (`validated_by_human`) or `dismissed` with reason |
-| Acknowledge | `confirmed` → `acknowledged` |
-| Dismiss with reason | `candidate` / `insufficient_evidence` → `dismissed`; the reason is stored and counts as a false positive in evaluation |
+| Validate a reasoning claim (**M3**: `investigations decide --action validate`) | `needs_validation` → `confirmed` (`validated_by_human`); `reject` → `dismissed` with reason |
+| Acknowledge (**M3**: `--action acknowledge`) | `confirmed` → acknowledged (recorded flag; the lifecycle state `acknowledged` of the deterministic findings is M4) |
+| Dismiss with reason (**M3**: `--action dismiss`) | `insufficient_evidence` / `needs_validation` / `policy_question` → `dismissed`; the reason is stored and counts as a false positive in evaluation |
 | Request an exception | Produces an exception draft in the report; the human adds it to the declarations by pull request; the next run marks the finding `excepted` |
 | Clarify a policy | For policy conflicts and ambiguous authorities (baseline N2): a change to policy parameters by pull request |
 
@@ -193,7 +171,7 @@ Follows the lifecycle of [ADR-0009](adr/0009-optimization-opportunities-as-first
 | Invalid declarations | Stop before any GitHub call; report the declaration errors. |
 | Repository unreachable or SHA not found | Policies touching it are `cannot_evaluate`; other repositories proceed; the run is marked partial. |
 | Extractor parse error | `cannot_evaluate` for that policy and relationship, with the parse error. Never `pass`. |
-| LLM provider error | Investigation retried once, then `insufficient_evidence`; deterministic findings are unaffected. |
+| LLM provider error (M3, **implemented**) | A transient error is retried once, then `insufficient_evidence` (`provider_error`); deterministic findings are unaffected. |
 | Budget exhausted | Remaining candidates `insufficient_evidence` with reason `budget`; the report says how many were not investigated. |
-| Process killed (M3) | Resume from the last checkpoint; pinned SHAs and completed investigations are reused. |
+| Process killed (M3, **implemented**) | `investigations resume` / repeating the command continues from the last checkpoint; pinned SHAs and completed investigations are reused and the budget holds (tested with a real hard kill). |
 | Prompt-injection text in a repository | Treated as data; if detected (instruction-like text in a quote), reported as an observation. |

@@ -58,6 +58,10 @@ The workflow ([workflows.md](../workflows.md)) has two very different halves:
 
 The S0 spike was executed in [`prototypes/langgraph-spike`](../../prototypes/langgraph-spike/README.md). Against the criteria of §5: resume after `interrupt()` across process restarts, fan-out of 6 with failure isolation, and the budget guard holding across resume all passed (81 tests on Python 3.11 and 3.13); the generated diagram matches the documentation by test; dependencies are pinned. Not shown: checkpoint schema stability across LangGraph *versions* (the version never changed). Findings that refine §4: the budget must live outside the checkpoint (`Command(update=...)` and `update_state` can rewrite counters), a worker must catch its own exceptions, an interrupted node restarts from its first line, and a start input on a paused thread wedges it, so a facade must be the only entry point. The spike's **proposed** outcome is *adopt LangGraph for M3 with explicit constraints* ([results](../../prototypes/langgraph-spike/docs/results.md#recommendation-for-the-owner-to-decide-adr-0005-stays-proposed)). This record is still **Proposed**: the decision belongs to the owner.
 
+## M3 gate (added; status unchanged)
+
+At the M3 gate the owner chose to build the investigation workflow on LangGraph, confined to one module, rather than on the hand-written fallback. What was built, with the S0 constraints applied, is recorded in [ADR-0017](0017-m3-investigation-state-and-langgraph-confinement.md); the answers to this record's open questions are there (the tool loop is a single node wrapping a text protocol, not a subgraph; insufficient-evidence candidates are batched into the report, not interrupted). This record is still **Proposed**: accepting it remains the owner's decision.
+
 ## Open questions
 
 - Is the Investigator's own tool loop a LangGraph subgraph or a single node wrapping an SDK tool loop? Decided by S0.
