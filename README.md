@@ -127,7 +127,7 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [M1](docs/m1/README.md) | What is implemented: usage, declarations, policies, report format, evaluation, limitations |
 | [Report dashboard](docs/m1/dashboard.md) | Static, read-only viewer for the reports (Overview, Reports, Report detail) and its GitHub Pages deployment |
 | [M2](docs/m2/README.md) | What is implemented for PR analysis: usage, impact model, report format, evaluation, limitations |
-| [ADRs](docs/adr/README.md) | Thirteen Proposed decisions |
+| [ADRs](docs/adr/README.md) | Sixteen Proposed decisions |
 | [Claude Code](docs/claude-code.md) | `ai-dev-tools` toolbox, repository rules (`CLAUDE.md`) and skills |
 
 ## Relation to the rest of the ecosystem
