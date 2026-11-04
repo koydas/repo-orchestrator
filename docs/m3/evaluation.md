@@ -6,9 +6,9 @@
 
 | Check | Command | Result (real) |
 |---|---|---|
-| Whole suite, CPython 3.13.18 | `pytest -q` | exit 0, 1,003 tests (742 on `main` before M3: +261) |
-| Whole suite, CPython 3.11 | `pytest -q` (clean venv, `pip install -e '.[dev,investigation]'`) | exit 0, same 1,003 tests |
-| M3 evaluation files only | `pytest tests/test_inv_*.py` | exit 0; 149 tests; 30 s on 3.13, 34 s on 3.11 |
+| Whole suite, CPython 3.13.18 | `pytest -q` | exit 0, 1,013 tests (752 on `main` at the last merge: +261) |
+| Whole suite, CPython 3.11 | `pytest -q` (clean venv, `pip install -e '.[dev,investigation]'`) | exit 0, same 1,013 tests |
+| M3 evaluation files only | `pytest tests/test_inv_*.py` | exit 0; 140 tests; 31 s on 3.13, 32 s on 3.11 |
 | Lint, format, types | `ruff check src tests`, `ruff format --check src tests`, `mypy` (strict, 50 source files) | all clean |
 | CI smoke step as written | `tests/test_docs_m3.py` extracts the workflow's own step and runs it | exit code 1 as documented |
 | Mutation check | 22 hand-made regressions of the production code (below) | 22 of 22 caught |
