@@ -72,7 +72,7 @@ def test_claude_md_and_readme_describe_m3_as_implemented_and_m4_m5_as_not():
     assert "Implemented" in rows["M3"] and rows["M4"].strip() == "Not started" and rows["M5"].strip() == "Not started"
     assert "**implemented**" in read(DOCS / "mvp.md").split("**M3 Bounded investigation**")[1].split("\n")[0]
     claude = read(ROOT / "CLAUDE.md")
-    assert "M3 (bounded investigation) are implemented; M4–M5 are design only" in claude
+    assert "M3 (bounded investigation) are implemented; M4\u2013M5 are design only" in claude
     for m4 in ("remediation plans", "optimization opportunities"):
         assert m4 in read(ROOT / "README.md")
 
