@@ -173,9 +173,11 @@ class InvestigationStore:
     def settle_call(
         self, run_id: str, cand_key: str, request_key: str, attempt: int, response: LLMResponse, replayed: bool
     ) -> None:
+        """Fill an unsettled reservation, once. A row already settled (or released after a failed attempt) keeps what it
+        recorded: a restarted worker re-reading a stored response must not charge it a second time."""
         with self._tx() as c:
             c.execute(
-                "UPDATE inv_calls SET in_tok=?, out_tok=?, cost_micro=?, replayed=?, latency_ms=? WHERE run_id=? AND cand_key=? AND request_key=? AND attempt=?",
+                "UPDATE inv_calls SET in_tok=?, out_tok=?, cost_micro=?, replayed=?, latency_ms=? WHERE run_id=? AND cand_key=? AND request_key=? AND attempt=? AND in_tok IS NULL",
                 (response.input_tokens, response.output_tokens, cost_micro_usd(response.model, response.input_tokens, response.output_tokens),
                  int(replayed), response.latency_ms, run_id, cand_key, request_key, attempt),
             )  # fmt: skip

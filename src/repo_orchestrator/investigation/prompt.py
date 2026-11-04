@@ -158,11 +158,25 @@ _TOOL_ARGS = {
 
 
 def parse_reply(text: str) -> ToolCall | Proposal:
+    """Parse one model reply. Anything outside the closed schema, whatever the JSON types, is :class:`Malformed`."""
+    try:
+        return _parse_reply(text)
+    except (
+        TypeError,
+        KeyError,
+        ValueError,
+        AttributeError,
+        IndexError,
+    ) as exc:  # a wrongly typed field is malformed too
+        raise Malformed(f"unexpected field type ({type(exc).__name__})") from None
+
+
+def _parse_reply(text: str) -> ToolCall | Proposal:
     obj = _object(text)
     if "tool" in obj:
         _only(obj, ("tool", "args"), "reply")
         name, args = obj.get("tool"), obj.get("args")
-        if name not in _TOOL_ARGS or not isinstance(args, dict):
+        if not isinstance(name, str) or name not in _TOOL_ARGS or not isinstance(args, dict):
             raise Malformed("tool request: unknown tool or arguments are not an object")
         _only(args, _TOOL_ARGS[str(name)], f"{name}.args")
         return ToolCall(str(name), args)

@@ -523,3 +523,42 @@ def test_a_fragment_of_a_decimal_cannot_validate_an_entailment_check():
     quote_in = QuoteIn("ap", "0" * 40, "README.md", 1, 1, "The value is 1.5 seconds.")
     checks = [QuoteCheck("verified", "ok", quote_in)]
     assert run_entailment(spec, {"claimed": "1", "stated": "5"}, checks)["status"] == "not_evaluable"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        json.dumps({"tool": [], "args": {}}),
+        json.dumps({"tool": {}, "args": {}}),
+        json.dumps({"tool": 3, "args": {}}),
+        json.dumps({"tool": "read", "args": []}),
+        json.dumps({"final": []}),
+        json.dumps({"final": {"finding": [], "claim": "c", "quotes": []}}),
+        json.dumps({"final": {"finding": "divergent", "claim": ["x"], "quotes": []}}),
+        json.dumps({"final": {"finding": "divergent", "claim": "c", "quotes": [[]]}}),
+        json.dumps({"final": {"finding": "divergent", "claim": "c", "quotes": [], "values": {"a": []}}}),
+        json.dumps({"final": {"finding": "divergent", "claim": "c", "quotes": [], "intent": []}}),
+        json.dumps(
+            {
+                "final": {
+                    "finding": "divergent",
+                    "claim": "c",
+                    "quotes": [],
+                    "intent": {"proposal": [], "justification": "j"},
+                }
+            }
+        ),
+        json.dumps(
+            {
+                "final": {
+                    "finding": "divergent",
+                    "claim": "c",
+                    "quotes": [{"repo": "a", "sha": "b", "path": "c", "line_start": [], "line_end": 1, "text": "t"}],
+                }
+            }
+        ),
+    ],
+)
+def test_a_wrongly_typed_field_is_malformed_never_an_unhandled_exception(text):
+    with pytest.raises(Malformed):
+        parse_reply(text)

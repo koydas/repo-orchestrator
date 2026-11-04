@@ -345,3 +345,38 @@ def test_two_declarations_with_one_identity_are_rejected_instead_of_silently_mer
     (d2 / "investigation.yaml").write_text(text)
     with pytest.raises(ConfigError, match="select the same outcomes"):
         load_claims(d2, engine)
+
+
+def test_a_restart_never_charges_a_stored_response_a_second_time(tmp_path):
+    """Transient failure (attempt 0, released) then a successful retry (attempt 1) that used 1,100 output tokens. After a
+    restart the cached answer is re-read as attempt 0; settling must leave the released row alone, not double the usage."""
+    from repo_orchestrator.investigation.budgets import BUDGET
+    from repo_orchestrator.investigation.domain import candidate_from_json
+    from repo_orchestrator.investigation.investigator import Investigator
+    from repo_orchestrator.investigation.pipeline import make_run
+    from repo_orchestrator.investigation.provider import LLMResponse, ProviderError
+    from support_inv import tool
+
+    decl = load_decl()
+    store = InvestigationStore(tmp_path / "state.sqlite")
+    run, reader, _c, _s = make_run(store, Engine(decl), scan(), CachingSource(None, FIXTURES), opts_for(tmp_path))
+    cand = next(candidate_from_json(c) for c in run["candidates"] if c["subject"] == "claim:extracted_from")
+
+    def answer(req, n):
+        if n == 1:
+            return ProviderError("timeout")
+        if n == 2:
+            return LLMResponse(
+                tool("read", repo="ap", path="README.md", start=1, end=3), 700, 1100, "claude-sonnet-5-5", "end_turn", 5
+            )
+        return final("divergent", "c", h2_quotes())
+
+    first = Scripted(answer)
+    r1 = Investigator(first, store, reader, run["run_id"], BUDGET).investigate(cand)
+    assert r1.state.value == "needs_validation"
+    before = store.usage(run["run_id"])
+    second = Scripted(answer)  # a restart: fresh counters, same store; every answer is already recorded
+    r2 = Investigator(second, store, reader, run["run_id"], BUDGET).investigate(cand)
+    assert second.requests == [] and r2.state == r1.state
+    assert store.usage(run["run_id"]) == before, "the cached response was charged again"
+    assert before["output_tokens"] == 1100 + 150

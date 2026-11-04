@@ -626,3 +626,16 @@ def test_a_scope_without_the_relationship_reports_the_claim_as_skipped_never_dro
     assert inv.semantic["investigation"]["skipped"] == [
         {"id": "H2", "reason": "a repository of the relationship is outside the selected scope"}
     ]
+
+
+def test_a_wrongly_typed_tool_name_gets_the_repair_retry_not_an_internal_error(tmp_path):
+    bad = json.dumps({"tool": [], "args": {}})
+    prov = Scripted(
+        by_subject(
+            {H2: lambda n: bad if n == 1 else final("divergent", "c", h2_quotes())},
+            default=final("cannot_determine", "x", h2_quotes()),
+        )
+    )
+    inv, _ = baseline_run(tmp_path, prov)
+    r = row(inv, H2)
+    assert r["state"] == "needs_validation" and r["cause"] is None and prov.per_subject[H2] == 2
