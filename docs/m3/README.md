@@ -107,13 +107,13 @@ Every model call is keyed by the hash of its exact request and its response is s
 
 ## State, interrupts and decisions
 
-Checkpoints (LangGraph's SQLite saver, `investigations.sqlite`) after every step; results, the ledger, recorded responses and human decisions are `inv_*` tables in the run store file. A killed run resumes from its checkpoint: the snapshots are rebuilt **offline** from the cache at the recorded SHAs and every piece of evidence is re-verified (`snapshot_changed` fails closed), finished investigations are not redone, and the budget holds ([evaluation](evaluation.md#crash-interrupt-and-resume)).
+Checkpoints (LangGraph's SQLite saver, `<state-db stem>.investigations.sqlite`) after every step; results, the ledger, recorded responses and human decisions are `inv_*` tables in the run store file. A killed run resumes from its checkpoint: the snapshots are rebuilt **offline** from the cache at the recorded SHAs and every piece of evidence is re-verified (`snapshot_changed` fails closed), finished investigations are not redone, and the budget holds ([evaluation](evaluation.md#crash-interrupt-and-resume)).
 
 Human points (W4): **triage** pauses the run when a `breaks` claim is in `needs_validation`; **approval** always pauses. `investigations decide` records `validate`, `reject`, `dismiss` or `acknowledge`, bound to the digest of the evidence the human saw (a decision on changed evidence is *stale* and not applied).
 
 ## Operator notes
 
-- The SQLite files bypass every guard: whoever can edit `investigations.sqlite` or `state.sqlite` can alter checkpoints. The ledger, not the checkpoint, is the budget authority; results are first-write-wins.
+- The SQLite files bypass every guard: whoever can edit `<state-db stem>.investigations.sqlite` or `state.sqlite` can alter checkpoints. The ledger, not the checkpoint, is the budget authority; results are first-write-wins.
 - A start input on a paused thread wedges it in LangGraph (S0 finding). The facade refuses to forward one and reports `wedged`; repair is to fork from an earlier checkpoint (a LangGraph operator action, not exposed).
 - `--no-store` keeps the investigation state in a temporary directory: no resume, no decisions.
 - Install: `pip install -e '.[investigation]'` (pinned LangGraph set). Without it the default commands work and `--investigate` stops with exit 3 and the install hint.

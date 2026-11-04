@@ -250,3 +250,15 @@ def test_scan_scope_and_unused_imports_stay_importable_without_the_graph():
     )
     assert out.returncode == 0, out.stderr
     assert scan and CachingSource and Engine
+
+
+def test_a_checkpoint_that_disagrees_with_the_store_is_refused_not_trusted(tmp_path):
+    """The old failure: a second state database reusing the first one's checkpoint file."""
+    import shutil
+
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    baseline_run(tmp_path / "a", Scripted(h2_script()))
+    shutil.copy(tmp_path / "a" / "checkpoints.sqlite", tmp_path / "b" / "checkpoints.sqlite")  # b has the same run id
+    with pytest.raises(InvalidPhase, match="holds no results"):
+        baseline_run(tmp_path / "b", Scripted(h2_script()))

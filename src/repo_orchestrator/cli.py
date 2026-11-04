@@ -300,7 +300,7 @@ def _investigate(
         base = Path(ephemeral.name) if ephemeral else args.state_db.parent
         opts = pipeline.InvestigationOptions(
             declarations_dir=args.declarations, cache_dir=args.cache_dir,
-            state_db=(base / "state.sqlite") if ephemeral else args.state_db, checkpoint_path=base / "investigations.sqlite",
+            state_db=(base / "state.sqlite") if ephemeral else args.state_db, checkpoint_path=pipeline.checkpoint_path_for(base / "state.sqlite" if ephemeral else args.state_db),
             provider=provider, recording=recording, declarations_digest=decl.digest, offline=args.offline,
         )  # fmt: skip
         result = pipeline.run_investigation(engine, report, source, opts)
@@ -378,7 +378,7 @@ def _investigations(args: argparse.Namespace) -> int:
         raise ConfigError(f"unknown investigation run {args.run}")
     opts = pipeline.InvestigationOptions(
         declarations_dir=Path(run["config"]["declarations"]), cache_dir=Path(run["config"]["cache_dir"]), state_db=args.state_db,
-        checkpoint_path=args.state_db.parent / "investigations.sqlite",
+        checkpoint_path=pipeline.checkpoint_path_for(args.state_db),
     )  # fmt: skip
     if cmd == "show":
         section = inv_report.build_section(store, run, run["config"]["claims"], run["config"]["skipped"])

@@ -819,6 +819,9 @@ def _investigation_note(sem: Mapping[str, Any]) -> str:
 def _status_line(r: Report) -> str:
     sem = r.semantic
     n, partial = sem["summary"]["by_status"]["inconsistent"], sem["run_status"] == "partial"
+    n += int(
+        (sem.get("investigation") or {}).get("summary", {}).get("by_state", {}).get("confirmed", 0)
+    )  # confirmed by a check or a human
     undecided = bool(_investigation_note(sem)) and (
         sem["investigation"]["summary"]["by_state"]["needs_validation"]
         or sem["investigation"]["summary"]["by_state"]["insufficient_evidence"]

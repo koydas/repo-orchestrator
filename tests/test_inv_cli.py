@@ -112,7 +112,7 @@ def test_replay_and_record_are_mutually_exclusive_and_a_bad_recording_is_rejecte
 def test_no_store_keeps_the_investigation_state_temporary(tmp_path, capsys):
     code, out, _err = run(tmp_path, "--no-store", "--investigate", "--replay", str(RECORDING), capsys=capsys)
     assert code == 1 and "--no-store: the investigation state is temporary" in out
-    assert not (tmp_path / "state.sqlite").exists() and not (tmp_path / "investigations.sqlite").exists()
+    assert not (tmp_path / "state.sqlite").exists() and not list(tmp_path.glob("*.investigations.sqlite"))
 
 
 def test_the_investigations_commands_list_show_decide_and_approve(tmp_path, capsys):
@@ -251,3 +251,30 @@ def test_the_live_path_sends_the_key_only_in_the_header_and_never_writes_it_anyw
 
 def test_environment_helpers_exist():
     assert os.path.isdir(ROOT / "tests" / "tools")
+
+
+def test_two_state_databases_in_one_directory_never_share_checkpoints(tmp_path, capsys):
+    """Same inputs give the same run id: a shared checkpoint file made the second database skip its investigation."""
+    results = []
+    for name in ("a.sqlite", "b.sqlite"):
+        cli.main(
+            [
+                *BASE,
+                "--output-dir",
+                str(tmp_path / ("out-" + name)),
+                "--state-db",
+                str(tmp_path / name),
+                "--investigate",
+                "--replay",
+                str(RECORDING),
+                "--quiet",
+            ]
+        )
+        capsys.readouterr()
+        body = json.loads((tmp_path / ("out-" + name) / "report.json").read_text())["semantic"]["investigation"]
+        results.append(body["summary"]["by_state"])
+    assert results[0] == results[1] and results[1]["needs_validation"] == 1 and results[1]["policy_question"] == 2
+    assert sorted(p.name for p in tmp_path.glob("*.investigations.sqlite")) == [
+        "a.investigations.sqlite",
+        "b.investigations.sqlite",
+    ]

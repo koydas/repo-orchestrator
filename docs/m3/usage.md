@@ -62,7 +62,7 @@ repo-orchestrator investigations resume <run>        # after an interrupted run;
 | `dismiss` | `insufficient_evidence`, `needs_validation`, `policy_question` | `dismissed` |
 | `acknowledge` | `confirmed` | marks it acknowledged |
 
-A reason and an actor are required. A human cannot validate a candidate that is not in `needs_validation` (an unverified or undetermined claim cannot be promoted). Decisions are stored in `inv_decisions`, bound to the evidence digest, and applied by the next `scan --investigate` report; `decide` also resumes a run paused at triage once nothing is left to triage, and `approve` accepts the pause that follows. `--state-db` selects the store (default `.repo-orchestrator/state.sqlite`; checkpoints live next to it in `investigations.sqlite`).
+A reason and an actor are required. A human cannot validate a candidate that is not in `needs_validation` (an unverified or undetermined claim cannot be promoted). Decisions are stored in `inv_decisions`, bound to the evidence digest, and applied by the next `scan --investigate` report; `decide` also resumes a run paused at triage once nothing is left to triage, and `approve` accepts the pause that follows. `--state-db` selects the store (default `.repo-orchestrator/state.sqlite`; checkpoints live next to it in `<state-db stem>.investigations.sqlite`).
 
 ## Manual live check
 

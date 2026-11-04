@@ -686,3 +686,14 @@ def test_an_oversized_policy_id_is_clipped_in_titles_and_never_hangs_the_build(t
     html = _first_finding_html(tmp_path, forge(base, edit))
     for href in re.findall(r'href="(https://github.com/[^"]*(?:issues/new|compare)/?[^"]*)"', html):
         assert len(href.replace("&amp;", "&")) < 7000
+
+
+def test_a_confirmed_investigation_finding_is_never_shown_as_a_clean_run():
+    from repo_orchestrator.dashboard import _status_line
+
+    clean = doc(scan(), None)
+    clean["semantic"]["findings"] = []
+    clean["semantic"]["summary"]["by_status"]["inconsistent"] = 0
+    confirmed = _investigated(clean, confirmed=1)
+    line = _status_line(Report("k", confirmed["semantic"], confirmed["execution"], ()))
+    assert "1 confirmed inconsistency" in line and "tone-bad" in line and "No confirmed inconsistency" not in line

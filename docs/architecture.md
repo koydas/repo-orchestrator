@@ -116,7 +116,7 @@ No arrow points back into GitHub: the MVP has no write path ([ADR-0007](adr/0007
 
 ### Run store
 
-SQLite file plus snapshot cache ([ADR-0008](adr/0008-git-declarations-and-local-sqlite-state.md)): findings by fingerprint with history, Run Records, checkpoints. **M1:** `store.py` keeps runs (idempotent by input-and-result digest), outcomes and finding history. **M3:** the same file also holds the `inv_*` tables (budget ledger, recorded model responses, investigation results, human decisions) in a separate namespace, and the LangGraph checkpoints live next to it in `investigations.sqlite`; `findings`, `finding_events` and `pr_*` are never touched by M3.
+SQLite file plus snapshot cache ([ADR-0008](adr/0008-git-declarations-and-local-sqlite-state.md)): findings by fingerprint with history, Run Records, checkpoints. **M1:** `store.py` keeps runs (idempotent by input-and-result digest), outcomes and finding history. **M3:** the same file also holds the `inv_*` tables (budget ledger, recorded model responses, investigation results, human decisions) in a separate namespace, and the LangGraph checkpoints live next to it in `<state-db stem>.investigations.sqlite`; `findings`, `finding_events` and `pr_*` are never touched by M3.
 
 ## Data flow
 

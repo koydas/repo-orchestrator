@@ -54,6 +54,12 @@ class Orchestrator:
                 f"run {run_id} is wedged (a start input hit a paused thread); see docs/m3/README.md → operator notes"
             )
         if phase in TERMINAL or phase in PAUSED:
+            run = self.store.run(run_id)
+            if run and run["candidates"] and len(self.store.results(run_id)) < len(run["candidates"]):
+                raise InvalidPhase(
+                    f"run {run_id}: the checkpoint says {phase} but this store holds no results for it "
+                    "(a checkpoint database shared with another state database?)"
+                )
             return st
         if phase == "not_started":
             self._wf.start(run_id)

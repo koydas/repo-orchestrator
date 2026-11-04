@@ -29,6 +29,12 @@ from .runner import Orchestrator
 from .store import InvestigationStore
 
 
+def checkpoint_path_for(state_db: Path) -> Path:
+    """One checkpoint database per state database: the run id is derived from the inputs, so two state databases that
+    shared a checkpoint file would see each other's runs as already paused or reviewed."""
+    return state_db.with_name(f"{state_db.stem}.investigations.sqlite")
+
+
 class SnapshotChanged(ConfigError):
     """A resumed run's pinned inputs differ from what it recorded (ADR-0017 §4): fail closed, never re-pin."""
 
