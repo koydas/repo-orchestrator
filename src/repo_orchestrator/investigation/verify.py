@@ -83,6 +83,12 @@ def _number(value: str) -> int | None:
     return int(value) if re.fullmatch(r"\d{1,9}", value.strip()) else None
 
 
+def _token(value: str) -> str:
+    """A whole number as written: not a fragment of a longer, signed, decimal, grouped or alphanumeric token
+    (``1`` and ``5`` are not in ``1.5``; ``12`` is not in ``-12``, ``1,200`` or ``v12``)."""
+    return rf"(?<![\w.,+\-]){re.escape(value)}(?!\w|[.,]\d)"
+
+
 def run_entailment(spec: Entailment, values: Mapping[str, str], checks: Sequence[QuoteCheck]) -> dict[str, Any]:
     """The policy's deterministic test. ``status``: holds | fails | not_evaluable. Both values must be numbers and each
     must occur as a whole number token inside a *verified* quote; otherwise the check is not evaluable (a human decides)."""
@@ -96,7 +102,7 @@ def run_entailment(spec: Entailment, values: Mapping[str, str], checks: Sequence
     texts = [c.quote.text for c in checks if c.status == "verified"]
     for name, v in raw.items():
         assert v is not None
-        if not any(re.search(rf"(?<!\d){re.escape(v.strip())}(?!\d)", t) for t in texts):
+        if not any(re.search(_token(v.strip()), t) for t in texts):
             out["detail"] = f"value {name}={v!r} does not occur in a verified quote"
             return out
     left, right = nums[spec.left], nums[spec.right]

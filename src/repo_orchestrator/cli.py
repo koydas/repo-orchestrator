@@ -551,14 +551,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (ConfigError, DeterminismError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return FAILURE
+    except OSError as exc:  # before the broader handler below: a filesystem failure is exit 3, never a traceback
+        print(f"error: {exc.strerror or exc}", file=sys.stderr)
+        return FAILURE
     except Exception as exc:
         if type(exc).__module__.startswith("repo_orchestrator.investigation"):  # DecisionError, WorkflowError, ...
             print(f"error: {exc}", file=sys.stderr)
             return FAILURE
         raise
-    except OSError as exc:
-        print(f"error: {exc.strerror or exc}", file=sys.stderr)
-        return FAILURE
 
 
 if __name__ == "__main__":

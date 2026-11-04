@@ -278,3 +278,20 @@ def test_two_state_databases_in_one_directory_never_share_checkpoints(tmp_path, 
         "a.investigations.sqlite",
         "b.investigations.sqlite",
     ]
+
+
+def test_a_missing_recording_is_a_concise_error_and_exit_3_never_a_traceback(tmp_path, capsys):
+    code, _out, err = run(
+        tmp_path, "--no-store", "--investigate", "--replay", str(tmp_path / "nope.json"), capsys=capsys
+    )
+    assert code == 3 and err.startswith("error:") and "Traceback" not in err
+
+
+def test_a_filesystem_failure_is_exit_3_for_every_command(tmp_path, capsys):
+    """Exit 1 means 'findings detected': an OSError must never be reported as one (the OSError handler comes first)."""
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    for extra in ([], ["--investigate", "--replay", str(RECORDING)]):
+        code = cli.main([*BASE, "--no-store", "--quiet", "--output-dir", str(blocker / "sub"), *extra])
+        assert code == 3
+        assert "Traceback" not in capsys.readouterr().err

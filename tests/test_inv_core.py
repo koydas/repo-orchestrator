@@ -16,6 +16,7 @@ from repo_orchestrator.investigation.domain import (
     CandState,
     Entailment,
     EvStatus,
+    QuoteCheck,
     QuoteIn,
     Validation,
 )
@@ -489,3 +490,36 @@ def test_a_human_cannot_validate_what_the_investigator_could_not_determine(tmp_p
     store, _ = _stored(tmp_path, und)
     with pytest.raises(decisions.DecisionError, match="cannot validate"):
         decisions.record(store, "r" * 16, und.key, "validate", "I think it diverges", "bob")
+
+
+@pytest.mark.parametrize(
+    ("text", "value", "found"),
+    [
+        ("The value is 1.5 seconds.", "1", False),
+        ("The value is 1.5 seconds.", "5", False),
+        ("limit is -12 items", "12", False),
+        ("+12 items", "12", False),
+        ("about 1,200 users", "200", False),
+        ("about 1,200 users", "1", False),
+        ("release v12", "12", False),
+        ("12th pattern", "12", False),
+        ("12 extracted from the two repos.", "12", True),
+        ("16 of 20 have implementations", "16", True),
+        ("(12) patterns, 16.", "16", True),
+        ("exactly 12, then 16", "12", True),
+    ],
+)
+def test_an_entailment_value_must_be_a_whole_number_not_a_fragment_of_another_token(text, value, found):
+    import re
+
+    from repo_orchestrator.investigation.verify import _token
+
+    assert bool(re.search(_token(value), text)) is found
+
+
+def test_a_fragment_of_a_decimal_cannot_validate_an_entailment_check():
+    """claimed=1 and stated=5 both 'appear' in 'The value is 1.5 seconds.': the check must stay not evaluable."""
+    spec = Entailment("numeric_relation", "claimed", "lt", "stated")
+    quote_in = QuoteIn("ap", "0" * 40, "README.md", 1, 1, "The value is 1.5 seconds.")
+    checks = [QuoteCheck("verified", "ok", quote_in)]
+    assert run_entailment(spec, {"claimed": "1", "stated": "5"}, checks)["status"] == "not_evaluable"
