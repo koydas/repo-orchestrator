@@ -17,7 +17,7 @@ from ..engine import Engine
 from ..evidence import verify as verify_evidence
 from ..models import ConfigError, digest
 from ..runner import ScanReport
-from .budgets import BUDGET, MODEL, PROMPT_VERSION
+from .budgets import BUDGET, MODEL, PROMPT_VERSION, Budget
 from .domain import Candidate, candidate_from_json, candidate_to_json
 from .investigator import Investigator
 from .p7 import Claims, build_candidates, claims_summary, load_claims
@@ -44,6 +44,7 @@ class InvestigationOptions:
     declarations_digest: str = ""
     revisions: dict[str, str] = field(default_factory=dict)
     offline: bool = False
+    budget: Budget = BUDGET  # tests only: the CLI never sets it (budgets are code constants, ADR-0014 §4)
 
 
 @dataclass
@@ -93,12 +94,15 @@ def _provider(opts: InvestigationOptions) -> Provider:
 def run_investigation(
     engine: Engine, scan: ScanReport, source: SnapshotSource, opts: InvestigationOptions
 ) -> Investigated:
-    store = InvestigationStore(opts.state_db)
+    store = InvestigationStore(opts.state_db, opts.budget)
     if opts.recording is not None:
         store.import_recording(opts.recording)
     run, reader, _claims, _skipped = make_run(store, engine, scan, source, opts)
     orch = Orchestrator(
-        store, opts.checkpoint_path, Investigator(_provider(opts), store, reader, run["run_id"]).investigate
+        store,
+        opts.checkpoint_path,
+        Investigator(_provider(opts), store, reader, run["run_id"], opts.budget).investigate,
+        opts.budget,
     )
     try:
         status = orch.advance(run["run_id"])
@@ -149,12 +153,17 @@ def rebuild_reader(run: dict[str, Any]) -> PinnedReader:
 
 
 def resume_run(run_id: str, opts: InvestigationOptions) -> tuple[InvestigationStore, str]:
-    store = InvestigationStore(opts.state_db)
+    store = InvestigationStore(opts.state_db, opts.budget)
     run = store.run(run_id)
     if run is None:
         raise ConfigError(f"unknown investigation run {run_id}")
     reader = rebuild_reader(run)
-    orch = Orchestrator(store, opts.checkpoint_path, Investigator(_provider(opts), store, reader, run_id).investigate)
+    orch = Orchestrator(
+        store,
+        opts.checkpoint_path,
+        Investigator(_provider(opts), store, reader, run_id, opts.budget).investigate,
+        opts.budget,
+    )
     try:
         status = orch.advance(run_id)
     finally:
@@ -172,4 +181,4 @@ def open_orchestrator(store: InvestigationStore, opts: InvestigationOptions) -> 
     def refuse(c: Candidate) -> Any:
         raise ConfigError("this command does not investigate; use 'investigations resume'")
 
-    return Orchestrator(store, opts.checkpoint_path, refuse)
+    return Orchestrator(store, opts.checkpoint_path, refuse, opts.budget)

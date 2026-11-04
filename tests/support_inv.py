@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from repo_orchestrator.collector.cache import CachingSource
 from repo_orchestrator.engine import Engine
 from repo_orchestrator.investigation.pipeline import Investigated, InvestigationOptions, run_investigation
 from repo_orchestrator.investigation.provider import LLMRequest, LLMResponse, ProviderError
@@ -129,17 +128,71 @@ def h2_script(finding: str = "divergent") -> Callable[[LLMRequest, int], str | L
     return fn
 
 
+def intent_answer(proposal: str = "intentional") -> str:
+    return final(
+        "divergent",
+        "The repository documents that it is not in the plugin scope.",
+        [
+            quote(
+                "adt",
+                "koydas/ai-dev-tools",
+                "docs/adr/ADR-018-consumer-repo-adoption.md",
+                r"Every repository worked on with Claude Code",
+            )
+        ],
+        intent={
+            "proposal": proposal,
+            "justification": "ADR-018 scopes the plugin to repositories worked on with Claude Code",
+            "quote": 0,
+        },
+    )
+
+
+def scripted_baseline() -> Scripted:
+    """The scripted Investigator behind the committed recording: H2 divergent (a human decides), H1 with a proposed intent."""
+    return Scripted(
+        by_subject(
+            {
+                "claim:extracted_from": final(
+                    "divergent",
+                    "The profile says 12 patterns were extracted; agent-patterns says 16 of 20 have public implementations.",
+                    h2_quotes(),
+                )
+            },
+            default=intent_answer(),
+        )
+    )
+
+
 def baseline_run(
-    tmp: Path, provider: Any = None, *, recording: Any = None, engine: Engine | None = None
+    tmp: Path,
+    provider: Any = None,
+    *,
+    recording: Any = None,
+    engine: Engine | None = None,
+    mutations: Any = (),
+    budget: Any = None,
+    decl: Any = None,
+    declarations_dir: Path | None = None,
 ) -> tuple[Investigated, ScanReport]:
-    decl = load_decl()
+    decl = decl or load_decl()
     engine = engine or Engine(decl)
-    report = scan(engine=engine, decl=decl)
+    source = baseline_source(mutations)
+    report = scan(engine=engine, decl=decl, source=source)
     opts = InvestigationOptions(
-        declarations_dir=DECLARATIONS, cache_dir=FIXTURES, state_db=tmp / "state.sqlite", checkpoint_path=tmp / "checkpoints.sqlite",
-        provider=provider, recording=recording, declarations_digest=decl.digest, revisions=baseline_revisions(decl), offline=True,
-    )  # fmt: skip
-    inv = run_investigation(engine, report, CachingSource(None, FIXTURES), opts)
+        declarations_dir=declarations_dir or DECLARATIONS,
+        cache_dir=FIXTURES,
+        state_db=tmp / "state.sqlite",
+        checkpoint_path=tmp / "checkpoints.sqlite",
+        provider=provider,
+        recording=recording,
+        declarations_digest=decl.digest,
+        revisions=baseline_revisions(decl),
+        offline=True,
+    )
+    if budget is not None:
+        opts.budget = budget
+    inv = run_investigation(engine, report, source, opts)
     return inv, report
 
 
@@ -155,3 +208,60 @@ __all__ = [
     "reply",
     "tool",
 ]
+
+
+T1_YAML = """
+  - id: T1
+    baseline: R2
+    relationship: R2
+    subject: "claim:schema_versions_agree"
+    impact: breaks
+    question: "Does the version the consumer supports differ from the version the producer emits? Name them consumer_version and producer_version."
+    claimant: {repo: adt, path: scripts/loop-insights.mjs, line_regex: '^export const SUPPORTED_SCHEMA_VERSION', phrase_regex: 'SUPPORTED_SCHEMA_VERSION = \\d+'}
+    upstream:
+      - {repo: adl, path: scripts/lib/findings_export.mjs, line_regex: '^export const FINDINGS_SCHEMA_VERSION'}
+"""
+
+T1_ENTAILMENT = "    entailment: {kind: numeric_relation, left: consumer_version, op: ne, right: producer_version}\n"
+
+
+def custom_declarations(tmp: Path, *, entailment: bool = True, extra_claims: str = "") -> Path:
+    """A copy of ``declarations/`` whose investigation.yaml also declares a ``breaks`` claim (T1) on the R2 runtime contract."""
+    import shutil
+
+    dest = tmp / "declarations"
+    shutil.copytree(DECLARATIONS, dest)
+    text = (dest / "investigation.yaml").read_text()
+    block = T1_YAML.rstrip("\n") + "\n" + (T1_ENTAILMENT if entailment else "") + extra_claims
+    text = text.replace("intent_reviews:", block + "intent_reviews:", 1)
+    (dest / "investigation.yaml").write_text(text)
+    return dest
+
+
+def t1_quotes(consumer: str = "1", producer: str = "1") -> list[dict[str, Any]]:
+    return [
+        quote(
+            "adt",
+            "koydas/ai-dev-tools",
+            "scripts/loop-insights.mjs",
+            r"^export const SUPPORTED_SCHEMA_VERSION",
+            text=f"export const SUPPORTED_SCHEMA_VERSION = {consumer};",
+        ),
+        quote(
+            "adl",
+            "koydas/autonomous-dev-loop",
+            "scripts/lib/findings_export.mjs",
+            r"^export const FINDINGS_SCHEMA_VERSION",
+            text=f"export const FINDINGS_SCHEMA_VERSION = {producer};",
+        ),
+    ]
+
+
+def by_subject(mapping: dict[str, Any], default: Any = None) -> Callable[[LLMRequest, int], Any]:
+    """A provider function: ``mapping[subject]`` is a string, an exception, or a callable ``(n) -> str | exception``."""
+
+    def fn(req: LLMRequest, n: int) -> Any:
+        entry = mapping.get(subject_of(req), default)
+        return entry(n) if callable(entry) else entry
+
+    return fn
