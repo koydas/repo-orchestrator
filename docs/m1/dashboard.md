@@ -1,6 +1,6 @@
 # Report dashboard
 
-> **Status: implemented.** A static, read-only viewer for the `report.json` files that `scan` writes. It evaluates nothing, adds no service and no dependency. Decisions: [ADR-0012](../adr/0012-static-report-dashboard.md), [ADR-0013](../adr/0013-finding-actions-as-human-submitted-drafts.md) (Proposed).
+> **Status: implemented.** A static, read-only viewer for the `report.json` files that `scan` writes. It evaluates nothing, adds no service and no dependency. Decisions: [ADR-0012](../adr/0012-static-report-dashboard.md), [ADR-0014](../adr/0014-finding-actions-as-human-submitted-drafts.md) (Proposed).
 
 ![Visual mockup of the dashboard: overview and report detail, dark theme](assets/dashboard-mockup.webp)
 
@@ -35,7 +35,7 @@ Semantics preserved:
 
 ## Finding actions
 
-Each finding shows **Open issue**, **Create prompt** and **Create PR** ([ADR-0013](../adr/0013-finding-actions-as-human-submitted-drafts.md)). They are drafts: the dashboard creates, posts and pushes nothing.
+Each finding shows **Open issue**, **Create prompt** and **Create PR** ([ADR-0014](../adr/0014-finding-actions-as-human-submitted-drafts.md)). They are drafts: the dashboard creates, posts and pushes nothing.
 
 | Action | What it is |
 |---|---|

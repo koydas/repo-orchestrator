@@ -1,7 +1,8 @@
-name: M1 deterministic baseline
+name: M1-M2 deterministic analysis
 
-# Production CI for the M1 package (src/, declarations/, tests/). Fully offline: the evaluation runs on committed,
-# pinned fixtures. The S0 spike keeps its own workflow (spike-langgraph.yml) and is not run here.
+# Production CI for the M1 and M2 package (src/, declarations/, tests/). Fully offline: the evaluations run on committed,
+# pinned fixtures (tests/fixtures/baseline for snapshots, tests/fixtures/pr for pull-request records). The S0 spike keeps
+# its own workflow (spike-langgraph.yml) and is not run here. Live checks are manual workflow_dispatch steps, read-only.
 on:
   pull_request:
     paths:
@@ -27,6 +28,10 @@ on:
         description: "Also run a live, read-only scan of the six repositories (not part of the default gate)"
         type: boolean
         default: false
+      live_pr:
+        description: "Also run a live, read-only analysis of one pull request, owner/repo#number (not part of the default gate)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -54,6 +59,8 @@ jobs:
         run: mypy
       - name: Unit tests, offline baseline evaluation, documentation and architecture checks
         run: pytest
+      - name: "Offline PR evaluation (M2 - U1-U5 replayed as pull requests, missing-evidence cases, determinism)"
+        run: pytest tests/test_pr_eval.py tests/test_pr_fixtures.py tests/test_pr_cli.py tests/test_delta.py tests/test_impact.py tests/test_pr_source.py
       - name: Offline baseline scan (CLI smoke test)
         run: |
           set +e
@@ -62,10 +69,30 @@ jobs:
           code=$?
           echo "exit code: $code (1 = complete evaluation with the two documented baseline findings)"
           test "$code" -eq 1
+      - name: Offline PR analysis (CLI smoke test, recorded pull request U1)
+        run: |
+          python - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, "tests")
+          from pr_cases import CASES
+          from support import materialize_pr_cache
+          materialize_pr_cache(Path(os.environ["RUNNER_TEMP"]) / "pr-cache", [CASES["u1"]])
+          PY
+          set +e
+          repo-orchestrator analyze-pr koydas/autonomous-dev-loop#101 --revisions baseline --offline \
+            --cache-dir "$RUNNER_TEMP/pr-cache" --as-of 2026-11-02 --no-store --output-dir "$RUNNER_TEMP/m2-report"
+          code=$?
+          echo "exit code: $code (1 = complete analysis with one introduced finding)"
+          test "$code" -eq 1
       - uses: actions/upload-artifact@v4
         with:
           name: m1-baseline-report-py${{ matrix.python-version }}
           path: ${{ runner.temp }}/m1-report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m2-pr-report-py${{ matrix.python-version }}
+          path: ${{ runner.temp }}/m2-report
 
   live-scan:
     # Optional, read-only, on demand. An exit code of 0, 1 or 2 is a result; 3 is a failure.
@@ -91,3 +118,31 @@ jobs:
         with:
           name: m1-live-report
           path: ${{ runner.temp }}/m1-live
+
+  live-pr:
+    # Optional, read-only, on demand. An exit code of 0, 1 or 2 is a result; 3 is a failure. The pull request reference is
+    # passed through the environment and validated by the CLI (owner/repo#number or a github.com pull request URL).
+    if: github.event_name == 'workflow_dispatch' && inputs.live_pr != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e .
+      - name: Live analysis of one pull request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_REF: ${{ inputs.live_pr }}
+        run: |
+          set +e
+          repo-orchestrator analyze-pr "$PR_REF" --no-store --output-dir "$RUNNER_TEMP/m2-live"
+          code=$?
+          test "$code" -le 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m2-live-pr-report
+          path: ${{ runner.temp }}/m2-live

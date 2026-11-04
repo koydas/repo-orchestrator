@@ -1,13 +1,13 @@
 # Workflows
 
-> **Status: W1 is implemented in M1** (`repo-orchestrator scan`, [usage](m1/usage.md)); W4 is manual in M1. **W2, W3, W5, W6 and the LangGraph workflow are proposed design**; their command names are placeholders.
+> **Status: W1 is implemented in M1** (`repo-orchestrator scan`, [usage](m1/usage.md)) and **W2 in M2** (`repo-orchestrator analyze-pr`, [usage](m2/usage.md)); W4 is manual. **W3, W5, W6 and the LangGraph workflow are proposed design**; their command names are placeholders.
 
 Operational workflows, the LangGraph graph proposed for milestone M3, failure handling and human intervention points. Components C1–C7 are defined in [architecture.md](architecture.md#components).
 
 | ID | Workflow | Trigger | Milestone |
 |---|---|---|---|
 | W1 | Baseline scan | Human runs it on the declared repositories | M1 (**implemented**) |
-| W2 | Cross-repository PR analysis | Human runs it on one PR | M2 |
+| W2 | Cross-repository PR analysis | Human runs it on one PR | M2 (**implemented**, without the investigation and acknowledge steps of M3) |
 | W3 | Bounded investigation | Inside W1/W2, for reasoning candidates | M3 |
 | W4 | Triage and exceptions | Human, on a report | M1 (manual), M3 (in-graph) |
 | W5 | Remediation planning | Inside W1/W2, for confirmed findings | M4 |
@@ -22,7 +22,7 @@ Operational workflows, the LangGraph graph proposed for milestone M3, failure ha
 4. C3 evaluates every applicable policy on every relationship; transitions findings by fingerprint against the run store (new, unchanged, resolved, regressed).
 5. C7 writes the report: findings by severity, `cannot_evaluate` list, policy conflicts, proposed relationships, opportunities, and the delta since the previous run.
 
-No LLM call in M1–M2. Expected cost: GitHub reads only.
+No LLM call in M1–M2. Expected cost: GitHub reads only (W1 about 50 requests; W2 is bounded by `--max-requests`, default 400, and its measured cost is recorded in the [M2 evaluation](m2/evaluation.md#live-read-only-analysis)).
 
 **As implemented in M1** (`runner.run_scan`):
 
@@ -74,8 +74,17 @@ sequenceDiagram
 Notes:
 
 - The PR's repository is evaluated at the **PR head**; every other repository at its default-branch HEAD. A finding therefore means "merging this PR as-is makes this relationship incoherent", or "it already is" (pre-existing findings are labelled as such, so the PR is not blamed for them).
-- Base-vs-head comparison: a finding present on base and head is `pre-existing`; present on head only is `introduced`; present on base only is `resolved by this PR`.
+- Base-vs-head comparison: a finding present on base and head is `pre-existing`; present on head only is `introduced`; present on base only is `resolved by this PR`. `cannot_evaluate` on either side is `undetermined`, never `introduced` or `resolved` (M2 implements this).
 - One hop by default ([architecture](architecture.md#c4-impact-analyzer)).
+
+**As implemented in M2** (`pr_runner.analyze_pull_request`; the diagram above shows the full W2, of which M2 builds everything except C5 and the human acknowledgement):
+
+1. The PR reference is resolved to a declared, analyzed repository (otherwise a configuration error, exit 3). C1 reads `pulls/{n}` and its files; the PR repository is snapshotted at its **base** and **head** (a missing PR, base or head is incomplete), every other repository at one SHA resolved once.
+2. The changed paths are the API list (with rename sources) united with the tree difference; a truncated list or a difference the list does not explain is incomplete.
+3. C4 maps the changed paths to relationships (anchor, policy read, P5 link target, authority; one hop), classifies the impact by relationship type and lists the changed values.
+4. C3 evaluates **only the touched relationships**, on base and on head. Findings are labelled by fingerprint: `introduced`, `pre-existing`, `resolved`, or `undetermined` when a side could not be evaluated ([impact model](m2/impact-model.md#6-delta-labels-by-fingerprint)).
+5. C7 writes `pr-impact.md` and `pr-impact.json` and records a separate run kind in the store (`pr_runs`, `pr_deltas`; baseline finding history untouched). Exit code: 0 no introduced finding, 1 introduced finding, 2 incomplete, 3 failure. **A pre-existing finding never fails the gate by itself.**
+6. No investigation (M3), no acknowledgement or dismissal step, no PR comment, no write of any kind: the report is local files.
 
 ## LangGraph workflow
 

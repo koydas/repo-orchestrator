@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "1693c3f791a6ebe8dae2cfb90ccc4b168327ae0e"
+  },
+  "changed_files": 1,
+  "files": [
+    {
+      "path": "package-lock.json",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "pull/12/head",
+    "sha": "2a05367e4c6561d0978d07a9fbf8981f35b59813",
+    "slug": "koydas/ollama-chat"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 12,
+  "provenance": "recorded from a local git clone, not from the REST API: ollama-chat #12, state unknown (no REST access); base = merge base with main = the baseline pin",
+  "schema_version": 1,
+  "slug": "koydas/ollama-chat",
+  "state": "unknown"
+}

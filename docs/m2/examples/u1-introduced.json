@@ -1,0 +1,344 @@
+{
+  "base_unevaluated": [],
+  "changed_files": [
+    {
+      "path": "scripts/lib/findings_export.mjs",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "findings": {
+    "introduced": [
+      {
+        "affected_repos": [
+          "adt"
+        ],
+        "cause": null,
+        "cause_class": null,
+        "comparison": {
+          "comparator": "equal",
+          "detail": {
+            "document": "findings.json",
+            "mode": "producer_consumer"
+          },
+          "left": 2,
+          "result": "not_equal",
+          "right": 1
+        },
+        "delta": {
+          "base_status": "consistent",
+          "head_status": "inconsistent",
+          "label": "introduced",
+          "reason": "on base this subject was consistent; on head it is inconsistent"
+        },
+        "detail": {
+          "document": "findings.json",
+          "mode": "producer_consumer"
+        },
+        "evidence": [
+          {
+            "blob_sha": "b56c8aa88d474600a7fbe15962f2968d6d2d5eaa",
+            "content_sha256": "ce4f48b9507f582e28f4e3a3db71f5aa3189e3f44fea6351db22fdf133fef41b",
+            "extractor": "js_const_int@1",
+            "kind": "text",
+            "line_end": 6,
+            "line_start": 6,
+            "locator": "js_const_int:FINDINGS_SCHEMA_VERSION",
+            "path": "scripts/lib/findings_export.mjs",
+            "quote": "export const FINDINGS_SCHEMA_VERSION = 2;",
+            "repo": "adl",
+            "sha": "230fd893f493aa7c3277afcccd8755be190e889a",
+            "side": "producer",
+            "slug": "koydas/autonomous-dev-loop"
+          },
+          {
+            "blob_sha": "b56c8aa88d474600a7fbe15962f2968d6d2d5eaa",
+            "content_sha256": "ce4f48b9507f582e28f4e3a3db71f5aa3189e3f44fea6351db22fdf133fef41b",
+            "extractor": "js_object_value@1",
+            "kind": "text",
+            "line_end": 31,
+            "line_start": 31,
+            "locator": "emitted schema_version",
+            "path": "scripts/lib/findings_export.mjs",
+            "quote": "    schema_version: FINDINGS_SCHEMA_VERSION,",
+            "repo": "adl",
+            "sha": "230fd893f493aa7c3277afcccd8755be190e889a",
+            "side": "producer",
+            "slug": "koydas/autonomous-dev-loop"
+          },
+          {
+            "blob_sha": "f5644a8fa5d5e90d2e3c660000d044efd38927b7",
+            "content_sha256": "d2aa7502f662097dc1cdc98e98648fac531b0c580512e2f8f0d9c9120ebf857b",
+            "extractor": "js_const_int@1",
+            "kind": "text",
+            "line_end": 13,
+            "line_start": 13,
+            "locator": "js_const_int:SUPPORTED_SCHEMA_VERSION",
+            "path": "scripts/loop-insights.mjs",
+            "quote": "export const SUPPORTED_SCHEMA_VERSION = 1;",
+            "repo": "adt",
+            "sha": "62f30ed888201deb713126db90975983c4d6fab0",
+            "side": "consumer",
+            "slug": "koydas/ai-dev-tools"
+          },
+          {
+            "blob_sha": "f5644a8fa5d5e90d2e3c660000d044efd38927b7",
+            "content_sha256": "d2aa7502f662097dc1cdc98e98648fac531b0c580512e2f8f0d9c9120ebf857b",
+            "extractor": "js_guard@1",
+            "kind": "text",
+            "line_end": 110,
+            "line_start": 110,
+            "locator": "accepted schema_version",
+            "path": "scripts/loop-insights.mjs",
+            "quote": "if (raw.schema_version !== SUPPORTED_SCHEMA_VERSION) {",
+            "repo": "adt",
+            "sha": "62f30ed888201deb713126db90975983c4d6fab0",
+            "side": "consumer",
+            "slug": "koydas/ai-dev-tools"
+          }
+        ],
+        "exception_id": null,
+        "fingerprint": "019035c33ba491af",
+        "fix_sites": [
+          {
+            "path": "scripts/loop-insights.mjs",
+            "reason": "consumer: accept both versions first",
+            "repo": "adt"
+          },
+          {
+            "path": "scripts/lib/findings_export.mjs",
+            "reason": "producer: change after the consumer accepts both",
+            "repo": "adl"
+          }
+        ],
+        "impact": "breaks",
+        "intent": "accidental",
+        "investigate": [
+          "adl:scripts/lib/findings_export.mjs",
+          "adt:scripts/loop-insights.mjs"
+        ],
+        "locators": [
+          "adl:scripts/lib/findings_export.mjs#findings.json.schema_version",
+          "adt:scripts/loop-insights.mjs#findings.json.schema_version"
+        ],
+        "open_questions": [],
+        "pinned": {
+          "adl": "230fd893f493aa7c3277afcccd8755be190e889a",
+          "adt": "62f30ed888201deb713126db90975983c4d6fab0"
+        },
+        "policy_id": "P2",
+        "policy_version": "1.0.0",
+        "reason": "findings.json: producer koydas/autonomous-dev-loop has schema_version 2, consumer koydas/ai-dev-tools has 1",
+        "relationship_id": "R2",
+        "severity": "high",
+        "status": "inconsistent",
+        "subject": "schema_version",
+        "superseded_by": null
+      }
+    ],
+    "pre_existing": [],
+    "resolved": [],
+    "undetermined": []
+  },
+  "gate": {
+    "exit_code": 1,
+    "incomplete_reasons": [],
+    "introduced": 1,
+    "result": "fail",
+    "rule": "exit 0: evaluation complete, no introduced finding · exit 1: complete, at least one introduced finding · exit 2: incomplete (missing PR, base, head, file list or evidence; undetermined delta): never a pass · exit 3: configuration or runtime failure. Pre-existing findings never fail a PR gate by themselves.",
+    "undetermined": 0
+  },
+  "impact": [
+    {
+      "affected_repos": [
+        "adt"
+      ],
+      "baseline_id": "R2",
+      "deltas": [
+        {
+          "fingerprint": "019035c33ba491af",
+          "label": "introduced",
+          "policy_id": "P2",
+          "subject": "schema_version"
+        }
+      ],
+      "direction": "bilateral",
+      "evaluated": true,
+      "impact": "breaks",
+      "note": "",
+      "policies": [
+        "P2"
+      ],
+      "relationship_id": "R2",
+      "triggers": [
+        {
+          "kind": "anchor",
+          "matched": "scripts/lib/findings_export.mjs",
+          "path": "scripts/lib/findings_export.mjs",
+          "repo": "adl"
+        },
+        {
+          "kind": "request",
+          "matched": "scripts/lib/findings_export.mjs",
+          "path": "scripts/lib/findings_export.mjs",
+          "repo": "adl"
+        }
+      ],
+      "type": "runtime_contract"
+    },
+    {
+      "affected_repos": [
+        "adt"
+      ],
+      "baseline_id": "R3",
+      "deltas": [],
+      "direction": "bilateral",
+      "evaluated": true,
+      "impact": "breaks",
+      "note": "",
+      "policies": [
+        "P2"
+      ],
+      "relationship_id": "R3",
+      "triggers": [
+        {
+          "kind": "anchor",
+          "matched": "scripts/lib/findings_export.mjs",
+          "path": "scripts/lib/findings_export.mjs",
+          "repo": "adl"
+        },
+        {
+          "kind": "request",
+          "matched": "scripts/lib/findings_export.mjs",
+          "path": "scripts/lib/findings_export.mjs",
+          "repo": "adl"
+        }
+      ],
+      "type": "runtime_contract"
+    }
+  ],
+  "inputs": {
+    "as_of": "2026-11-02",
+    "declarations_digest": "01ca03f47401aa24b821ebb072215523ceba2eb8d2bde74df21ad5e13200edd0",
+    "policies": [
+      {
+        "id": "P1",
+        "version": "1.0.0"
+      },
+      {
+        "id": "P2",
+        "version": "1.0.0"
+      },
+      {
+        "id": "P3",
+        "version": "1.0.0"
+      },
+      {
+        "id": "P4",
+        "version": "1.0.0"
+      },
+      {
+        "id": "P5",
+        "version": "1.0.0"
+      },
+      {
+        "id": "P6",
+        "version": "1.0.0"
+      }
+    ],
+    "pull_request": {
+      "base_sha": "1607f6107b1f50f4e9baa1916a187c7bc16ca18a",
+      "changed_files_declared": 1,
+      "files_digest": "86d1c140df9e1cbbd612177b96b0fff076e5b5a1787492c9422fe1bbc7caa799",
+      "files_listed": 1,
+      "head_sha": "230fd893f493aa7c3277afcccd8755be190e889a",
+      "head_slug": "koydas/autonomous-dev-loop",
+      "number": 101,
+      "repo": "adl",
+      "slug": "koydas/autonomous-dev-loop"
+    },
+    "revisions": [
+      {
+        "error": null,
+        "error_detail": null,
+        "repo": "adl",
+        "requested": "1607f6107b1f50f4e9baa1916a187c7bc16ca18a",
+        "role": "pr_base",
+        "sha": "1607f6107b1f50f4e9baa1916a187c7bc16ca18a",
+        "slug": "koydas/autonomous-dev-loop"
+      },
+      {
+        "error": null,
+        "error_detail": null,
+        "repo": "adl",
+        "requested": "230fd893f493aa7c3277afcccd8755be190e889a",
+        "role": "pr_head",
+        "sha": "230fd893f493aa7c3277afcccd8755be190e889a",
+        "slug": "koydas/autonomous-dev-loop"
+      },
+      {
+        "error": null,
+        "error_detail": null,
+        "repo": "adt",
+        "requested": "62f30ed888201deb713126db90975983c4d6fab0",
+        "role": "pinned",
+        "sha": "62f30ed888201deb713126db90975983c4d6fab0",
+        "slug": "koydas/ai-dev-tools"
+      }
+    ]
+  },
+  "kind": "pr_impact",
+  "not_touched": [
+    "R1.adl",
+    "R10",
+    "R4.adl",
+    "R5.adl",
+    "R9"
+  ],
+  "policy_clarifications": [],
+  "problems": [],
+  "result_digest": "b886f39a4803dc3786705b6a42926db478bcda2e9bba7a22200659edf6845326",
+  "run_status": "complete",
+  "schema_version": 1,
+  "summary": {
+    "affected_repositories": [
+      "adt"
+    ],
+    "changed_paths": 1,
+    "deltas": {
+      "introduced": 1,
+      "pre-existing": 0,
+      "resolved": 0,
+      "undetermined": 0
+    },
+    "head_unevaluated": 0,
+    "not_checkable_by_design": 0,
+    "relationships_not_touched": 5,
+    "relationships_touched": 2
+  },
+  "tool": {
+    "extractors": "1",
+    "name": "repo-orchestrator",
+    "version": "0.1.0"
+  },
+  "unevaluated": [],
+  "value_changes": [
+    {
+      "base": {
+        "left": 1,
+        "result": "equal",
+        "right": 1,
+        "status": "consistent"
+      },
+      "head": {
+        "left": 2,
+        "result": "not_equal",
+        "right": 1,
+        "status": "inconsistent"
+      },
+      "policy_id": "P2",
+      "relationship_id": "R2",
+      "subject": "schema_version"
+    }
+  ]
+}

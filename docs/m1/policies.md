@@ -14,12 +14,15 @@ Policy(
     applies:  (Relationship) -> bool               # which declared relationships it evaluates
     requests: (Config, Relationship) -> [ArtifactRequest]   # the artifacts it needs: the collection plan
     evaluate: (Config, EvalContext, Relationship) -> [Outcome]
+    listings: (Config, Relationship) -> [(repo id, directory)]   # M2: directories whose listing it reads via `entries` (default: none)
 )
 ```
 
 `EvalContext` gives read access to the frozen snapshot (`text`, `artifact`, `entries`, `glob`, `sha`) and builds outcomes (`consistent`, `inconsistent`, `clarify`, `cannot`). Anything the policy cannot read or decide is raised as `CannotEvaluate(cause, detail)`; the engine turns it into a `cannot_evaluate` outcome. A policy that raises anything else becomes a `failed` outcome and the run continues.
 
 ### Adding a policy
+
+A policy that calls `ctx.entries(repo, directory)` must declare that directory in `listings`: the M2 impact analyzer ([impact model](../m2/impact-model.md#3-anchoring-c4)) uses it to notice a file added or removed there, and `tests/test_impact.py` fails if a real evaluation lists a directory that no policy declares.
 
 1. State the authority (an artifact someone wrote) and the impact class; add its parameters and `authority` to `declarations/policies.yaml`.
 2. Create `policies/pN_name.py` exposing `POLICY`; register it in `policies/__init__.py`.

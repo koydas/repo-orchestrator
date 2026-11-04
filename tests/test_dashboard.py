@@ -542,7 +542,7 @@ def test_the_dashboard_workflow_is_manual_read_only_and_keeps_history_on_pages()
     assert "pull_request" not in wf
 
 
-# ---- finding actions (ADR-0013) ------------------------------------------------------------------------------------
+# ---- finding actions (ADR-0014) ------------------------------------------------------------------------------------
 
 
 def _first_finding_html(tmp_path, report):

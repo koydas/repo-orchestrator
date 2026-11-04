@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "c43e48bbb4ce6b70ae70e8652ef05f64a23fcadb"
+  },
+  "changed_files": 1,
+  "files": [
+    {
+      "path": "README.md",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/fix_d1",
+    "sha": "ff28f5b45542da5f2f33b33a29e25a10666c0903",
+    "slug": "koydas/koydas"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 107,
+  "schema_version": 1,
+  "slug": "koydas/koydas",
+  "state": "open",
+  "synthetic": "a PR in the profile corrects the pattern count (D1)"
+}

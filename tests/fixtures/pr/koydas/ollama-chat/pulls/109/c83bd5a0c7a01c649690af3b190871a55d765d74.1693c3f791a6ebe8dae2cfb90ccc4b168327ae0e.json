@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "1693c3f791a6ebe8dae2cfb90ccc4b168327ae0e"
+  },
+  "changed_files": 1,
+  "files": [
+    {
+      "path": "docs/notes/new-note.md",
+      "previous_path": null,
+      "status": "added"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/no_anchor",
+    "sha": "c83bd5a0c7a01c649690af3b190871a55d765d74",
+    "slug": "koydas/ollama-chat"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 109,
+  "schema_version": 1,
+  "slug": "koydas/ollama-chat",
+  "state": "open",
+  "synthetic": "touches no anchor"
+}

@@ -16,7 +16,7 @@ Conceptual model, not a schema. Field lists name what each concept must carry to
 | **Intentional Exception** | A recorded, justified, expiring suppression of a policy for a scope. | Declared |
 | **Finding** | A policy violation on a relationship, with evidence, verification status, intent, severity and lifecycle state. | Produced |
 | **Evidence** | A quote pinned to `(repository, SHA, path, locator)` with its hash and producer ([ADR-0006](adr/0006-evidence-provenance-uncertainty-and-reproducibility.md)). | Produced |
-| **Impact Assessment** | For a change set (a PR or a commit range), the relationships it touches and, per affected repository, what can happen: `breaks`, `falsifies`, `outdates`. | Produced |
+| **Impact Assessment** | For a change set (a PR or a commit range), the relationships it touches and, per affected repository, what can happen: `breaks`, `falsifies`, `outdates`. **M2** implements it for a pull request: per touched relationship, the trigger (anchor, policy read, link target, authority), the direction, the affected repositories and the changed extracted values ([impact model](m2/impact-model.md)). | Produced |
 | **Remediation Plan** | Ordered steps per repository to resolve one or more findings, with ADR compatibility and a prevention step. | Produced, approved by a human |
 | **Opportunity** | An improvement across related repositories that is not a policy violation: propagate a proven guardrail, consolidate a shared contract, remove duplicated maintenance. Own lifecycle, benefit evidence, cost/risk assessment, human decision ([§ Opportunity lifecycle](#opportunity-lifecycle), [ADR-0009](adr/0009-optimization-opportunities-as-first-class-output.md)). Never a finding. | Produced, decided by a human |
 | **Run** | One execution: pinned snapshots, declaration revision, budgets, Run Record. | Produced |
@@ -57,6 +57,7 @@ Cardinality notes:
 - A Finding has **at least one** Evidence per side of the relationship (both repositories), except `cannot_evaluate` outcomes, which are not findings.
 - A Policy has **exactly one** authority artifact; it may live in any repository, including this one.
 - An Impact Assessment exists only for change-set runs (PR analysis), not for baseline scans.
+- A finding in a change-set run carries a **delta label** relative to the base: `introduced`, `pre-existing`, `resolved`, or `undetermined` when a side could not be evaluated. The label belongs to the PR analysis (the run kind), never to the finding's history in the run store.
 
 ## Relationship types
 
@@ -113,6 +114,7 @@ stateDiagram-v2
 - State is per **fingerprint** (policy + relationship + normalized locators), so a finding keeps its history across runs.
 - `needs_validation` findings are reported in their own section. A `breaks` claim in this state is never presented as a confirmed break.
 - `resolved` is only ever set by a check passing on a newer snapshot, never by a human closing it.
+- **M2 adds** the comparison of two snapshots (base and head of a pull request) by fingerprint ([delta rules](m2/impact-model.md#6-delta-labels-by-fingerprint)); it does not change the states below and writes no history.
 - **M1 implements** the deterministic subset: `candidate` → `confirmed` is a single step (the check fails, `verified` and `validated_by_check`), reported with the outcome status `inconsistent`; the run store holds `open`, `excepted`, `conflict` and `resolved` per fingerprint with `regression_count`. `needs_validation`, `insufficient_evidence` (as a finding state), `acknowledged`, `remediation_planned` and `dismissed` require the Investigator or human triage (M3–M4) and are not implemented.
 - A regression reopens the same finding with `regression_count` incremented; the report shows its history and the prevention step of the plan that resolved it.
 

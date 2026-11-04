@@ -1,0 +1,31 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "6d00841fc67d0dbeb3e35e7c2109d201b3979925"
+  },
+  "changed_files": 2,
+  "files": [
+    {
+      "path": "patterns/new-pattern/README.md",
+      "previous_path": null,
+      "status": "added"
+    },
+    {
+      "path": "README.md",
+      "previous_path": null,
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/u5_raw",
+    "sha": "560133333e7285c9d82adcb16b6620f6d52dff3b",
+    "slug": "koydas/agent-patterns"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 106,
+  "schema_version": 1,
+  "slug": "koydas/agent-patterns",
+  "state": "open",
+  "synthetic": "U5 on the raw baseline: D1 (17 vs 20) already present"
+}

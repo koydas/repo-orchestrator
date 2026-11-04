@@ -1,6 +1,6 @@
 # Usage
 
-Python ≥ 3.11. The only runtime dependency is PyYAML.
+Python ≥ 3.11. The only runtime dependency is PyYAML. This page covers `validate` and `scan` (W1); the pull-request analysis `analyze-pr` (W2, M2) is in [the M2 usage](../m2/usage.md).
 
 ```bash
 python -m venv .venv && . .venv/bin/activate

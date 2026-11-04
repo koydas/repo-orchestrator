@@ -1,0 +1,26 @@
+{
+  "base": {
+    "ref": "main",
+    "sha": "a8a9d7db5e725fd47061e8ae7fbfa70d81be3603"
+  },
+  "changed_files": 1,
+  "files": [
+    {
+      "path": "apps/newsvc/service.yaml",
+      "previous_path": null,
+      "status": "added"
+    }
+  ],
+  "head": {
+    "ref": "synthetic/u3",
+    "sha": "71920e4cdc3b6214c48284cca47fce92ee2d1fec",
+    "slug": "koydas/gitops-homelab"
+  },
+  "kind": "pull_request",
+  "merged": false,
+  "number": 103,
+  "schema_version": 1,
+  "slug": "koydas/gitops-homelab",
+  "state": "open",
+  "synthetic": "U3: a new Service claims 192.168.1.244 in gitops-homelab"
+}

@@ -559,14 +559,14 @@ def _json_pre(value: object) -> str:
     return f"<pre>{e(json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False))}</pre>"
 
 
-# ---- finding actions (ADR-0013) ----------------------------------------------------------------------------------
+# ---- finding actions (ADR-0014) ----------------------------------------------------------------------------------
 # Static links and a text block: nothing is created, posted or pushed by the dashboard. A link opens a pre-filled
 # GitHub form that a human reviews and submits; the prompt is text to paste into an agent session.
 
 _BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _URL_BUDGET = 5000  # percent-encoded characters of title + body kept in a link (GitHub rejects URLs past ~8 KB)
 BRANCH_PREFIX = "repo-orchestrator/"
-ISSUE_LABEL = "repo-orchestrator"  # neutral: no pipeline reacts to it (ADR-0013 §6)
+ISSUE_LABEL = "repo-orchestrator"  # neutral: no pipeline reacts to it (ADR-0014 §6)
 
 
 def _one_line(text: object, limit: int = 200) -> str:

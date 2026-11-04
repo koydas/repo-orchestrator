@@ -6,8 +6,10 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from typing import cast
 
 from ..models import Cause
+from .pr import PullRequest, PullRequestSource, fixture_json, parse_fixture, record_name
 from .source import SHA_RE, SnapshotSource, SourceError, Tree, TreeEntry, git_blob_sha, safe_relative_path
 
 
@@ -32,6 +34,54 @@ class CachingSource:
         if ref is not None and SHA_RE.match(ref):
             return ref
         raise SourceError(Cause.NOT_CACHED, f"offline: cannot resolve moving ref {ref or 'HEAD'} of {slug}; pin a SHA")
+
+    # -- pull requests (M2) ----------------------------------------------------------------------------
+    def _pr_dir(self, slug: str, number: int) -> Path:
+        owner, _, name = slug.partition("/")
+        if not (safe_relative_path(owner) and safe_relative_path(name)) or number < 1:
+            raise SourceError(Cause.FETCH_FAILED, f"unsafe cache key {slug}#{number}")
+        return self._root / owner / name / "pulls" / str(number)
+
+    def pull_request(
+        self, slug: str, number: int, head_sha: str | None = None, base_sha: str | None = None
+    ) -> PullRequest:
+        """Online: always asks the inner source (a PR is mutable) and records the answer under its head *and* base SHA, so a
+        base that moved without a new head never overwrites an earlier input. Offline: the recorded answer; several
+        recorded inputs need ``head_sha`` and/or ``base_sha`` to choose."""
+        directory = self._pr_dir(slug, number)
+        if self._inner is not None:
+            inner = self._inner
+            if not hasattr(inner, "pull_request"):
+                raise SourceError(Cause.FETCH_FAILED, "the underlying source cannot read pull requests")
+            pr: PullRequest = cast(PullRequestSource, inner).pull_request(slug, number, head_sha, base_sha)
+            self._atomic_write(directory / record_name(pr), fixture_json(pr).encode("utf-8"))
+            return pr
+        for label, sha in (("head", head_sha), ("base", base_sha)):
+            if sha is not None and not SHA_RE.match(sha):
+                raise SourceError(Cause.FETCH_FAILED, f"{label} {sha!r} is not a 40-character commit SHA")
+        recorded = sorted(directory.glob("*.json")) if directory.is_dir() else []
+        recorded = [
+            p for p in recorded
+            if (head_sha is None or p.name.startswith(f"{head_sha}.")) and (base_sha is None or p.name.endswith(f".{base_sha}.json"))
+        ]  # fmt: skip
+        if not recorded:
+            raise SourceError(Cause.NOT_CACHED, f"offline: no recorded pull request {slug}#{number}")
+        if len(recorded) > 1:
+            inputs = ", ".join(f"{p.name[:12]}…{p.name[41:53]}" for p in recorded)
+            raise SourceError(
+                Cause.NOT_CACHED,
+                f"offline: {slug}#{number} has several recorded inputs (head…base: {inputs}); pass --head-sha and --base-sha",
+            )
+        try:
+            raw = recorded[0].read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise SourceError(Cause.FETCH_FAILED, f"unreadable pull request record {recorded[0].name}") from exc
+        pr = parse_fixture(slug, number, raw)
+        if record_name(pr) != recorded[0].name:
+            raise SourceError(
+                Cause.INTEGRITY, f"{recorded[0].name} records head {pr.head_sha[:12]}, base {pr.base_sha[:12]}"
+            )
+        return pr
 
     def tree(self, slug: str, sha: str) -> Tree:
         path = self._dir(slug, sha) / "tree.json"

@@ -16,7 +16,7 @@ SCHEMA_VERSION = 1
 _SEVERITY_ORDER = {Severity.HIGH: 0, Severity.MEDIUM: 1, Severity.LOW: 2}
 
 
-def _outcome_json(o: Outcome, result: ScanResult) -> dict[str, Any]:
+def outcome_json(o: Outcome, result: ScanResult) -> dict[str, Any]:
     data = to_jsonable(o)
     repos = sorted({e.repo for e in o.evidence} | set(o.affected_repos))
     data["pinned"] = {r: _sha(result, r) for r in repos}
@@ -48,7 +48,7 @@ def build_semantic(
         by_status[o.status].append(o)
 
     def rows(items: list[Outcome]) -> list[dict[str, Any]]:
-        return [_outcome_json(o, result) for o in items]
+        return [outcome_json(o, result) for o in items]
 
     findings = sorted(
         by_status[Status.INCONSISTENT],
@@ -131,25 +131,25 @@ def exit_code(semantic: Mapping[str, Any]) -> int:
 # ---------------------------------------------------------------------------------------------------------
 
 
-def _fence(text: str) -> str:
+def fence(text: str) -> str:
     return "```text\n" + text.replace("```", "'''") + "\n```"
 
 
-def _cell(text: object) -> str:
+def cell(text: object) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
-def _evidence_md(e: Mapping[str, Any]) -> str:
+def evidence_md(e: Mapping[str, Any]) -> str:
     lines = (
         f":{e['line_start']}" + (f"-{e['line_end']}" if e["line_end"] != e["line_start"] else "")
         if e["line_start"]
         else ""
     )
     head = f"- **{e['side']}** `{e['slug']}@{e['sha'][:12]}` `{e['path']}{lines}` — {e['locator']} (sha256 `{e['content_sha256'][:12]}`, {e['extractor']})"
-    return head + "\n" + "\n".join("  " + ln for ln in _fence(e["quote"]).splitlines()) if e["quote"] else head
+    return head + "\n" + "\n".join("  " + ln for ln in fence(e["quote"]).splitlines()) if e["quote"] else head
 
 
-def _finding_md(f: Mapping[str, Any]) -> str:
+def finding_md(f: Mapping[str, Any]) -> str:
     out = [
         f"### {f['severity'].upper()} · {f['policy_id']} v{f['policy_version']} · {f['relationship_id']} · `{f['subject']}`",
         "",
@@ -179,18 +179,18 @@ def _finding_md(f: Mapping[str, Any]) -> str:
     out.append("- Investigate: " + ", ".join(f"`{i}`" for i in f["investigate"]))
     out.append("")
     out.append("Evidence:")
-    out.extend(_evidence_md(e) for e in f["evidence"])
+    out.extend(evidence_md(e) for e in f["evidence"])
     out.append("")
     return "\n".join(out)
 
 
-def _brief_table(items: list[Mapping[str, Any]], with_cause: bool = False) -> list[str]:
+def brief_table(items: list[Mapping[str, Any]], with_cause: bool = False) -> list[str]:
     head = "| Policy | Relationship | Subject |" + (" Cause |" if with_cause else "") + " Reason |"
     lines = [head, "|---|---|---|" + ("---|" if with_cause else "") + "---|"]
     for o in items:
         cause = f" `{o['cause']}` |" if with_cause else ""
         lines.append(
-            f"| {o['policy_id']} | {o['relationship_id']} | `{_cell(o['subject'])}` |{cause} {_cell(o['reason'])} |"
+            f"| {o['policy_id']} | {o['relationship_id']} | `{cell(o['subject'])}` |{cause} {cell(o['reason'])} |"
         )
     return lines
 
@@ -213,7 +213,7 @@ def render_markdown(s: Mapping[str, Any]) -> str:
     out += ["", f"Findings by severity: high {sev['high']}, medium {sev['medium']}, low {sev['low']}. Incomplete evaluations: {sm['incomplete']}"
             f" (plus {sm['not_checkable_by_design']} claim(s) not checkable by design).", ""]  # fmt: skip
     out += ["## Findings (confirmed by a deterministic check)", ""]
-    out += [_finding_md(f) for f in s["findings"]] if s["findings"] else ["None.", ""]
+    out += [finding_md(f) for f in s["findings"]] if s["findings"] else ["None.", ""]
     sections = [
         ("Policy clarifications (questions for the owner, not findings)", "policy_clarifications", False),
         ("Policy conflicts (for a human)", "policy_conflicts", False),
@@ -224,8 +224,8 @@ def render_markdown(s: Mapping[str, Any]) -> str:
     ]
     for title, key, with_cause in sections:
         out += [f"## {title}", ""]
-        out += ([*_brief_table(s[key], with_cause), ""]) if s[key] else ["None.", ""]
-    out += ["## Consistent relationships", "", *_brief_table(s["consistent"]), ""]
+        out += ([*brief_table(s[key], with_cause), ""]) if s[key] else ["None.", ""]
+    out += ["## Consistent relationships", "", *brief_table(s["consistent"]), ""]
     out += [
         "## Coverage of declared relationships",
         "",
@@ -233,17 +233,17 @@ def render_markdown(s: Mapping[str, Any]) -> str:
         "|---|---|---|---|---|---|---|",
     ]
     out += [
-        f"| {c['relationship_id']} | {c['baseline_id']} | {c['type']} | {c['source']} → {c['target']} | {c['status']} | {', '.join(c['policies']) or '—'} | {_cell(c['note'])} |"
+        f"| {c['relationship_id']} | {c['baseline_id']} | {c['type']} | {c['source']} → {c['target']} | {c['status']} | {', '.join(c['policies']) or '—'} | {cell(c['note'])} |"
         for c in s["coverage"]
     ]
     out += ["", "## Open questions", "", "| Id | Status | Effect in this run | Referenced by |", "|---|---|---|---|"]
     out += [
-        f"| {q['id']} | {q['status']} | {_cell(q['effect'])} | {_cell(', '.join(q['referenced_by']) or 'no M1 policy')} |"
+        f"| {q['id']} | {q['status']} | {cell(q['effect'])} | {cell(', '.join(q['referenced_by']) or 'no M1 policy')} |"
         for q in s["open_questions"]
     ]
     out += ["", "## Policy authorities", "", "| Policy | Authority | Verified | Note |", "|---|---|---|---|"]
     out += [
-        f"| {a['policy_id']} | `{a['repo']}:{a['path']}` | {a['verified']} | {_cell(a['note'])} |"
+        f"| {a['policy_id']} | `{a['repo']}:{a['path']}` | {a['verified']} | {cell(a['note'])} |"
         for a in s["authorities"]
     ]
     if s["exceptions"]:

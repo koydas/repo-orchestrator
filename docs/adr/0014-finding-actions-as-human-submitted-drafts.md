@@ -1,4 +1,4 @@
-# ADR-0013: Finding actions on the dashboard are human-submitted drafts
+# ADR-0014: Finding actions on the dashboard are human-submitted drafts
 
 - **Date:** 2026-11-03
 - **Status:** Proposed
