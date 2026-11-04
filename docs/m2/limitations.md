@@ -36,8 +36,8 @@ What M2 does not do, and where its answers can be wrong. Nothing below is hidden
 
 ## Evaluation
 
-- **The offline evaluation replays synthetic pull requests** (the baseline snapshots plus in-memory mutations, with committed PR records flagged `synthetic`). They prove the mechanics against the baseline's expectations; they are not a sample of real pull requests. The live read-only analysis of a real pull request, or why it could not be done, is recorded in the [evaluation](evaluation.md#live-read-only-analysis).
-- **The request cost of a live analysis** is bounded by `--max-requests` and measured only where a live run was possible (see the evaluation).
+- **The offline evaluation replays synthetic pull requests** (the baseline snapshots plus in-memory mutations, with committed PR records flagged `synthetic`). They prove the mechanics against the baseline's expectations; they are not a sample of real pull requests. One live read-only run on a real pull request (the no-impact path) is recorded in the [evaluation](evaluation.md#live-read-only-analysis); a live analysis of a pull request that touches a relationship has not been made.
+- **The request cost of a live analysis** is bounded by `--max-requests` (default 400); the one live run made so far did not have its request count read (see the evaluation).
 
 ## Security notes
 

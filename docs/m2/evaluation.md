@@ -90,13 +90,26 @@ The three `pre-existing` findings of `gitops-homelab#2` are an artefact of analy
 
 ## Live read-only analysis
 
-**Not performed through the REST client; blocker stated.** The session that implemented M2 had anonymous git reads of the public `koydas` repositories only. Its GitHub API access was limited to this repository: `GET api.github.com/repos/koydas/<analyzed repo>/pulls` was refused ("GitHub access to this repository is not enabled for this session"), and the only grant available for the analyzed repositories without a write-capable credential was anonymous git. Attaching them with credentials was not done: the analyzed repositories are read-only inputs and the task forbids a write path. Consequences:
+One live run was made on 2026-11-03, by the repository owner, through the manual `workflow_dispatch` input `live_pr` of `.github/workflows/m1.yml` ([run 41742853297](https://github.com/koydas/repo-orchestrator/actions/runs/41742853297), workflow as merged at `2ef8ffd`). It is the first time the `pulls/{n}` and `pulls/{n}/files` client ran against api.github.com.
 
-- Real pull requests **exist** in all six repositories (`git ls-remote 'refs/pull/*/head'`: for example 12 in `ollama-chat`, 4 in `gitops-homelab`, 10 in `koydas`, 20 in `agent-patterns`).
-- The GET client for `pulls/{n}` and `pulls/{n}/files` is exercised by scripted-transport tests (pagination, truncation, 404, malformed payloads, budget) but **has not run against api.github.com**. The first live run is the manual `workflow_dispatch` input `live_pr` of `.github/workflows/m1.yml` (`contents: read`, `pull-requests: read`, GET only).
-- The **request cost** of a live analysis was not measured; it is bounded by `--max-requests` (default 400).
-- The three replays above use real SHAs and real content, with PR metadata derived from git as stated.
+| | |
+|---|---|
+| Input | `koydas/ollama-chat#12` |
+| Job `live-pr` | success (the step accepts exit codes 0, 1 and 2 as results, and fails on 3) |
+| Token | `Contents: read`, `Metadata: read`, `PullRequests: read` (from the job log): the documented read-only scope, nothing else |
+| Job duration | 21 s in total (checkout, Python setup, `pip install`, analysis) |
+| Output | `base 1693c3f7 → head 2a05367e · run complete`, `changed paths 1 · touched relationships 0 · affected: none`, deltas all 0, `gate pass · exit code 0` |
+
+What it shows. The base and head SHAs and the number of changed paths are the ones the offline record of the same pull request holds ([`tests/fixtures/real-pr`](../../tests/fixtures/real-pr/README.md), derived from git). The run was `complete`: the live pull request payload and its file list parsed, the base and head trees were read, and the cross-check of the file list against the trees raised no `pr_file_list_mismatch` (here the base GitHub reports is the merge base). The same run also executed the `live-scan` job, which succeeded; its output was not inspected for this page.
+
+What it does not show.
+- It exercised the **no-impact path** only: no relationship touched, so no policy evaluation on a changed PR repository, no finding, no delta. The evaluation of touched relationships, the footprints and the labels are covered offline.
+- No fork head, no truncated or paginated file list (one file), no rate limit: those paths are covered by scripted-transport tests only.
+- The **request count** was not read: it is `execution.stats.api_requests` in the uploaded `m2-live-pr-report` artifact, and the session that wrote this page could not download it (the artifact host is not reachable from it). It is bounded by `--max-requests` (default 400). The 21 s above is the whole job, not the analysis step.
+- The state of the pull request on GitHub (open or merged) is in the `execution` part of the same artifact and was not read either.
+
+History. Before that run, the session that implemented M2 had anonymous git reads of the public `koydas` repositories only: `GET api.github.com/repos/koydas/<analyzed repo>/pulls` was refused for it, and attaching the analyzed repositories with credentials was not done (they are read-only inputs, and the task forbids a write path). Real pull requests exist in all six repositories (`git ls-remote 'refs/pull/*/head'`: for example 12 in `ollama-chat`, 4 in `gitops-homelab`, 10 in `koydas`, 20 in `agent-patterns`); the three replays above use real SHAs and real content, with PR metadata derived from git as stated.
 
 ## Not measured
 
-Live wall time and request count; analysis of an open pull request on GitHub; behaviour on a fork head; a pull request near the 3000-file cap (only the rule is tested).
+The request count and the analysis-step wall time of a live run (the numbers are in the run's artifact); a live analysis of a pull request that touches a relationship (the live run covered one that touches none); behaviour on a fork head; a pull request near the 3000-file cap (only the rule is tested).
