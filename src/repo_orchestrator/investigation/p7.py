@@ -89,7 +89,7 @@ def _locator(raw: Any, where: str, repos: set[str], phrase: bool) -> Locator:
         raise ConfigError(f"{where}: unknown field(s) {sorted(set(raw) - allowed)}")
     return Locator(
         repo, path, _regex(raw.get("line_regex"), f"{where}.line_regex"),
-        _regex(raw["phrase_regex"], f"{where}.phrase_regex") if phrase else None,
+        _regex(raw["phrase_regex"], f"{where}.phrase_regex") if phrase and "phrase_regex" in raw else None,
     )  # fmt: skip
 
 
@@ -160,6 +160,13 @@ def load_claims(directory: Path, engine: Engine) -> Claims:
         )  # fmt: skip
     if len({c.id for c in claims}) != len(claims):
         raise ConfigError("investigation.yaml: duplicate claim ids")
+    identities = [(c.relationship, c.subject) for c in claims]
+    if len(set(identities)) != len(
+        identities
+    ):  # the candidate key is derived from them: two claims would be one candidate
+        raise ConfigError(
+            "investigation.yaml: two claims share a relationship and a subject (give one a distinct 'subject')"
+        )
     reviews: list[IntentReview] = []
     for i, raw in enumerate(doc.get("intent_reviews") or []):
         where = f"investigation.yaml:intent_reviews[{i}]"
@@ -196,6 +203,14 @@ def load_claims(directory: Path, engine: Engine) -> Claims:
                 field_of(raw, "question", str, where).strip(),
             )
         )
+    for i, a in enumerate(reviews):
+        for b in reviews[i + 1 :]:
+            if (
+                a.policy == b.policy
+                and set(a.relationships) & set(b.relationships)
+                and set(a.statuses) & set(b.statuses)
+            ):
+                raise ConfigError(f"investigation.yaml: intent reviews {a.id} and {b.id} select the same outcomes")
     return Claims(str(policy["version"]), tuple(claims), tuple(reviews), digest(doc))
 
 
@@ -294,6 +309,10 @@ def build_candidates(
 ) -> tuple[list[Candidate], list[dict[str, str]]]:
     cands, skipped = claim_candidates(claims, engine, reader, scope)
     cands += intent_candidates(claims, engine, outcomes, scope)
+    keys = [c.key for c in cands]
+    if len(set(keys)) != len(keys):  # a collision would investigate one candidate twice and lose the other silently
+        dup = sorted({f"{c.relationship_id}/{c.subject}" for c in cands if keys.count(c.key) > 1})
+        raise ConfigError(f"investigation.yaml: candidates with the same identity: {dup}")
     return sorted(cands, key=lambda c: (c.relationship_id, c.subject)), skipped
 
 

@@ -63,10 +63,12 @@ class Investigator:
             observations.extend(scan_instruction_like(e.quote, e.repo, e.path, e.line_start))
         messages: list[tuple[str, str]] = [("user", opening_message(c, shas))]
         keys: list[str] = []
-        seq = tool_seq = malformed = transient = 0
+        tool_seq = malformed = transient = 0
+        tries: dict[str, int] = {}  # attempts per exact request: a transient retry re-sends the same request
         while True:
             request = LLMRequest(MODEL, SYSTEM_PROMPT, tuple(messages), self._budget.max_tokens_per_call)
-            reserved = self._store.reserve_call(self._run_id, c.key, seq, request)
+            attempt = tries.get(request.key, 0)
+            reserved = self._store.reserve_call(self._run_id, c.key, request, attempt)
             if reserved.startswith("denied"):
                 return failure_result(
                     c, ICause.BUDGET, f"budget exhausted ({reserved.split(':', 1)[1]})", observations, keys
@@ -74,8 +76,8 @@ class Investigator:
             try:
                 response, replayed = self._complete(request)
             except ProviderError as exc:
-                self._store.release_call(self._run_id, c.key, seq)
-                seq += 1
+                self._store.release_call(self._run_id, c.key, request.key, attempt)
+                tries[request.key] = attempt + 1
                 if exc.transient and transient < self._budget.max_transient_retries:
                     transient += 1
                     continue
@@ -86,8 +88,7 @@ class Investigator:
                     observations,
                     keys,
                 )
-            self._store.settle_call(self._run_id, c.key, seq, response, replayed)
-            seq += 1
+            self._store.settle_call(self._run_id, c.key, request.key, attempt, response, replayed)
             keys.append(request.key)
             try:
                 reply = parse_reply(response.text)

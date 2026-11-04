@@ -228,8 +228,8 @@ def test_the_ledger_counts_a_replayed_call_once(tmp_path):
     from repo_orchestrator.investigation.provider import LLMRequest
 
     req = LLMRequest("claude-sonnet-5-5", "sys", (("user", "hello"),), 2000)
-    assert store.reserve_call("r" * 16, "c" * 16, 0, req) == "ok"
-    assert store.reserve_call("r" * 16, "c" * 16, 0, req) == "duplicate"
+    assert store.reserve_call("r" * 16, "c" * 16, req) == "ok"
+    assert store.reserve_call("r" * 16, "c" * 16, req) == "duplicate"
     assert store.usage("r" * 16)["llm_calls"] == 1
 
 
@@ -262,3 +262,86 @@ def test_a_checkpoint_that_disagrees_with_the_store_is_refused_not_trusted(tmp_p
     shutil.copy(tmp_path / "a" / "checkpoints.sqlite", tmp_path / "b" / "checkpoints.sqlite")  # b has the same run id
     with pytest.raises(InvalidPhase, match="holds no results"):
         baseline_run(tmp_path / "b", Scripted(h2_script()))
+
+
+def test_a_restarted_worker_cannot_use_an_old_reservation_for_a_different_request(tmp_path):
+    """A transient failure plus a successful retry used two ledger rows; after a restart the worker's counter began at
+    zero and a *different* request reused an existing row without any budget check (a third provider call under
+    max_llm_calls=2). Reservations are bound to the request, so the different request is checked and refused."""
+    from repo_orchestrator.investigation.budgets import Budget
+    from repo_orchestrator.investigation.domain import candidate_from_json
+    from repo_orchestrator.investigation.investigator import Investigator
+    from repo_orchestrator.investigation.pipeline import make_run
+    from repo_orchestrator.investigation.provider import ProviderError
+    from support_inv import tool
+
+    budget = Budget(max_llm_calls=2)
+    decl = load_decl()
+    store = InvestigationStore(tmp_path / "state.sqlite", budget)
+    run, reader, _c, _s = make_run(store, Engine(decl), scan(), CachingSource(None, FIXTURES), opts_for(tmp_path))
+    cand = next(candidate_from_json(c) for c in run["candidates"] if c["subject"] == "claim:extracted_from")
+
+    def provider():
+        def answer(req, n):
+            if n == 1:
+                return ProviderError("timeout")  # attempt 0 of the first request fails
+            return tool("read", repo="ap", path="README.md", start=1, end=3)  # the retry succeeds and asks for a tool
+
+        return Scripted(answer)
+
+    first = provider()
+    r1 = Investigator(first, store, reader, run["run_id"], budget).investigate(cand)
+    assert r1.cause == "budget" and len(first.requests) == 2, (
+        "two attempts of one request, then the next request is refused"
+    )
+    second = provider()  # a restart: same store, fresh counters
+    r2 = Investigator(second, store, reader, run["run_id"], budget).investigate(cand)
+    assert r2.cause == "budget" and second.requests == [], (
+        "answered from the store up to the refused request: no new provider call"
+    )
+    assert store.usage(run["run_id"])["llm_calls"] == 2
+
+
+def test_two_declarations_with_one_identity_are_rejected_instead_of_silently_merged(tmp_path):
+    from repo_orchestrator.models import ConfigError
+
+    decl = load_decl()
+    engine = Engine(decl)
+    from repo_orchestrator.investigation.p7 import Claim, Claims, Locator, build_candidates, load_claims
+    from repo_orchestrator.investigation.reader import PinnedReader
+    from repo_orchestrator.models import Impact
+
+    report = scan(engine=engine)
+    reader = PinnedReader(report.result.snapshot, CachingSource(None, FIXTURES), report.result.scope)
+    loc = Locator("profile", "README.md", "^x", "x")
+    twin = Claim("A", "", "R1.ap", "claim:same", "q?", loc, (), Impact.FALSIFIES, None)
+    with pytest.raises(ConfigError, match="same identity"):
+        build_candidates(
+            Claims("1", (twin, Claim("B", "", "R1.ap", "claim:same", "q?", loc, (), Impact.FALSIFIES, None)), (), ""),
+            engine,
+            reader,
+            report.result.outcomes,
+            report.result.scope,
+        )
+    # at load time, with a clearer message
+    d = custom_declarations(tmp_path, entailment=False, extra_claims="")
+    text = (
+        (d / "investigation.yaml")
+        .read_text()
+        .replace(
+            "  - id: T1",
+            '  - id: T1b\n    relationship: R2\n    subject: "claim:schema_versions_agree"\n    question: "q"\n    claimant: {repo: adt, path: scripts/loop-insights.mjs, line_regex: "x"}\n  - id: T1',
+            1,
+        )
+    )
+    (d / "investigation.yaml").write_text(text)
+    with pytest.raises(ConfigError, match="share a relationship and a subject"):
+        load_claims(d, engine)
+    d2 = custom_declarations(tmp_path / "x" if (tmp_path / "x").mkdir() is None else tmp_path)
+    text = (
+        (d2 / "investigation.yaml").read_text()
+        + "  - id: H1b\n    policy: P6\n    relationships: [R5.chat]\n    statuses: [policy_clarification]\n    question: q\n"
+    )
+    (d2 / "investigation.yaml").write_text(text)
+    with pytest.raises(ConfigError, match="select the same outcomes"):
+        load_claims(d2, engine)

@@ -23,9 +23,9 @@ _SCHEMA = (
     "CREATE TABLE IF NOT EXISTS inv_runs(run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, inputs_digest TEXT NOT NULL,"
     " status TEXT NOT NULL, config_json TEXT NOT NULL, candidates_json TEXT NOT NULL, reviewed_by TEXT, reviewed_at TEXT, review_note TEXT)",
     "CREATE TABLE IF NOT EXISTS inv_slots(run_id TEXT NOT NULL, cand_key TEXT NOT NULL, PRIMARY KEY(run_id, cand_key))",
-    "CREATE TABLE IF NOT EXISTS inv_calls(run_id TEXT NOT NULL, cand_key TEXT NOT NULL, seq INTEGER NOT NULL, est_in INTEGER NOT NULL,"
+    "CREATE TABLE IF NOT EXISTS inv_calls(run_id TEXT NOT NULL, cand_key TEXT NOT NULL, request_key TEXT NOT NULL, attempt INTEGER NOT NULL, est_in INTEGER NOT NULL,"
     " max_out INTEGER NOT NULL, in_tok INTEGER, out_tok INTEGER, cost_micro INTEGER, replayed INTEGER, latency_ms INTEGER,"
-    " PRIMARY KEY(run_id, cand_key, seq))",
+    " PRIMARY KEY(run_id, cand_key, request_key, attempt))",
     "CREATE TABLE IF NOT EXISTS inv_tools(run_id TEXT NOT NULL, cand_key TEXT NOT NULL, seq INTEGER NOT NULL, PRIMARY KEY(run_id, cand_key, seq))",
     "CREATE TABLE IF NOT EXISTS inv_responses(request_key TEXT PRIMARY KEY, body_json TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS inv_results(run_id TEXT NOT NULL, cand_key TEXT NOT NULL, body_json TEXT NOT NULL, PRIMARY KEY(run_id, cand_key))",
@@ -132,13 +132,18 @@ class InvestigationStore:
             c.execute("INSERT INTO inv_slots VALUES (?,?)", (run_id, cand_key))
             return "reserved"
 
-    def reserve_call(self, run_id: str, cand_key: str, seq: int, request: LLMRequest) -> str:
-        """Reserve the worst case of one model call before it happens. 'ok' | 'duplicate' | 'denied:<reason>'."""
+    def reserve_call(self, run_id: str, cand_key: str, request: LLMRequest, attempt: int = 0) -> str:
+        """Reserve the worst case of one model call before it happens. 'ok' | 'duplicate' | 'denied:<reason>'.
+
+        A reservation is bound to the identity of the request (its hash) and to the attempt of that same request, not to a
+        position: a restarted worker re-asking an already accounted request is a 'duplicate', while a different request is
+        always checked against the budget (a transient retry of the same request is attempt 1, a new row)."""
         b = self.budget
         est_in = estimate_input_tokens(request.chars)
         with self._tx() as c:
             if c.execute(
-                "SELECT 1 FROM inv_calls WHERE run_id=? AND cand_key=? AND seq=?", (run_id, cand_key, seq)
+                "SELECT 1 FROM inv_calls WHERE run_id=? AND cand_key=? AND request_key=? AND attempt=?",
+                (run_id, cand_key, request.key, attempt),
             ).fetchone():
                 return "duplicate"
             mine = c.execute(
@@ -160,26 +165,28 @@ class InvestigationStore:
             if run["k"] + cost_micro_usd(request.model, est_in, request.max_tokens) > b.max_run_cost_micro_usd:
                 return "denied:run_cost"
             c.execute(
-                "INSERT INTO inv_calls VALUES (?,?,?,?,?,NULL,NULL,NULL,NULL,NULL)",
-                (run_id, cand_key, seq, est_in, request.max_tokens),
+                "INSERT INTO inv_calls VALUES (?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL)",
+                (run_id, cand_key, request.key, attempt, est_in, request.max_tokens),
             )
             return "ok"
 
-    def settle_call(self, run_id: str, cand_key: str, seq: int, response: LLMResponse, replayed: bool) -> None:
+    def settle_call(
+        self, run_id: str, cand_key: str, request_key: str, attempt: int, response: LLMResponse, replayed: bool
+    ) -> None:
         with self._tx() as c:
             c.execute(
-                "UPDATE inv_calls SET in_tok=?, out_tok=?, cost_micro=?, replayed=?, latency_ms=? WHERE run_id=? AND cand_key=? AND seq=?",
+                "UPDATE inv_calls SET in_tok=?, out_tok=?, cost_micro=?, replayed=?, latency_ms=? WHERE run_id=? AND cand_key=? AND request_key=? AND attempt=?",
                 (response.input_tokens, response.output_tokens, cost_micro_usd(response.model, response.input_tokens, response.output_tokens),
-                 int(replayed), response.latency_ms, run_id, cand_key, seq),
+                 int(replayed), response.latency_ms, run_id, cand_key, request_key, attempt),
             )  # fmt: skip
 
-    def release_call(self, run_id: str, cand_key: str, seq: int) -> None:
+    def release_call(self, run_id: str, cand_key: str, request_key: str, attempt: int) -> None:
         """A call that failed at the provider spent nothing measurable: count it as zero tokens but keep the row (the call
         was attempted and counts against ``max_llm_calls``)."""
         with self._tx() as c:
             c.execute(
-                "UPDATE inv_calls SET in_tok=0, out_tok=0, cost_micro=0, replayed=0, latency_ms=0 WHERE run_id=? AND cand_key=? AND seq=? AND in_tok IS NULL",
-                (run_id, cand_key, seq),
+                "UPDATE inv_calls SET in_tok=0, out_tok=0, cost_micro=0, replayed=0, latency_ms=0 WHERE run_id=? AND cand_key=? AND request_key=? AND attempt=? AND in_tok IS NULL",
+                (run_id, cand_key, request_key, attempt),
             )
 
     def reserve_tool(self, run_id: str, cand_key: str, seq: int) -> str:
