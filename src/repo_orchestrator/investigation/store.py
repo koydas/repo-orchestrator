@@ -148,8 +148,9 @@ class InvestigationStore:
                 "SELECT attempt, in_tok FROM inv_calls WHERE run_id=? AND cand_key=? AND request_key=?",
                 (run_id, cand_key, request.key),
             ).fetchall()
-            if cached and rows:
-                return "duplicate", int(min(r["attempt"] for r in rows))
+            if cached and rows:  # settle an outstanding reservation first: a crash may have left the retry unsettled
+                open_rows = [r["attempt"] for r in rows if r["in_tok"] is None]
+                return "duplicate", int(min(open_rows or [r["attempt"] for r in rows]))
             attempt = len(rows)
             mine = c.execute(
                 "SELECT COUNT(*) n, COALESCE(SUM(COALESCE(in_tok, est_in)),0) i, COALESCE(SUM(COALESCE(out_tok, max_out)),0) o"

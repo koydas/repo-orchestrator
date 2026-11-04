@@ -295,3 +295,13 @@ def test_a_filesystem_failure_is_exit_3_for_every_command(tmp_path, capsys):
         code = cli.main([*BASE, "--no-store", "--quiet", "--output-dir", str(blocker / "sub"), *extra])
         assert code == 3
         assert "Traceback" not in capsys.readouterr().err
+
+
+def test_a_stored_investigated_report_keeps_a_run_key_the_dashboard_accepts(tmp_path, capsys):
+    from repo_orchestrator.dashboard import validate_report
+
+    run(tmp_path, "--investigate", "--replay", str(RECORDING), capsys=capsys)
+    body = json.loads((tmp_path / "out" / "report.json").read_text())
+    assert body["execution"]["run_key"] is not None
+    validate_report(body)  # the augmented identity is the one the dashboard recomputes
+    assert body["execution"]["investigation"]["deterministic_run_key"] != body["execution"]["run_key"]

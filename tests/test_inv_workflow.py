@@ -491,3 +491,22 @@ def test_an_entailment_operand_must_name_a_declared_source_and_a_single_capture_
         (d / "declarations" / "investigation.yaml").write_text(text)
         with pytest.raises(ConfigError, match=message):
             load_claims(d / "declarations", engine)
+
+
+def test_a_crash_between_a_stored_retry_and_its_settlement_settles_the_retry_on_restart(tmp_path):
+    """Attempt 0 failed (released), attempt 1 got its answer stored, then the process died before ``settle_call``.
+    On restart the cached answer must settle the outstanding attempt 1, not the already released attempt 0."""
+    from repo_orchestrator.investigation.provider import LLMRequest, LLMResponse
+
+    store, run, _reader, _cand = _context(tmp_path)
+    rid, ck = run["run_id"], "k"
+    req = LLMRequest("claude-sonnet-5-5", "s", (("user", "u"),), 1000)
+    resp = LLMResponse("{}", 700, 1100, "claude-sonnet-5-5", "end_turn", 5)
+    assert store.reserve_call(rid, ck, req, False) == ("ok", 0)
+    store.release_call(rid, ck, req.key, 0)
+    assert store.reserve_call(rid, ck, req, False) == ("ok", 1)
+    store.put_response(req, resp)  # ... and the process dies here
+    status, attempt = store.reserve_call(rid, ck, req, True)
+    assert (status, attempt) == ("duplicate", 1)
+    store.settle_call(rid, ck, req.key, attempt, resp, True)
+    assert store.usage(rid)["output_tokens"] == 1100

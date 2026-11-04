@@ -24,7 +24,7 @@ from .collector.cache import CachingSource
 from .collector.github import GitHubSource
 from .collector.snapshot import Limits
 from .collector.source import SnapshotSource
-from .dashboard import build_dashboard
+from .dashboard import build_dashboard, run_key
 from .declarations import load_declarations
 from .engine import Engine, RunOptions
 from .models import ConfigError
@@ -320,7 +320,14 @@ def _investigate(
         )
     if "json" in formats:
         paths.append(args.output_dir / "report.json")
-        body = {"semantic": result.semantic, "execution": {**report.execution, "investigation": result.execution}}
+        # The run identity follows the augmented result digest (the dashboard recomputes it); the deterministic scan's
+        # persisted key stays available under ``investigation.deterministic_run_key``.
+        execution = {
+            **report.execution,
+            "run_key": run_key(result.semantic) if report.execution.get("run_key") else None,
+        }
+        execution["investigation"] = {**result.execution, "deterministic_run_key": report.execution.get("run_key")}
+        body = {"semantic": result.semantic, "execution": execution}
         paths[-1].write_text(json.dumps(body, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
     if not args.quiet:
         print(_summary(report, paths, hide_exit=True))
