@@ -21,6 +21,7 @@ from .domain import (
     EvStatus,
     ICause,
     Observation,
+    Operand,
     Proposal,
     QuoteCheck,
     QuoteIn,
@@ -83,31 +84,52 @@ def _number(value: str) -> int | None:
     return int(value) if re.fullmatch(r"\d{1,9}", value.strip()) else None
 
 
-def _token(value: str) -> str:
-    """A whole number as written: not a fragment of a longer, signed, decimal, grouped or alphanumeric token
-    (``1`` and ``5`` are not in ``1.5``; ``12`` is not in ``-12``, ``1,200`` or ``v12``)."""
-    return rf"(?<![\w.,+\-]){re.escape(value)}(?!\w|[.,]\d)"
+def _whole_token(text: str, start: int, end: int) -> bool:
+    """The characters ``text[start:end]`` are a whole number as written: not a fragment of a longer, signed, decimal,
+    grouped or alphanumeric token (``1`` and ``5`` in ``1.5``, ``12`` in ``-12``, ``1,200`` or ``v12``)."""
+    before = text[start - 1] if start > 0 else ""
+    after, after2 = (text[end] if end < len(text) else ""), (text[end + 1] if end + 1 < len(text) else "")
+    return not (re.match(r"[\w.,+\-]", before) or re.match(r"\w", after) or (after in ".," and after2.isdigit()))
 
 
-def run_entailment(spec: Entailment, values: Mapping[str, str], checks: Sequence[QuoteCheck]) -> dict[str, Any]:
-    """The policy's deterministic test. ``status``: holds | fails | not_evaluable. Both values must be numbers and each
-    must occur as a whole number token inside a *verified* quote; otherwise the check is not evaluable (a human decides)."""
-    out: dict[str, Any] = {"kind": spec.kind, "test": f"{spec.left} {spec.op} {spec.right}", "status": "not_evaluable"}
-    raw = {n: values.get(n) for n in (spec.left, spec.right)}
-    nums = {n: _number(v) if v is not None else None for n, v in raw.items()}
-    out["values"] = {n: raw[n] for n in raw}
-    if any(v is None for v in nums.values()):
-        out["detail"] = "a named value is missing or is not a number"
-        return out
-    texts = [c.quote.text for c in checks if c.status == "verified"]
-    for name, v in raw.items():
-        assert v is not None
-        if not any(re.search(_token(v.strip()), t) for t in texts):
-            out["detail"] = f"value {name}={v!r} does not occur in a verified quote"
+def _operand_value(op: Operand, evidence: Sequence[Evidence]) -> tuple[int | None, str]:
+    """The number a declared operand denotes, extracted by code from its declared evidence line: (value, '') or (None, why)."""
+    lines = [e for e in evidence if e.side == op.source]
+    if op.index >= len(lines):
+        return None, f"operand {op.name}: no {op.source} evidence line #{op.index}"
+    line = lines[op.index].quote
+    m = re.search(op.regex, line)
+    if m is None or m.re.groups != 1 or m.start(1) < 0:
+        return None, f"operand {op.name}: the declared pattern does not match its {op.source} line"
+    if not _whole_token(line, m.start(1), m.end(1)):
+        return None, f"operand {op.name}: the matched number is a fragment of a longer token"
+    value = _number(m.group(1))
+    return (value, "") if value is not None else (None, f"operand {op.name}: {m.group(1)!r} is not a number")
+
+
+def run_entailment(spec: Entailment, values: Mapping[str, str], evidence: Sequence[Evidence]) -> dict[str, Any]:
+    """The policy's deterministic test. ``status``: holds | fails | not_evaluable. Each operand is extracted *by code* from
+    its declared evidence line (so the model cannot swap or invent an operand); the Investigator must name the same
+    numbers, otherwise the check is not evaluable and a human decides."""
+    left, right = spec.left, spec.right
+    out: dict[str, Any] = {
+        "kind": spec.kind, "test": f"{left.name} {spec.op} {right.name}", "status": "not_evaluable", "values": {},
+    }  # fmt: skip
+    nums: dict[str, int] = {}
+    for operand in (left, right):
+        value, why = _operand_value(operand, evidence)
+        if value is None:
+            out["detail"] = why
             return out
-    left, right = nums[spec.left], nums[spec.right]
-    assert left is not None and right is not None
-    out["status"] = "holds" if _OPS[spec.op](left, right) else "fails"
+        out["values"][operand.name] = str(value)
+        said = values.get(operand.name)
+        if said is None or _number(said) != value:
+            out["detail"] = (
+                f"the Investigator's value for {operand.name} ({said!r}) does not match the declared source ({value})"
+            )
+            return out
+        nums[operand.name] = value
+    out["status"] = "holds" if _OPS[spec.op](nums[left.name], nums[right.name]) else "fails"
     return out
 
 
@@ -195,7 +217,7 @@ def decide(
             reason="the deterministic outcome is unchanged and stays a question for the owner; the intent below is only a proposal.", **base,
         )  # fmt: skip
     if c.entailment is not None:
-        ent = run_entailment(c.entailment, p.values, checks)
+        ent = run_entailment(c.entailment, p.values, c.evidence)
         if ent["status"] == "holds":
             return Result(
                 state=CandState.CONFIRMED, evidence_status=EvStatus.SUPPORTED, validation=Validation.BY_CHECK,

@@ -16,7 +16,7 @@ from repo_orchestrator.investigation.domain import (
     CandState,
     Entailment,
     EvStatus,
-    QuoteCheck,
+    Operand,
     QuoteIn,
     Validation,
 )
@@ -24,7 +24,7 @@ from repo_orchestrator.investigation.prompt import Malformed, ToolCall, parse_re
 from repo_orchestrator.investigation.reader import PinnedReader
 from repo_orchestrator.investigation.store import InvestigationStore
 from repo_orchestrator.investigation.verify import check_quote, check_quotes, decide, run_entailment
-from repo_orchestrator.models import Impact
+from repo_orchestrator.models import Evidence, Impact
 from support import FIXTURES, baseline_revisions, baseline_source, load_decl, scan
 from support_inv import final, h2_quotes, quote
 
@@ -41,11 +41,30 @@ def qin(d: dict) -> QuoteIn:
     return QuoteIn(**d)
 
 
+CLAIMANT = Evidence("claimant", "profile", "o/profile", "0" * 40, "README.md", "line", "text",
+                    "| agent-patterns | 17 patterns. 12 extracted from the two repos above. |", "h" * 64, None, 13, 13, "t@1")  # fmt: skip
+UPSTREAM = Evidence("upstream", "ap", "o/ap", "0" * 40, "README.md", "line", "text",
+                    "16 of 20 have implementations in public repos", "h" * 64, None, 5, 5, "t@1")  # fmt: skip
+
+
+def spec(op: str = "lt") -> Entailment:
+    """claimed (12, from the claimant line that also says 17) <op> stated (16, from the upstream line)."""
+    return Entailment(
+        "numeric_relation",
+        Operand("claimed", "claimant", r"(\d+) extracted"),
+        op,
+        Operand("stated", "upstream", r"^(\d+) of"),
+    )
+
+
 def cand(
-    impact: Impact = Impact.FALSIFIES, entailment: Entailment | None = None, kind: str = "qualitative_claim"
+    impact: Impact = Impact.FALSIFIES,
+    entailment: Entailment | None = None,
+    kind: str = "qualitative_claim",
+    evidence: tuple[Evidence, ...] = (CLAIMANT, UPSTREAM),
 ) -> Candidate:
     return Candidate(
-        "k" * 16, "P7", "1.0.0", "R1.ap", "claim:x", kind, "q?", "12 extracted", (), impact, "documentary",
+        "k" * 16, "P7", "1.0.0", "R1.ap", "claim:x", kind, "q?", "12 extracted", evidence, impact, "documentary",
         ("profile", "ap"), entailment,
     )  # fmt: skip
 
@@ -173,33 +192,49 @@ def test_a_breaks_claim_without_an_entailment_check_is_routed_to_a_human_with_a_
             EvStatus.SUPPORTED,
             Validation.NOT_VALIDATED,
         ),
+        # a swapped assignment must neither confirm nor dismiss: the operands are bound to their declared sources
+        (
+            "lt",
+            {"claimed": "16", "stated": "12"},
+            CandState.NEEDS_VALIDATION,
+            EvStatus.SUPPORTED,
+            Validation.NOT_VALIDATED,
+        ),
+        # 17 is in the claimant line too, but it is not what the declared pattern denotes
+        (
+            "lt",
+            {"claimed": "17", "stated": "16"},
+            CandState.NEEDS_VALIDATION,
+            EvStatus.SUPPORTED,
+            Validation.NOT_VALIDATED,
+        ),
     ],
 )
 def test_entailment_check_passes_fails_or_is_not_evaluable(op, values, state, evidence, validation):
-    c = cand(Impact.BREAKS, Entailment("numeric_relation", "claimed", op, "stated"))
+    c = cand(Impact.BREAKS, spec(op))
     r = _decide(c, "divergent", h2_quotes(), values)
     assert (r.state, r.evidence_status, r.validation) == (state, evidence, validation)
     if state is CandState.NEEDS_VALIDATION:  # an entailment that cannot run is fail-closed: a human decides
         assert r.requires_triage and r.entailment and r.entailment["status"] == "not_evaluable"
 
 
-def test_an_entailment_value_must_come_from_a_verified_quote_not_from_the_model_alone():
-    spec = Entailment("numeric_relation", "claimed", "lt", "stated")
-    good, bad = (
-        check_quotes([qin(q) for q in h2_quotes()], _R),
-        check_quotes([qin(h2_quotes()[0]), qin({**h2_quotes()[1], "text": "16 of 21 invented"})], _R),
-    )
-    assert run_entailment(spec, {"claimed": "12", "stated": "16"}, good)["status"] == "holds"
-    assert run_entailment(spec, {"claimed": "12", "stated": "16"}, bad)["status"] == "not_evaluable"
+def test_operands_are_extracted_by_code_from_their_declared_evidence_lines():
+    ok = run_entailment(spec("lt"), {"claimed": "12", "stated": "16"}, (CLAIMANT, UPSTREAM))
+    assert ok["status"] == "holds" and ok["values"] == {"claimed": "12", "stated": "16"}
+    swapped = run_entailment(spec("lt"), {"claimed": "16", "stated": "12"}, (CLAIMANT, UPSTREAM))
+    assert swapped["status"] == "not_evaluable" and "does not match the declared source" in swapped["detail"]
+    assert "no upstream evidence" in run_entailment(spec(), {"claimed": "12", "stated": "16"}, (CLAIMANT,))["detail"]
+    nomatch = Entailment("numeric_relation", Operand("claimed", "claimant", r"(\d+) retracted"), "lt", spec().right)
     assert (
-        run_entailment(spec, {"claimed": "1", "stated": "16"}, good)["status"] == "not_evaluable"
-    )  # "1" is not a token of "12"
+        "does not match its claimant line"
+        in run_entailment(nomatch, {"claimed": "12", "stated": "16"}, (CLAIMANT, UPSTREAM))["detail"]
+    )
 
 
 def test_a_fabricated_quote_is_insufficient_evidence_and_the_claim_is_never_promoted():
     q = [h2_quotes()[0], {**h2_quotes()[1], "text": "this sentence does not exist in the file"}]
     r = _decide(
-        cand(Impact.BREAKS, Entailment("numeric_relation", "claimed", "lt", "stated")),
+        cand(Impact.BREAKS, spec("lt")),
         "divergent",
         q,
         {"claimed": "12", "stated": "16"},
@@ -509,20 +544,35 @@ def test_a_human_cannot_validate_what_the_investigator_could_not_determine(tmp_p
         ("exactly 12, then 16", "12", True),
     ],
 )
-def test_an_entailment_value_must_be_a_whole_number_not_a_fragment_of_another_token(text, value, found):
-    import re
+def test_a_matched_number_must_be_a_whole_token_not_a_fragment_of_another(text, value, found):
+    from repo_orchestrator.investigation.verify import _whole_token
 
-    from repo_orchestrator.investigation.verify import _token
-
-    assert bool(re.search(_token(value), text)) is found
+    i = text.index(value)
+    assert _whole_token(text, i, i + len(value)) is found
 
 
 def test_a_fragment_of_a_decimal_cannot_validate_an_entailment_check():
-    """claimed=1 and stated=5 both 'appear' in 'The value is 1.5 seconds.': the check must stay not evaluable."""
-    spec = Entailment("numeric_relation", "claimed", "lt", "stated")
-    quote_in = QuoteIn("ap", "0" * 40, "README.md", 1, 1, "The value is 1.5 seconds.")
-    checks = [QuoteCheck("verified", "ok", quote_in)]
-    assert run_entailment(spec, {"claimed": "1", "stated": "5"}, checks)["status"] == "not_evaluable"
+    """A naive pattern matches '1' inside 'The value is 1.5 seconds.': the extracted operand is refused as a fragment."""
+    line = Evidence(
+        "claimant",
+        "ap",
+        "o/ap",
+        "0" * 40,
+        "README.md",
+        "l",
+        "text",
+        "The value is 1.5 seconds.",
+        "h" * 64,
+        None,
+        1,
+        1,
+        "t@1",
+    )
+    naive = Entailment(
+        "numeric_relation", Operand("claimed", "claimant", r"(\d)"), "lt", Operand("stated", "claimant", r"\d\.(\d)")
+    )
+    out = run_entailment(naive, {"claimed": "1", "stated": "5"}, (line,))
+    assert out["status"] == "not_evaluable" and "fragment" in out["detail"]
 
 
 @pytest.mark.parametrize(

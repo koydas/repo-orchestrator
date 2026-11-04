@@ -18,7 +18,7 @@ from ..collector.snapshot import Missing
 from ..declarations import field_of, read_yaml
 from ..engine import Engine
 from ..models import Cause, ConfigError, Evidence, Impact, Outcome, RelType, Status, digest
-from .domain import KIND_CLAIM, KIND_INTENT, OPS, Candidate, Entailment, candidate_key
+from .domain import KIND_CLAIM, KIND_INTENT, OPS, Candidate, Entailment, Operand, candidate_key
 from .reader import PinnedReader
 
 POLICY_ID = "P7"
@@ -93,6 +93,51 @@ def _locator(raw: Any, where: str, repos: set[str], phrase: bool) -> Locator:
     )  # fmt: skip
 
 
+def _operand(raw: Any, where: str, n_upstream: int) -> Operand:
+    if (
+        not isinstance(raw, dict)
+        or not {"name", "source", "regex"} <= set(raw)
+        or set(raw) - {"name", "source", "regex", "index"}
+    ):
+        raise ConfigError(f"{where}: an operand is {{name, source: claimant|upstream, regex, index?}}")
+    name, source, index = raw["name"], raw["source"], raw.get("index", 0)
+    if not isinstance(name, str) or not re.fullmatch(r"[a-z_]{1,24}", name) or source not in ("claimant", "upstream"):
+        raise ConfigError(f"{where}: operand name is [a-z_]{{1,24}} and source is claimant or upstream")
+    if (
+        not isinstance(index, int)
+        or isinstance(index, bool)
+        or index < 0
+        or (source == "claimant" and index)
+        or (source == "upstream" and index >= n_upstream)
+    ):
+        raise ConfigError(f"{where}: operand {name}: index {index!r} does not name a declared evidence line")
+    regex = _regex(raw["regex"], f"{where}.{name}.regex")
+    if re.compile(regex).groups != 1:
+        raise ConfigError(f"{where}: operand {name}: the pattern needs exactly one capture group (the number)")
+    return Operand(name, source, regex, index)
+
+
+def _entailment(ent: Any, where: str, n_upstream: int) -> Entailment | None:
+    if ent is None:
+        return None
+    if (
+        not isinstance(ent, dict)
+        or set(ent) != {"kind", "left", "op", "right"}
+        or ent["kind"] != "numeric_relation"
+        or ent["op"] not in OPS
+    ):
+        raise ConfigError(
+            f"{where}: entailment must be {{kind: numeric_relation, left: <operand>, op: {'|'.join(OPS)}, right: <operand>}}"
+        )
+    left, right = (
+        _operand(ent["left"], f"{where}.entailment.left", n_upstream),
+        _operand(ent["right"], f"{where}.entailment.right", n_upstream),
+    )
+    if left.name == right.name:
+        raise ConfigError(f"{where}: the two operands need distinct names")
+    return Entailment(str(ent["kind"]), left, str(ent["op"]), right)
+
+
 def load_claims(directory: Path, engine: Engine) -> Claims:
     """Read ``investigation.yaml``; every reference is validated against the loaded declarations (ConfigError → exit 3)."""
     path = directory / "investigation.yaml"
@@ -135,19 +180,7 @@ def load_claims(directory: Path, engine: Engine) -> Claims:
             raise ConfigError(
                 f"{where}: a 'breaks' claim needs a runtime, build, deployment or shared-resource relationship"
             )
-        ent = raw.get("entailment")
-        entailment = None
-        if ent is not None:
-            if (
-                not isinstance(ent, dict)
-                or set(ent) != {"kind", "left", "op", "right"}
-                or ent["kind"] != "numeric_relation"
-                or ent["op"] not in OPS
-            ):
-                raise ConfigError(
-                    f"{where}: entailment must be {{kind: numeric_relation, left, op: {'|'.join(OPS)}, right}}"
-                )
-            entailment = Entailment(str(ent["kind"]), str(ent["left"]), str(ent["op"]), str(ent["right"]))
+        entailment = _entailment(raw.get("entailment"), where, len(raw.get("upstream") or []))
         upstream = tuple(
             _locator(u, f"{where}.upstream[{j}]", repos, False) for j, u in enumerate(raw.get("upstream") or [])
         )

@@ -223,7 +223,13 @@ T1_YAML = """
       - {repo: adl, path: scripts/lib/findings_export.mjs, line_regex: '^export const FINDINGS_SCHEMA_VERSION'}
 """
 
-T1_ENTAILMENT = "    entailment: {kind: numeric_relation, left: consumer_version, op: ne, right: producer_version}\n"
+T1_ENTAILMENT = (
+    "    entailment:\n"
+    "      kind: numeric_relation\n"
+    "      op: ne\n"
+    "      left: {name: consumer_version, source: claimant, regex: 'SUPPORTED_SCHEMA_VERSION = (\\d+)'}\n"
+    "      right: {name: producer_version, source: upstream, index: 0, regex: 'FINDINGS_SCHEMA_VERSION = (\\d+)'}\n"
+)
 
 
 def custom_declarations(tmp: Path, *, entailment: bool = True, extra_claims: str = "") -> Path:

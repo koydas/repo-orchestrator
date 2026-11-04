@@ -57,13 +57,25 @@ OPS = ("lt", "le", "eq", "ne", "ge", "gt")
 
 
 @dataclass(frozen=True)
+class Operand:
+    """One side of an entailment check, bound to a declared source: the number is extracted *by code* with ``regex`` (exactly
+    one capture group) from one line of the deterministic evidence, ``claimant`` or the ``index``-th ``upstream`` line."""
+
+    name: str
+    source: str  # claimant | upstream
+    regex: str
+    index: int = 0
+
+
+@dataclass(frozen=True)
 class Entailment:
-    """A deterministic test the policy declares: the divergence holds iff ``values[left] <op> values[right]``."""
+    """A deterministic test the policy declares: the divergence holds iff ``left <op> right``, both extracted by code from
+    their declared sources. The Investigator must name the same numbers; a disagreement leaves the check not evaluable."""
 
     kind: str  # numeric_relation (the only kind in M3)
-    left: str
+    left: Operand
     op: str
-    right: str
+    right: Operand
 
 
 @dataclass(frozen=True)
@@ -108,7 +120,7 @@ def candidate_from_json(d: Mapping[str, Any]) -> Candidate:
         relationship_id=d["relationship_id"], subject=d["subject"], kind=d["kind"], question=d["question"],
         claim_text=d["claim_text"], evidence=tuple(evidence_from_json(e) for e in d["evidence"]),
         impact=Impact(d["impact"]), relationship_type=d["relationship_type"], repos=tuple(d["repos"]),
-        entailment=Entailment(**ent) if ent else None, open_questions=tuple(d.get("open_questions", ())),
+        entailment=Entailment(ent["kind"], Operand(**ent["left"]), ent["op"], Operand(**ent["right"])) if ent else None, open_questions=tuple(d.get("open_questions", ())),
         prefilter_failure=(pf[0], pf[1]) if pf else None, origin_status=d.get("origin_status"),
     )  # fmt: skip
 

@@ -32,7 +32,7 @@ Two sources, both declared in [`declarations/investigation.yaml`](../../declarat
 
 Declared today: **H2 and the two H1 reviews only.** The profile's "100+ ADRs" and "11 integration failure modes" are **not** declared (no policy, no finding). Q1–Q3 stay parameters of the declarations, never code: an open question is reported as a question.
 
-A claim may declare an **entailment check** (`numeric_relation`: the divergence holds iff `values[left] <op> values[right]`, each value required inside a verified quote) and an `impact`. H2 declares none: a human validates it. A `breaks` claim with no entailment check is routed to a human **and** pauses the run at triage.
+A claim may declare an **entailment check** (`numeric_relation`: the divergence holds iff `left <op> right`) and an `impact`. Each operand is bound to a declared source, the claimant line or the n-th upstream line, with a regular expression that has exactly one capture group; **code extracts the number** from that deterministic evidence line, refuses a fragment of a decimal, signed or grouped number, and requires the Investigator to name the same number (a swapped or invented operand leaves the check `not_evaluable`, so a human decides). H2 declares none: a human validates it. A `breaks` claim with no entailment check is routed to a human **and** pauses the run at triage.
 
 ## Data flow as implemented
 

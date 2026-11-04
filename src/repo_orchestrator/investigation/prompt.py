@@ -91,7 +91,7 @@ def opening_message(c: Candidate, shas: Mapping[str, str]) -> str:
     pinned = ", ".join(f"{r}@{s}" for r, s in sorted(shas.items()))
     values = ""
     if c.entailment is not None:
-        values = f'\nName the numbers you locate exactly "{c.entailment.left}" and "{c.entailment.right}" in "values".'
+        values = f'\nName the numbers you locate exactly "{c.entailment.left.name}" and "{c.entailment.right.name}" in "values".'
     return (
         f"Candidate {c.key}: policy {c.policy_id}, relationship {c.relationship_id} ({c.relationship_type}), subject {c.subject}.\n"
         f"Question: {c.question}\n"

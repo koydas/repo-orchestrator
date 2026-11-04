@@ -6,8 +6,8 @@
 
 | Check | Command | Result (real) |
 |---|---|---|
-| Whole suite, CPython 3.13.18 | `pytest -q` | exit 0, 1,050 tests (752 on `main` at the last merge: +298) |
-| Whole suite, CPython 3.11 | `pytest -q` (clean venv, `pip install -e '.[dev,investigation]'`) | exit 0, same 1,050 tests |
+| Whole suite, CPython 3.13.18 | `pytest -q` | exit 0, 1,053 tests (752 on `main` at the last merge: +301) |
+| Whole suite, CPython 3.11 | `pytest -q` (clean venv, `pip install -e '.[dev,investigation]'`) | exit 0, same 1,053 tests |
 | M3 evaluation files only | `pytest tests/test_inv_*.py` | exit 0; 176 tests; about 31 s on 3.13 and 32 s on 3.11 (measured before the last review round) |
 | Lint, format, types | `ruff check src tests`, `ruff format --check src tests`, `mypy` (strict, 50 source files) | all clean |
 | CI smoke step as written | `tests/test_docs_m3.py` extracts the workflow's own step and runs it | exit code 1 as documented |
@@ -53,7 +53,7 @@ A `breaks` claim (T1 in the tests, a synthetic claim on the R2 runtime contract)
 |---|---|
 | Producer constant mutated to 2, consumer 1: the divergence test holds | `confirmed`, `validated_by_check`, severity `high` |
 | Both 1: the test does not hold | `dismissed`, `refuted` |
-| A value not inside a verified quote / missing / not a number | `needs_validation` (not evaluable), triage required |
+| A swapped, invented, missing or non-numeric operand (the model's number differs from what the declared pattern extracts from the declared evidence line, even when both numbers occur in the quotes) | `needs_validation` (not evaluable), triage required |
 | Declared `breaks` claim with **no** entailment check | `needs_validation`, `requires_triage`, the run pauses at triage |
 
 Invariant over a grid of nine answers (valid, fabricated, wrong sha, empty, consistent, undetermined, junk): every `confirmed` row has `validated_by_check` or `validated_by_human` and only verified quotes.

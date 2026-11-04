@@ -454,3 +454,40 @@ def test_a_run_cut_short_reports_its_unfinished_candidates_as_incomplete_never_c
     assert section["status"] == "incomplete" and section["summary"]["pending"] == n == section["summary"]["candidates"]
     assert {r["cause"] for r in section["candidates"]} == {"not_investigated"}
     assert exit_code({"run_status": "complete", "findings": [], "investigation": section}) == 2
+
+
+def test_an_entailment_operand_must_name_a_declared_source_and_a_single_capture_group(tmp_path):
+    from repo_orchestrator.investigation.p7 import load_claims
+    from repo_orchestrator.models import ConfigError
+
+    engine = Engine(load_decl())
+    base = custom_declarations(tmp_path / "ok") if (tmp_path / "ok").mkdir() is None else None
+    assert load_claims(base, engine).claims[-1].entailment is not None
+    good = (base / "investigation.yaml").read_text()
+    for n, (old, new, message) in enumerate(
+        [
+            ("source: claimant, regex", "source: nowhere, regex", "claimant or upstream"),
+            (
+                "regex: 'SUPPORTED_SCHEMA_VERSION = (\\d+)'",
+                "regex: 'SUPPORTED_SCHEMA_VERSION = \\d+'",
+                "exactly one capture group",
+            ),
+            ("source: upstream, index: 0", "source: upstream, index: 5", "does not name a declared evidence line"),
+            ("name: producer_version", "name: consumer_version", "distinct names"),
+            (
+                "left: {name: consumer_version, source: claimant,",
+                "left: {name: consumer_version, nope: 1, source: claimant,",
+                "an operand is",
+            ),
+        ]
+    ):
+        d = tmp_path / f"bad{n}"
+        d.mkdir()
+        import shutil
+
+        shutil.copytree(base, d / "declarations")
+        text = good.replace(old, new, 1)
+        assert text != good, old
+        (d / "declarations" / "investigation.yaml").write_text(text)
+        with pytest.raises(ConfigError, match=message):
+            load_claims(d / "declarations", engine)
