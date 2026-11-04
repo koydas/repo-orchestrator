@@ -1,6 +1,6 @@
 # M3: bounded investigation (C5 Investigator, P7, W3)
 
-> **Status: implemented** ([ADR-0014](../adr/0014-m3-llm-boundary-budgets-and-replay.md), [ADR-0015](../adr/0015-m3-reasoning-verification-and-validation.md), [ADR-0016](../adr/0016-m3-investigation-state-and-langgraph-confinement.md), all Proposed). Opt-in: `repo-orchestrator scan --investigate`. The default `scan` and `analyze-pr` are exactly M1 and M2. **No live model call was made to build or test M3**; every number in the [evaluation](evaluation.md) comes from a scripted Investigator replayed offline.
+> **Status: implemented** ([ADR-0015](../adr/0015-m3-llm-boundary-budgets-and-replay.md), [ADR-0016](../adr/0016-m3-reasoning-verification-and-validation.md), [ADR-0017](../adr/0017-m3-investigation-state-and-langgraph-confinement.md), all Proposed). Opt-in: `repo-orchestrator scan --investigate`. The default `scan` and `analyze-pr` are exactly M1 and M2. **No live model call was made to build or test M3**; every number in the [evaluation](evaluation.md) comes from a scripted Investigator replayed offline.
 
 M1 and M2 decide what code can decide. M3 gives the system a bounded, verifiable way to judge what code cannot: qualitative claims (baseline H2) and the intent of outcomes that stay undetermined (baseline H1). **The model proposes, code decides.**
 
@@ -16,7 +16,7 @@ M1 and M2 decide what code can decide. M3 gives the system a bounded, verifiable
 For each **candidate** the Investigator (C5) reads a bounded amount of the pinned snapshots through read-only tools, and returns a proposal: a finding (`divergent`, `consistent`, `cannot_determine`), verbatim quotes with their locations, named values and a proposed intent. Code then:
 
 1. verifies every quote at its pinned `(repo, sha, path, lines)` with the recorded content hash (exact match: no case, whitespace or Unicode normalization);
-2. applies the decision rule ([ADR-0015](../adr/0015-m3-reasoning-verification-and-validation.md) §4): a candidate is `confirmed` only with verified quotes **and** `validated_by_check` (a deterministic entailment test the policy declares) or `validated_by_human`; otherwise `needs_validation` (a human decides), `insufficient_evidence` (never a pass), `dismissed` (listed, with the quotes) or `policy_question`;
+2. applies the decision rule ([ADR-0016](../adr/0016-m3-reasoning-verification-and-validation.md) §4): a candidate is `confirmed` only with verified quotes **and** `validated_by_check` (a deterministic entailment test the policy declares) or `validated_by_human`; otherwise `needs_validation` (a human decides), `insufficient_evidence` (never a pass), `dismissed` (listed, with the quotes) or `policy_question`;
 3. records everything needed to **replay** the run offline bit for bit.
 
 A verified quote never confirms a claim on its own; no numeric confidence exists anywhere.

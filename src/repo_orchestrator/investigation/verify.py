@@ -1,4 +1,4 @@
-"""C3-side checks on an Investigator proposal: quote verification, entailment and the decision rule (ADR-0015).
+"""C3-side checks on an Investigator proposal: quote verification, entailment and the decision rule (ADR-0016).
 
 Everything here is a pure function of (candidate, proposal, pinned reader). Nothing the model says changes a state except
 through these checks.
@@ -148,7 +148,7 @@ def decide(
     observations: Sequence[Observation],
     response_keys: Sequence[str],
 ) -> Result:
-    """The decision rule of ADR-0015 §4. Pure; the model's text is never a state."""
+    """The decision rule of ADR-0016 §4. Pure; the model's text is never a state."""
     base: dict[str, Any] = {
         "key": c.key, "claim": p.claim, "finding": p.finding, "quotes": tuple(checks), "values": dict(p.values),
         "intent": _intent(p, checks), "observations": tuple(observations), "response_keys": tuple(response_keys),

@@ -1,4 +1,4 @@
-# ADR-0015: M3 reasoning claims: quote verification, validation, entailment checks and exit codes
+# ADR-0016: M3 reasoning claims: quote verification, validation, entailment checks and exit codes
 
 - **Date:** 2026-11-04
 - **Status:** Proposed

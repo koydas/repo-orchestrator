@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0"]
 
 [project.optional-dependencies]
-# M3 (ADR-0016): LangGraph is confined to investigation/workflow.py and pinned (S0 results: upgrade-sensitive behaviour).
+# M3 (ADR-0017): LangGraph is confined to investigation/workflow.py and pinned (S0 results: upgrade-sensitive behaviour).
 investigation = [
     "langgraph==1.2.19",
     "langgraph-checkpoint==4.3.1",

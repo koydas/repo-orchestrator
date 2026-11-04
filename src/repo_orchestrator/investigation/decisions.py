@@ -1,4 +1,4 @@
-"""W4 human decisions on investigation results (ADR-0015 §7). Pure rules + recording in the ``inv_*`` namespace.
+"""W4 human decisions on investigation results (ADR-0016 §7). Pure rules + recording in the ``inv_*`` namespace.
 
 A decision is bound to the digest of the evidence the human saw; if the evidence changes the decision is *stale* and not
 applied. A human can validate or reject a ``needs_validation`` claim, dismiss an undecided one, acknowledge a confirmed
@@ -80,7 +80,7 @@ def record(
 
 def pending_triage(store: InvestigationStore, run_id: str) -> list[str]:
     """Candidates that must be decided by a human before the run can be approved: ``breaks`` claims still in
-    ``needs_validation`` (ADR-0015 §4)."""
+    ``needs_validation`` (ADR-0016 §4)."""
     out = []
     for key, result in sorted(store.results(run_id).items()):
         if (

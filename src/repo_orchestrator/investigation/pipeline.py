@@ -1,6 +1,6 @@
 """W3 as one function behind ``scan --investigate``: candidates (P7 pre-filter and intent reviews) → run created in the
 store → workflow (fan-out, checkpoints, interrupts) → report section. Idempotent: the run id is derived from the inputs, so
-repeating the command continues, finishes or simply re-reports the same run (ADR-0016 §4)."""
+repeating the command continues, finishes or simply re-reports the same run (ADR-0017 §4)."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from .store import InvestigationStore
 
 
 class SnapshotChanged(ConfigError):
-    """A resumed run's pinned inputs differ from what it recorded (ADR-0016 §4): fail closed, never re-pin."""
+    """A resumed run's pinned inputs differ from what it recorded (ADR-0017 §4): fail closed, never re-pin."""
 
 
 @dataclass
@@ -44,7 +44,7 @@ class InvestigationOptions:
     declarations_digest: str = ""
     revisions: dict[str, str] = field(default_factory=dict)
     offline: bool = False
-    budget: Budget = BUDGET  # tests only: the CLI never sets it (budgets are code constants, ADR-0014 §4)
+    budget: Budget = BUDGET  # tests only: the CLI never sets it (budgets are code constants, ADR-0015 §4)
 
 
 @dataclass
@@ -128,7 +128,7 @@ def assemble(store: InvestigationStore, run_id: str, semantic: dict[str, Any], p
 
 def rebuild_reader(run: dict[str, Any]) -> PinnedReader:
     """The run's snapshots rebuilt OFFLINE from the cache at the SHAs it recorded — nothing is re-resolved — then every
-    piece of deterministic evidence is re-verified against them (content-addressed: fail closed, ADR-0016 §4)."""
+    piece of deterministic evidence is re-verified against them (content-addressed: fail closed, ADR-0017 §4)."""
     cfg = run["config"]
     decl = load_declarations(Path(cfg["declarations"]))
     if cfg["declarations_digest"] and decl.digest != cfg["declarations_digest"]:

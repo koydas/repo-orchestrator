@@ -95,7 +95,7 @@ In order, each gated by the previous one's measurements: optimization opportunit
 
 | Risk | Mitigation in this design |
 |---|---|
-| LangGraph adopted before it has a job, or validated too late | Not used in M1–M2 (both implemented without it); validated early by the isolated S0 spike (executed, see above), built at M3 and confined to one module, `investigation/workflow.py` ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md), [ADR-0016](adr/0016-m3-investigation-state-and-langgraph-confinement.md)) |
+| LangGraph adopted before it has a job, or validated too late | Not used in M1–M2 (both implemented without it); validated early by the isolated S0 spike (executed, see above), built at M3 and confined to one module, `investigation/workflow.py` ([ADR-0005](adr/0005-langgraph-for-investigation-workflows-only.md), [ADR-0017](adr/0017-m3-investigation-state-and-langgraph-confinement.md)) |
 | A policy framework larger than seven policies need | Python functions with metadata; no DSL ([ADR-0003](adr/0003-policy-driven-coherence-with-scoped-exceptions.md)) |
 | Generic multi-agent design | One Investigator; everything else deterministic ([ADR-0004](adr/0004-deterministic-checks-before-agentic-reasoning.md)) |
 | Graph DB, vector store, services | Explicitly excluded with revisit triggers ([architecture](architecture.md#complexity-budget)) |

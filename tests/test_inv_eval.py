@@ -392,7 +392,7 @@ def test_hostile_text_in_a_pre_collected_evidence_line_is_observed(tmp_path):
 
 def test_no_confirmed_candidate_exists_without_verified_quotes_and_a_validation_over_many_answers(tmp_path):
     """A grid of answers (valid, fabricated, wrong sha, empty, consistent, undetermined, with and without values): the
-    invariant of ADR-0015 holds for every row."""
+    invariant of ADR-0016 holds for every row."""
     answers = [
         final("divergent", "c", h2_quotes(), {"consumer_version": "1", "producer_version": "2"}),
         final("divergent", "c", t1_quotes("1", "2"), {"consumer_version": "1", "producer_version": "2"}),

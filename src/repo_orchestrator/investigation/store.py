@@ -1,9 +1,9 @@
 """Investigation state in the run store file: the budget ledger, recorded responses, results and human decisions.
 
 All tables are prefixed ``inv_``: a separate namespace. Nothing here reads or writes ``runs``, ``outcomes``,
-``findings``, ``finding_events`` or ``pr_*`` (ADR-0016 §5). Every operation opens a short transaction of its own
+``findings``, ``finding_events`` or ``pr_*`` (ADR-0017 §5). Every operation opens a short transaction of its own
 (``BEGIN IMMEDIATE``), so concurrent workers and a restarted process see one consistent ledger, and the budget cannot be
-reset by editing a graph checkpoint (ADR-0014 §5).
+reset by editing a graph checkpoint (ADR-0015 §5).
 """
 
 from __future__ import annotations

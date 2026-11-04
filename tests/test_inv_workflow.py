@@ -1,4 +1,4 @@
-"""M3 workflow: LangGraph fan-out, checkpoints, interrupts, hard kill and resume, budgets across resume (ADR-0016)."""
+"""M3 workflow: LangGraph fan-out, checkpoints, interrupts, hard kill and resume, budgets across resume (ADR-0017)."""
 
 from __future__ import annotations
 
@@ -234,7 +234,7 @@ def test_the_ledger_counts_a_replayed_call_once(tmp_path):
 
 
 def test_scan_scope_and_unused_imports_stay_importable_without_the_graph():
-    """Importing the package and M1 never loads LangGraph (ADR-0016 §1)."""
+    """Importing the package and M1 never loads LangGraph (ADR-0017 §1)."""
     code = (
         "import sys, repo_orchestrator.cli, repo_orchestrator.investigation, repo_orchestrator.investigation.verify, "
         "repo_orchestrator.investigation.investigator, repo_orchestrator.investigation.p7;"

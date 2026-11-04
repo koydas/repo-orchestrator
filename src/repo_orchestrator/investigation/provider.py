@@ -1,4 +1,4 @@
-"""The LLM boundary (ADR-0014): the only module of the package that talks to a model provider, and the only one that
+"""The LLM boundary (ADR-0015): the only module of the package that talks to a model provider, and the only one that
 reads the API key.
 
 Three implementations of one method, ``complete(request) -> response``: the live Anthropic Messages API (standard

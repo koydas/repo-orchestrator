@@ -1,4 +1,4 @@
-# P7 (docs/coherence-model.md → MVP policy catalog) and the intent reviews of the Investigator (M3, ADR-0015). Read only by
+# P7 (docs/coherence-model.md → MVP policy catalog) and the intent reviews of the Investigator (M3, ADR-0016). Read only by
 # `scan --investigate`; the deterministic scan (M1, M2) never loads this file. No declaration, no candidate: a claim that is
 # not declared here is never investigated (no policy, no finding). Locators are regular expressions over single lines of
 # the pinned files; a locator that no longer matches makes its candidate `insufficient_evidence` (claim_not_found), never a pass.

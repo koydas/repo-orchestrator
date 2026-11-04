@@ -1,6 +1,6 @@
 """Report side of M3: the ``investigation`` section of the semantic report, the execution metadata, the exit code and the
 Markdown rendering. The section is additive (ADR-0013 §11: same ``schema_version``) and exists only for ``--investigate``;
-the deterministic part of the report is untouched and its digest is kept as ``deterministic_digest`` (ADR-0014 §6)."""
+the deterministic part of the report is untouched and its digest is kept as ``deterministic_digest`` (ADR-0015 §6)."""
 
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ def augment(semantic: Mapping[str, Any], section: Mapping[str, Any]) -> dict[str
 
 
 def exit_code(semantic: Mapping[str, Any]) -> int:
-    """3 failure (the CLI's) > 2 incomplete > 1 findings > 4 awaiting a human > 0 (ADR-0015 §8). Without an
+    """3 failure (the CLI's) > 2 incomplete > 1 findings > 4 awaiting a human > 0 (ADR-0016 §8). Without an
     ``investigation`` section this is exactly the M1 rule."""
     base = 2 if semantic["run_status"] == "partial" else (1 if semantic["findings"] else 0)
     inv = semantic.get("investigation")

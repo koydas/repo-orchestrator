@@ -39,7 +39,7 @@ FRAMEWORK = {"langgraph", "langchain", "langchain_core", "pydantic"}
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: str(p.relative_to(SRC)))
 def test_no_dependency_on_the_s0_prototype_or_any_llm_sdk(path):
-    """Nothing imports the S0 spike or a model SDK / HTTP library (ADR-0014: the provider uses the standard library)."""
+    """Nothing imports the S0 spike or a model SDK / HTTP library (ADR-0015: the provider uses the standard library)."""
     forbidden = {"s0_spike", "anthropic", "openai", "requests", "httpx", "httpx2"}
     assert not imports(path) & forbidden, f"{path.name} imports {imports(path) & forbidden}"
     text = path.read_text()
@@ -48,7 +48,7 @@ def test_no_dependency_on_the_s0_prototype_or_any_llm_sdk(path):
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: str(p.relative_to(SRC)))
 def test_only_the_workflow_module_imports_langgraph(path):
-    """ADR-0016 §1: LangGraph (and its stack) is confined to ``investigation/workflow.py``."""
+    """ADR-0017 §1: LangGraph (and its stack) is confined to ``investigation/workflow.py``."""
     found = imports(path) & FRAMEWORK
     if path == INV / "workflow.py":
         assert "langgraph" in found
@@ -193,6 +193,10 @@ def test_no_github_write_endpoint_exists_anywhere_in_the_source():
     )
     for path in FILES:
         text = path.read_text()
+        if path.name == "dashboard.py":
+            # ADR-0014: the dashboard emits a link to the browser's pre-filled "new issue" form, which a human submits.
+            # It performs no request (it imports no network module, see the dashboard tests); every other fragment stays forbidden.
+            text = text.replace("/issues/new?", "")
         for fragment in forbidden:
             assert fragment not in text, f"{path.name} mentions {fragment}"
 

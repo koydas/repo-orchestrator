@@ -1,4 +1,4 @@
-"""Budgets, model and prices: code constants, never inputs, never prompt content (ADR-0004 §5, ADR-0014 §4)."""
+"""Budgets, model and prices: code constants, never inputs, never prompt content (ADR-0004 §5, ADR-0015 §4)."""
 
 from __future__ import annotations
 

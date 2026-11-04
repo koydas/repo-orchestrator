@@ -266,7 +266,7 @@ def _scan(args: argparse.Namespace) -> int:
 def _investigation_modules() -> Any:
     try:
         from .investigation import pipeline
-    except ImportError as exc:  # LangGraph is an optional extra (ADR-0016)
+    except ImportError as exc:  # LangGraph is an optional extra (ADR-0017)
         raise ConfigError(
             "the investigation needs the optional dependencies: pip install 'repo-orchestrator[investigation]'"
         ) from exc

@@ -60,7 +60,7 @@ The S0 spike was executed in [`prototypes/langgraph-spike`](../../prototypes/lan
 
 ## M3 gate (added; status unchanged)
 
-At the M3 gate the owner chose to build the investigation workflow on LangGraph, confined to one module, rather than on the hand-written fallback. What was built, with the S0 constraints applied, is recorded in [ADR-0016](0016-m3-investigation-state-and-langgraph-confinement.md); the answers to this record's open questions are there (the tool loop is a single node wrapping a text protocol, not a subgraph; insufficient-evidence candidates are batched into the report, not interrupted). This record is still **Proposed**: accepting it remains the owner's decision.
+At the M3 gate the owner chose to build the investigation workflow on LangGraph, confined to one module, rather than on the hand-written fallback. What was built, with the S0 constraints applied, is recorded in [ADR-0017](0017-m3-investigation-state-and-langgraph-confinement.md); the answers to this record's open questions are there (the tool loop is a single node wrapping a text protocol, not a subgraph; insufficient-evidence candidates are batched into the report, not interrupted). This record is still **Proposed**: accepting it remains the owner's decision.
 
 ## Open questions
 

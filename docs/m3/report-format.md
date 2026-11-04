@@ -64,7 +64,7 @@ Usage, tokens, cost and latency are **not** in the semantic part: they are in `e
 | `validated_by_human` | a recorded human `validate` decision on this evidence |
 | `not_validated` | everything else |
 
-A quote is `verified` iff it equals, character for character, a substring of lines `line_start..line_end` of the pinned file (at least 8 characters, at most 20 lines). Any other outcome is `unverified` with a `reason`: `not_found_at_locator`, `revision_mismatch`, `repo_out_of_scope`, `unreadable`, `too_short`, `bad_line_range`, `revision_unresolved`. This refines [ADR-0006](../adr/0006-evidence-provenance-uncertainty-and-reproducibility.md) §3, which words a missing quote as `refuted` ([ADR-0015](../adr/0015-m3-reasoning-verification-and-validation.md) §2).
+A quote is `verified` iff it equals, character for character, a substring of lines `line_start..line_end` of the pinned file (at least 8 characters, at most 20 lines). Any other outcome is `unverified` with a `reason`: `not_found_at_locator`, `revision_mismatch`, `repo_out_of_scope`, `unreadable`, `too_short`, `bad_line_range`, `revision_unresolved`. This refines [ADR-0006](../adr/0006-evidence-provenance-uncertainty-and-reproducibility.md) §3, which words a missing quote as `refuted` ([ADR-0016](../adr/0016-m3-reasoning-verification-and-validation.md) §2).
 
 ## Cause codes (`cause`)
 

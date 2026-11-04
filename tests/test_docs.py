@@ -76,7 +76,16 @@ def test_every_adr_is_indexed_and_still_proposed():
 
 def test_the_readme_counts_the_adrs_correctly():
     n = len(list((DOCS / "adr").glob("[0-9][0-9][0-9][0-9]-*.md")))
-    words = {10: "Ten", 11: "Eleven", 12: "Twelve", 13: "Thirteen", 14: "Fourteen", 15: "Fifteen", 16: "Sixteen"}
+    words = {
+        10: "Ten",
+        11: "Eleven",
+        12: "Twelve",
+        13: "Thirteen",
+        14: "Fourteen",
+        15: "Fifteen",
+        16: "Sixteen",
+        17: "Seventeen",
+    }
     assert f"| {words[n]} Proposed decisions |" in read(ROOT / "README.md")
 
 

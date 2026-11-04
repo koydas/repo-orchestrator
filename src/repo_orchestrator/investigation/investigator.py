@@ -1,5 +1,5 @@
 """C5 Investigator: for ONE candidate, read more of the pinned snapshots through read-only tools and return a PROPOSAL
-that code then verifies and decides on (ADR-0004 §3, ADR-0015 §4).
+that code then verifies and decides on (ADR-0004 §3, ADR-0016 §4).
 
 Failure policy (docs/workflows.md → Failure handling), all per candidate: a provider error is retried once when it is
 transient, malformed output once, a budget refusal ends the candidate; every end that is not a verified proposal is an

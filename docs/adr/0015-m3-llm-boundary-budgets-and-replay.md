@@ -1,4 +1,4 @@
-# ADR-0014: M3 LLM boundary, code-constant budgets, and recorded-response replay
+# ADR-0015: M3 LLM boundary, code-constant budgets, and recorded-response replay
 
 - **Date:** 2026-11-04
 - **Status:** Proposed
@@ -9,7 +9,7 @@
 
 ## Decision
 
-1. **One component calls an LLM: C5.** The code lives in `src/repo_orchestrator/investigation/`. Only `investigation/provider.py` may import `urllib.request` for a model provider; only `investigation/workflow.py` may import `langgraph` ([ADR-0016](0016-m3-investigation-state-and-langgraph-confinement.md)). Everything else, including every M1 and M2 module, stays LLM-free; `tests/test_architecture_constraints.py` states exactly who may import what.
+1. **One component calls an LLM: C5.** The code lives in `src/repo_orchestrator/investigation/`. Only `investigation/provider.py` may import `urllib.request` for a model provider; only `investigation/workflow.py` may import `langgraph` ([ADR-0017](0017-m3-investigation-state-and-langgraph-confinement.md)). Everything else, including every M1 and M2 module, stays LLM-free; `tests/test_architecture_constraints.py` states exactly who may import what.
 2. **Provider.** Anthropic Messages API over HTTPS with the standard library (no SDK: no new runtime dependency; the SDK is the documented alternative if retries and typing outweigh the dependency). Model `claude-sonnet-5-5`, `output_config.effort` fixed in code, no `temperature`/`top_p`/`top_k` (rejected by 5.x models), no tool-use blocks: the tool loop is a JSON text protocol, so the provider interface is `complete(request) -> response` and replay is trivial.
 3. **Credentials.** `ANTHROPIC_API_KEY`, read once when the provider is constructed, sent only in the `x-api-key` header. It is never logged, never written to the store, a recording, a fixture or a report (a test greps all of them for the key and for the header name). `ANTHROPIC_BASE_URL` is honoured so a proxy can be used. No key and no replay file: `--investigate` stops with exit 3 and never silently skips.
 4. **Budgets are code constants** in `investigation/budgets.py` ([ADR-0004](0004-deterministic-checks-before-agentic-reasoning.md) §5), never inputs, never prompt content: 12 investigations per run; 8 tool calls, 6 model calls (one malformed-output retry included), 24 000 input and 4 000 output tokens per investigation; 150 000 tokens and 2.00 USD per run. Cost is `tokens × list price` from a dated constant table (Sonnet 5.5: 2.00 / 10.00 USD per million input / output tokens, source: the Claude API model table cached 2026-10-06; to be re-verified). Tokens are the primary cap; the dollar cap is derived from the same table.

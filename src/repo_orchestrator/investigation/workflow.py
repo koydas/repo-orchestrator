@@ -1,4 +1,4 @@
-"""The W3 workflow as a LangGraph graph — the ONLY module that imports LangGraph (ADR-0016 §1).
+"""The W3 workflow as a LangGraph graph — the ONLY module that imports LangGraph (ADR-0017 §1).
 
 Design from the S0 spike (reused, not its files): nodes call plain functions; budget authority and the effect live in the
 store, never in the checkpoint; no side effect above ``interrupt()`` (a resumed node restarts from its first line); every

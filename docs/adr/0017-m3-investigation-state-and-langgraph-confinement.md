@@ -1,4 +1,4 @@
-# ADR-0016: M3 investigation state: LangGraph confined to one module, checkpoints, ledger and a separate decision namespace
+# ADR-0017: M3 investigation state: LangGraph confined to one module, checkpoints, ledger and a separate decision namespace
 
 - **Date:** 2026-11-04
 - **Status:** Proposed

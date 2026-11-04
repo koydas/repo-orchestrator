@@ -1,4 +1,4 @@
-"""Types of the investigation: candidates, proposals, quote checks, results (ADR-0015). JSON round-trip is explicit
+"""Types of the investigation: candidates, proposals, quote checks, results (ADR-0016). JSON round-trip is explicit
 because a candidate crosses the graph checkpoint and the store as plain data."""
 
 from __future__ import annotations

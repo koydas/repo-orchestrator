@@ -264,7 +264,7 @@ def intent_candidates(
     claims: Claims, engine: Engine, outcomes: Sequence[Outcome], scope: Sequence[str]
 ) -> list[Candidate]:
     """Intent reviews: undetermined deterministic outcomes (e.g. H1) the Investigator may propose an intent for. The
-    outcome itself is never changed (ADR-0015 §4)."""
+    outcome itself is never changed (ADR-0016 §4)."""
     rels = {r.id: r for r in engine.graph.trusted()}
     out: list[Candidate] = []
     for review in claims.intent_reviews:

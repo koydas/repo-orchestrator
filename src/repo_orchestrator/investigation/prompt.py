@@ -1,4 +1,4 @@
-"""Prompt construction, the closed output schema and prompt-injection hygiene (ADR-0015 §10).
+"""Prompt construction, the closed output schema and prompt-injection hygiene (ADR-0016 §10).
 
 Repository text is data. It reaches the model only inside a labelled fence whose id is derived from the content, any
 fence-looking sequence inside it is neutralized, and instruction-like text is *reported* by code, independently of what
