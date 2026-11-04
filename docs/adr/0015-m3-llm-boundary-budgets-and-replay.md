@@ -1,7 +1,8 @@
 # ADR-0015: M3 LLM boundary, code-constant budgets, and recorded-response replay
 
 - **Date:** 2026-11-04
-- **Status:** Proposed
+- **Status:** Accepted
+- **Accepted:** 2026-11-04, by the repository owner (implemented in M3, PR #9)
 
 ## Context
 

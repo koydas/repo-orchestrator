@@ -29,4 +29,4 @@ What M3 does not do, and what remains risky. Statements about the live model are
 
 ## Decisions left to the owner
 
-See the pull request: the status of ADR-0005, 0014, 0015 and 0016 (all Proposed); whether `refuted` should keep ADR-0006's wording; exit code 4; the budget values; the price table; extending the Investigator to `analyze-pr`.
+See the pull request: the status of ADR-0005 and 0014 (Proposed; ADR-0015 to 0017 are Accepted); whether `refuted` should keep ADR-0006's wording; exit code 4; the budget values; the price table; extending the Investigator to `analyze-pr`.

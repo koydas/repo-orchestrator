@@ -63,13 +63,21 @@ def test_mermaid_blocks_are_closed_and_start_with_a_diagram_type(path):
         assert block.lstrip().startswith(kinds), block[:40]
 
 
-def test_every_adr_is_indexed_and_still_proposed():
+ACCEPTED = {"0015", "0016", "0017"}  # accepted by the owner on 2026-11-04, recorded in each file
+
+
+def test_every_adr_is_indexed_and_still_proposed_unless_the_owner_accepted_it():
     adrs = sorted((DOCS / "adr").glob("[0-9][0-9][0-9][0-9]-*.md"))
     index = read(DOCS / "adr" / "README.md")
     assert len(adrs) >= 11
     for adr in adrs:
         assert f"({'./' + adr.name})" in index or adr.name in index, f"{adr.name} missing from the ADR index"
-        assert "- **Status:** Proposed" in read(adr), f"{adr.name}: ADR statuses change only by the owner"
+        text = read(adr)
+        if adr.name[:4] in ACCEPTED:
+            assert "- **Status:** Accepted" in text and "- **Accepted:** 2026-11-04" in text, adr.name
+            assert re.search(rf"ADR-{adr.name[:4]}\].*\| Accepted \|", index), f"{adr.name}: index status differs"
+        else:
+            assert "- **Status:** Proposed" in text, f"{adr.name}: ADR statuses change only by the owner"
         assert adr.name[:4] in {m for m in re.findall(r"ADR-(\d{4})", index)}
     assert f"A{len(adrs)}[" in index  # the dependency diagram has a node for the last record
 
@@ -86,7 +94,10 @@ def test_the_readme_counts_the_adrs_correctly():
         16: "Sixteen",
         17: "Seventeen",
     }
-    assert f"| {words[n]} Proposed decisions |" in read(ROOT / "README.md")
+    assert (
+        f"| {words[n]} decisions ({n - len(ACCEPTED)} Proposed, {len(ACCEPTED)} Accepted: ADR-0015 to 0017) |"
+        in read(ROOT / "README.md")
+    )
 
 
 # ---- scope statements --------------------------------------------------------------------------------------------

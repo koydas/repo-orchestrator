@@ -1,7 +1,8 @@
 # ADR-0017: M3 investigation state: LangGraph confined to one module, checkpoints, ledger and a separate decision namespace
 
 - **Date:** 2026-11-04
-- **Status:** Proposed
+- **Status:** Accepted
+- **Accepted:** 2026-11-04, by the repository owner (implemented in M3, PR #9)
 
 ## Context
 

@@ -1,7 +1,8 @@
 # ADR-0016: M3 reasoning claims: quote verification, validation, entailment checks and exit codes
 
 - **Date:** 2026-11-04
-- **Status:** Proposed
+- **Status:** Accepted
+- **Accepted:** 2026-11-04, by the repository owner (implemented in M3, PR #9)
 
 ## Context
 

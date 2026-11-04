@@ -1,6 +1,6 @@
 # M3: bounded investigation (C5 Investigator, P7, W3)
 
-> **Status: implemented** ([ADR-0015](../adr/0015-m3-llm-boundary-budgets-and-replay.md), [ADR-0016](../adr/0016-m3-reasoning-verification-and-validation.md), [ADR-0017](../adr/0017-m3-investigation-state-and-langgraph-confinement.md), all Proposed). Opt-in: `repo-orchestrator scan --investigate`. The default `scan` and `analyze-pr` are exactly M1 and M2. **No live model call was made to build or test M3**; every number in the [evaluation](evaluation.md) comes from a scripted Investigator replayed offline.
+> **Status: implemented** ([ADR-0015](../adr/0015-m3-llm-boundary-budgets-and-replay.md), [ADR-0016](../adr/0016-m3-reasoning-verification-and-validation.md), [ADR-0017](../adr/0017-m3-investigation-state-and-langgraph-confinement.md), all Accepted). Opt-in: `repo-orchestrator scan --investigate`. The default `scan` and `analyze-pr` are exactly M1 and M2. **No live model call was made to build or test M3**; every number in the [evaluation](evaluation.md) comes from a scripted Investigator replayed offline.
 
 M1 and M2 decide what code can decide. M3 gives the system a bounded, verifiable way to judge what code cannot: qualitative claims (baseline H2) and the intent of outcomes that stay undetermined (baseline H1). **The model proposes, code decides.**
 
