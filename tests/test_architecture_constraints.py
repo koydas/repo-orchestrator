@@ -155,6 +155,10 @@ def test_no_github_write_endpoint_exists_anywhere_in_the_source():
     )
     for path in FILES:
         text = path.read_text()
+        if path.name == "dashboard.py":
+            # ADR-0014: the dashboard emits a link to the browser's pre-filled "new issue" form, which a human submits.
+            # It performs no request (it imports no network module, see the dashboard tests); every other fragment stays forbidden.
+            text = text.replace("/issues/new?", "")
         for fragment in forbidden:
             assert fragment not in text, f"{path.name} mentions {fragment}"
 

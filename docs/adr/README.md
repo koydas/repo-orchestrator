@@ -21,6 +21,7 @@ Format: `NNNN-kebab-title.md`, sections Context / Decision / Rationale / Alterna
 | [ADR-0011](./0011-m1-outcome-contracts-and-reproducible-reports.md) | M1 outcome contracts, reproducible reports and run identity | Proposed |
 | [ADR-0012](./0012-static-report-dashboard.md) | A static, read-only report dashboard generated from `report.json` | Proposed |
 | [ADR-0013](./0013-m2-pr-impact-contracts.md) | M2 pull-request analysis contracts: change set, impact, delta, gate and persistence | Proposed |
+| [ADR-0014](./0014-finding-actions-as-human-submitted-drafts.md) | Finding actions on the dashboard are human-submitted drafts | Proposed |
 
 ## Dependencies between records
 
@@ -51,4 +52,6 @@ flowchart LR
     A11 --> A13
     A6 --> A13
     A8 --> A13
+    A12 --> A14["0014 Finding actions"]
+    A7 --> A14
 ```

@@ -29,7 +29,7 @@ Exit codes: 0 no finding · 1 findings · 2 incomplete evaluation · 3 configura
 
 ## Report dashboard (M1)
 
-`repo-orchestrator dashboard` turns the `report.json` files into a static, read-only site: **Overview** (latest run), **Reports** (history) and **Report** detail (findings, other outcomes, pinned evidence). No service, no script, no new dependency; confirmed inconsistencies, unknowns and policy questions are never mixed, and a partial run says it may be missing findings. The mockup below is the visual reference; what it shows that M1 does not produce (coherence percentages, trends, a "Run" button) is deliberately not implemented ([details](docs/m1/dashboard.md#the-mockup-is-a-reference-not-a-specification), [ADR-0012](docs/adr/0012-static-report-dashboard.md)).
+`repo-orchestrator dashboard` turns the `report.json` files into a static, read-only site: **Overview** (latest run), **Reports** (history) and **Report** detail (findings, other outcomes, pinned evidence). No service, no script, no new dependency; confirmed inconsistencies, unknowns and policy questions are never mixed, and a partial run says it may be missing findings. The mockup below is the visual reference; what it shows that M1 does not produce (coherence percentages, trends, a "Run" button) is deliberately not implemented. Each finding carries three human-gated drafts, **Open issue**, **Create prompt** and **Create PR**: pre-filled GitHub links and a text block, nothing is created by the dashboard ([ADR-0014](docs/adr/0014-finding-actions-as-human-submitted-drafts.md)) ([details](docs/m1/dashboard.md#the-mockup-is-a-reference-not-a-specification), [ADR-0012](docs/adr/0012-static-report-dashboard.md)).
 
 ![Visual mockup of the report dashboard: overview and report detail, dark theme](docs/m1/assets/dashboard-mockup.webp)
 
@@ -127,7 +127,7 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [M1](docs/m1/README.md) | What is implemented: usage, declarations, policies, report format, evaluation, limitations |
 | [Report dashboard](docs/m1/dashboard.md) | Static, read-only viewer for the reports (Overview, Reports, Report detail) and its GitHub Pages deployment |
 | [M2](docs/m2/README.md) | What is implemented for PR analysis: usage, impact model, report format, evaluation, limitations |
-| [ADRs](docs/adr/README.md) | Thirteen Proposed decisions |
+| [ADRs](docs/adr/README.md) | Fourteen Proposed decisions |
 | [Claude Code](docs/claude-code.md) | `ai-dev-tools` toolbox, repository rules (`CLAUDE.md`) and skills |
 
 ## Relation to the rest of the ecosystem
