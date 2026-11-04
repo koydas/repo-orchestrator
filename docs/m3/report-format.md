@@ -11,7 +11,7 @@
 | `investigation.schema` | 1 |
 | `investigation.status` | `incomplete` (some `insufficient_evidence`), `awaiting_validation` (some `needs_validation`), `complete` |
 | `investigation.inputs` | `run_id`, `model`, `prompt_version`, `effort`, `budget` (the constants), `claims` (policy id and version, declarations digest), `candidates_digest`, `decisions_digest` |
-| `investigation.summary` | `candidates`, `by_state`, `quotes_verified`, `quotes_unverified`, `observations`, `awaiting_human` |
+| `investigation.summary` | `candidates`, `by_state`, `quotes_verified`, `quotes_unverified`, `observations`, `awaiting_human`, `pending` (candidates with no result yet) |
 | `investigation.candidates` | one row per candidate, sorted by relationship and subject |
 | `investigation.skipped` | declared claims whose relationship is outside the selected scope, with the reason (never dropped silently) |
 | `investigation.recorded_digest` | digest of the (request key, response digest) pairs the run used |
@@ -81,7 +81,7 @@ A quote is `verified` iff it equals, character for character, a substring of lin
 | `claim_not_found` | reserved for a claim that is no longer present |
 | `evidence_missing` | a repository of the candidate has no pinned revision |
 | `snapshot_changed` | a resumed run's evidence no longer matches the pinned snapshot (exit 3) |
-| `not_investigated` | reserved |
+| `not_investigated` | a frozen candidate with no stored result yet (the run was cut short): reported as incomplete, never hidden; resume the run |
 | `internal_error` | an unexpected exception in a worker, isolated to that candidate |
 
 A pre-filter failure carries the M1 cause instead (`locator_no_match`, `locator_ambiguous`, `artifact_not_found`, ...).

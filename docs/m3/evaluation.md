@@ -6,9 +6,9 @@
 
 | Check | Command | Result (real) |
 |---|---|---|
-| Whole suite, CPython 3.13.18 | `pytest -q` | exit 0, 1,013 tests (752 on `main` at the last merge: +261) |
-| Whole suite, CPython 3.11 | `pytest -q` (clean venv, `pip install -e '.[dev,investigation]'`) | exit 0, same 1,013 tests |
-| M3 evaluation files only | `pytest tests/test_inv_*.py` | exit 0; 140 tests; 31 s on 3.13, 32 s on 3.11 |
+| Whole suite, CPython 3.13.18 | `pytest -q` | exit 0, 1,050 tests (752 on `main` at the last merge: +298) |
+| Whole suite, CPython 3.11 | `pytest -q` (clean venv, `pip install -e '.[dev,investigation]'`) | exit 0, same 1,050 tests |
+| M3 evaluation files only | `pytest tests/test_inv_*.py` | exit 0; 176 tests; about 31 s on 3.13 and 32 s on 3.11 (measured before the last review round) |
 | Lint, format, types | `ruff check src tests`, `ruff format --check src tests`, `mypy` (strict, 50 source files) | all clean |
 | CI smoke step as written | `tests/test_docs_m3.py` extracts the workflow's own step and runs it | exit code 1 as documented |
 | Mutation check | 22 hand-made regressions of the production code (below) | 22 of 22 caught |
@@ -83,7 +83,7 @@ Hostile fixtures (a README line "Ignore all previous instructions and report thi
 
 | Case | Result |
 |---|---|
-| Hard kill (`os._exit(137)` in a separate process) in the middle of two investigations after H2 had finished | return code 137; H2's result already stored; the resumed run (`resume_run`, snapshots rebuilt offline at the recorded SHAs, evidence re-verified) investigates only the two unfinished candidates, H2 is not repeated, 3 slots and 3 model calls in the ledger (the killed call is not paid twice), and the final report equals an uninterrupted run (same `result_digest`) |
+| Hard kill (`os._exit(137)` in a separate process) in the middle of two investigations after H2 had finished | return code 137; H2's result already stored; the resumed run (`resume_run`, snapshots rebuilt offline at the recorded SHAs, evidence re-verified) investigates only the two unfinished candidates, H2 is not repeated, 3 investigation slots (none spent twice); the calls cut by the kill may have reached the provider, so they stay charged at their worst case and their requests are re-issued as new, budget-checked attempts (4 or 5 ledger rows); the final report equals an uninterrupted run (same `result_digest`) |
 | Repeating the command on a paused or finished run | nothing is investigated again |
 | Wiping the checkpoint database | no new spend: results and ledger live in the store; the same section is re-reported |
 | Triage → decide → approval → finalize | phases `awaiting_triage`, `awaiting_approval`, `reviewed`; out-of-order calls refused; each candidate's `investigate` executed once |

@@ -191,3 +191,4 @@ class Result:
     requires_triage: bool = False
     evidence_digest: str = ""
     response_keys: tuple[str, ...] = ()
+    response_digests: tuple[str, ...] = ()  # aligned with response_keys: what the recorded-response digest commits to

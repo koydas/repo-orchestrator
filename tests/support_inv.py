@@ -174,11 +174,12 @@ def baseline_run(
     budget: Any = None,
     decl: Any = None,
     declarations_dir: Path | None = None,
+    as_of: Any = None,
 ) -> tuple[Investigated, ScanReport]:
     decl = decl or load_decl()
     engine = engine or Engine(decl)
     source = baseline_source(mutations)
-    report = scan(engine=engine, decl=decl, source=source)
+    report = scan(engine=engine, decl=decl, source=source, **({"as_of": as_of} if as_of else {}))
     opts = InvestigationOptions(
         declarations_dir=declarations_dir or DECLARATIONS,
         cache_dir=FIXTURES,

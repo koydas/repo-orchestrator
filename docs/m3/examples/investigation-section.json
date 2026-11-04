@@ -294,9 +294,10 @@
       },
       "candidates": 3,
       "observations": 0,
+      "pending": 0,
       "quotes_unverified": 0,
       "quotes_verified": 4
     }
   },
-  "result_digest": "807124339dc4aa8def2df913158a10caa57984b804577663446fbac8b0d415b0"
+  "result_digest": "1d18cced413014c56bdccf0207bbd78aaf1adb8b2cb694fd75f9c4f18ea64a2c"
 }

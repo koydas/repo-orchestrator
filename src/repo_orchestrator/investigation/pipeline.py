@@ -93,7 +93,7 @@ def make_run(
 
 def _provider(opts: InvestigationOptions) -> Provider:
     if opts.recording is not None:
-        return ReplayProvider(Recording())  # misses fail closed; the recording lives in the store
+        return ReplayProvider(opts.recording)  # misses fail closed; the recording is the only authority of a replay
     return opts.provider or NoProvider()
 
 
@@ -101,13 +101,11 @@ def run_investigation(
     engine: Engine, scan: ScanReport, source: SnapshotSource, opts: InvestigationOptions
 ) -> Investigated:
     store = InvestigationStore(opts.state_db, opts.budget)
-    if opts.recording is not None:
-        store.import_recording(opts.recording)
     run, reader, _claims, _skipped = make_run(store, engine, scan, source, opts)
     orch = Orchestrator(
         store,
         opts.checkpoint_path,
-        Investigator(_provider(opts), store, reader, run["run_id"], opts.budget).investigate,
+        Investigator(_provider(opts), store, reader, run["run_id"], opts.budget, opts.recording).investigate,
         opts.budget,
     )
     try:

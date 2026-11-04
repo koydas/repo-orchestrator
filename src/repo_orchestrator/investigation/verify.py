@@ -128,11 +128,17 @@ def evidence_digest(c: Candidate, proposal: Proposal | None, checks: Sequence[Qu
 
 
 def failure_result(
-    c: Candidate, cause: str, reason: str, observations: Sequence[Observation] = (), response_keys: Sequence[str] = ()
+    c: Candidate,
+    cause: str,
+    reason: str,
+    observations: Sequence[Observation] = (),
+    response_keys: Sequence[str] = (),
+    response_digests: Sequence[str] = (),
 ) -> Result:
     return Result(
         c.key, CandState.INSUFFICIENT_EVIDENCE, EvStatus.UNVERIFIED, Validation.NOT_VALIDATED, reason, cause,
         observations=tuple(observations), evidence_digest=evidence_digest(c, None, ()), response_keys=tuple(response_keys),
+        response_digests=tuple(response_digests),
     )  # fmt: skip
 
 
@@ -153,11 +159,13 @@ def decide(
     checks: Sequence[QuoteCheck],
     observations: Sequence[Observation],
     response_keys: Sequence[str],
+    response_digests: Sequence[str] = (),
 ) -> Result:
     """The decision rule of ADR-0016 §4. Pure; the model's text is never a state."""
     base: dict[str, Any] = {
         "key": c.key, "claim": p.claim, "finding": p.finding, "quotes": tuple(checks), "values": dict(p.values),
         "intent": _intent(p, checks), "observations": tuple(observations), "response_keys": tuple(response_keys),
+        "response_digests": tuple(response_digests),
         "evidence_digest": evidence_digest(c, p, checks),
     }  # fmt: skip
     verified = [k for k in checks if k.status == "verified"]

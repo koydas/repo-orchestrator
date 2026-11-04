@@ -103,7 +103,7 @@ Repository text reaches the model only inside `<<<REPOSITORY_DATA id=... kind=..
 
 ## Reproducibility and replay
 
-Every model call is keyed by the hash of its exact request and its response is stored. `--record FILE` exports the responses a run used; `--replay FILE` answers from them with no network and no key. The semantic report carries `recorded_digest` (request keys and response texts, not usage or latency) and its `result_digest` covers it, so a replay reproduces the original digest. Tokens, cost and latency are in the execution part. The deterministic part keeps its own `deterministic_digest`, byte-identical to the scan without `--investigate`.
+Every model call is keyed by the hash of its exact request and its response is stored. `--record FILE` exports the responses a run used; `--replay FILE` answers from them with no network and no key, and **only** from that file: answers a previous scan left in the same database neither fill a gap (`replay_miss`) nor override the recording. The semantic report carries `recorded_digest` (request keys and response texts, not usage or latency) and its `result_digest` covers it, so a replay reproduces the original digest. Tokens, cost and latency are in the execution part. The deterministic part keeps its own `deterministic_digest`, byte-identical to the scan without `--investigate`.
 
 ## State, interrupts and decisions
 

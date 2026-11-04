@@ -159,9 +159,9 @@ def test_a_hard_kill_in_the_middle_of_an_investigation_resumes_from_the_checkpoi
     assert phase == "awaiting_approval"
     done = store.results(run_id)
     assert set(done) == {c["key"] for c in store.run(run_id)["candidates"]}
-    assert store.usage(run_id)["investigations"] == 3 and store.usage(run_id)["llm_calls"] == 3, (
-        "the killed call was not paid twice"
-    )
+    # the two calls cut by the kill may have reached the provider: they stay charged at their worst case and the
+    # re-issued requests are new attempts (one or both workers had reserved when the process died); no slot is spent twice
+    assert store.usage(run_id)["investigations"] == 3 and store.usage(run_id)["llm_calls"] in (4, 5)
     # exact expected state: identical to an uninterrupted run with the same answers
     resumed, _ = baseline_run(work, prov)
     assert resumed.run_id == run_id and len(prov.requests) == 2, "a repeated command re-reports without investigating"
@@ -228,9 +228,15 @@ def test_the_ledger_counts_a_replayed_call_once(tmp_path):
     from repo_orchestrator.investigation.provider import LLMRequest
 
     req = LLMRequest("claude-sonnet-5-5", "sys", (("user", "hello"),), 2000)
-    assert store.reserve_call("r" * 16, "c" * 16, req) == "ok"
-    assert store.reserve_call("r" * 16, "c" * 16, req) == "duplicate"
-    assert store.usage("r" * 16)["llm_calls"] == 1
+    run, cand = "r" * 16, "c" * 16
+    assert store.reserve_call(run, cand, req, cached=False) == ("ok", 0)
+    assert store.reserve_call(run, cand, req, cached=True) == ("duplicate", 0), (
+        "a known answer is never accounted twice"
+    )
+    assert store.usage(run)["llm_calls"] == 1
+    # not cached again: the provider will be called, so it is a new, checked attempt; the unsettled one is finalized
+    assert store.reserve_call(run, cand, req, cached=False) == ("ok", 1)
+    assert store.usage(run)["llm_calls"] == 2
 
 
 def test_scan_scope_and_unused_imports_stay_importable_without_the_graph():
@@ -380,3 +386,71 @@ def test_a_restart_never_charges_a_stored_response_a_second_time(tmp_path):
     assert second.requests == [] and r2.state == r1.state
     assert store.usage(run["run_id"]) == before, "the cached response was charged again"
     assert before["output_tokens"] == 1100 + 150
+
+
+def _context(tmp_path, budget=None):
+    from repo_orchestrator.investigation.budgets import BUDGET
+    from repo_orchestrator.investigation.domain import candidate_from_json
+    from repo_orchestrator.investigation.pipeline import make_run
+
+    decl = load_decl()
+    store = InvestigationStore(tmp_path / "state.sqlite", budget or BUDGET)
+    run, reader, _c, _s = make_run(store, Engine(decl), scan(), CachingSource(None, FIXTURES), opts_for(tmp_path))
+    cand = next(candidate_from_json(c) for c in run["candidates"] if c["subject"] == "claim:extracted_from")
+    return store, run, reader, cand
+
+
+def test_a_crash_between_a_failed_attempt_and_its_retry_cannot_buy_an_unchecked_call(tmp_path):
+    """The process dies while the retry is in flight (reserved, no answer stored). On restart that reservation is
+    finalized at its worst case and the re-issued request is a new attempt checked against the budget: with
+    max_llm_calls=2 (attempt 0 failed, attempt 1 in flight) a third provider call is refused."""
+    from repo_orchestrator.investigation.budgets import Budget
+    from repo_orchestrator.investigation.investigator import Investigator
+    from repo_orchestrator.investigation.provider import ProviderError
+
+    budget = Budget(max_llm_calls=2)
+    store, run, reader, cand = _context(tmp_path, budget)
+
+    def dies(req, n):
+        if n == 1:
+            return ProviderError("timeout")
+        raise KeyboardInterrupt  # a hard stop while the retry is in flight
+
+    with pytest.raises(KeyboardInterrupt):
+        Investigator(Scripted(dies), store, reader, run["run_id"], budget).investigate(cand)
+    after = Scripted(lambda req, n: final("divergent", "c", h2_quotes()))
+    result = Investigator(after, store, reader, run["run_id"], budget).investigate(cand)
+    assert result.cause == "budget" and after.requests == [], "no provider call without a fresh budget check"
+    assert store.usage(run["run_id"])["llm_calls"] == 2
+
+
+def test_a_replay_answers_only_from_the_supplied_recording_never_from_database_history(tmp_path):
+    """Same request keys under a new run id (a different --as-of): an empty recording must not reuse the answers a
+    previous scan left in the database, and a different answer in the recording must win over a stored one."""
+    from datetime import date
+
+    from repo_orchestrator.investigation.provider import Recording
+
+    live, _ = baseline_run(tmp_path, Scripted(h2_script()))
+    store = InvestigationStore(tmp_path / "state.sqlite")
+    used = {k for r in store.results(live.run_id).values() for k in r["response_keys"]}
+    empty, _ = baseline_run(tmp_path, None, recording=Recording(), as_of=date(2026, 11, 3))
+    assert empty.run_id != live.run_id
+    assert {r["cause"] for r in empty.semantic["investigation"]["candidates"]} == {"replay_miss"}
+    altered = store.export_recording(used)
+    for entry in altered.entries.values():
+        entry["text"] = entry["text"].replace("The profile says 12 patterns were extracted", "REPLAY ANSWER")
+    again, _ = baseline_run(tmp_path, None, recording=Recording(altered.entries), as_of=date(2026, 11, 4))
+    claims = {r["subject"]: r["claim"] for r in again.semantic["investigation"]["candidates"]}
+    assert claims["claim:extracted_from"].startswith("REPLAY ANSWER")
+
+
+def test_a_run_cut_short_reports_its_unfinished_candidates_as_incomplete_never_complete(tmp_path):
+    from repo_orchestrator.investigation.report import build_section, exit_code
+
+    store, run, _reader, _cand = _context(tmp_path)  # created, nothing investigated yet
+    section = build_section(store, run, run["config"]["claims"], run["config"]["skipped"])
+    n = len(run["candidates"])
+    assert section["status"] == "incomplete" and section["summary"]["pending"] == n == section["summary"]["candidates"]
+    assert {r["cause"] for r in section["candidates"]} == {"not_investigated"}
+    assert exit_code({"run_status": "complete", "findings": [], "investigation": section}) == 2

@@ -132,43 +132,53 @@ class InvestigationStore:
             c.execute("INSERT INTO inv_slots VALUES (?,?)", (run_id, cand_key))
             return "reserved"
 
-    def reserve_call(self, run_id: str, cand_key: str, request: LLMRequest, attempt: int = 0) -> str:
-        """Reserve the worst case of one model call before it happens. 'ok' | 'duplicate' | 'denied:<reason>'.
+    def reserve_call(self, run_id: str, cand_key: str, request: LLMRequest, cached: bool) -> tuple[str, int]:
+        """Reserve the worst case of one model call before it happens: ``(status, attempt)``, status ``ok`` |
+        ``duplicate`` | ``denied:<reason>``.
 
-        A reservation is bound to the identity of the request (its hash) and to the attempt of that same request, not to a
-        position: a restarted worker re-asking an already accounted request is a 'duplicate', while a different request is
-        always checked against the budget (a transient retry of the same request is attempt 1, a new row)."""
+        A reservation belongs to the *request* (its hash), never to a position. ``cached``: an answer to this exact request
+        is already known (a recording, or the stored answer of an earlier attempt). Then, if the request was ever accounted
+        it is a ``duplicate`` (nothing is spent twice), otherwise it is accounted once as attempt 0. Not cached: the
+        provider will be called, so a *new* attempt is reserved and checked against every budget; a reservation left
+        unsettled by a worker that died mid-call keeps counting at its worst case (the call may have been made)."""
         b = self.budget
         est_in = estimate_input_tokens(request.chars)
         with self._tx() as c:
-            if c.execute(
-                "SELECT 1 FROM inv_calls WHERE run_id=? AND cand_key=? AND request_key=? AND attempt=?",
-                (run_id, cand_key, request.key, attempt),
-            ).fetchone():
-                return "duplicate"
+            rows = c.execute(
+                "SELECT attempt, in_tok FROM inv_calls WHERE run_id=? AND cand_key=? AND request_key=?",
+                (run_id, cand_key, request.key),
+            ).fetchall()
+            if cached and rows:
+                return "duplicate", int(min(r["attempt"] for r in rows))
+            attempt = len(rows)
             mine = c.execute(
                 "SELECT COUNT(*) n, COALESCE(SUM(COALESCE(in_tok, est_in)),0) i, COALESCE(SUM(COALESCE(out_tok, max_out)),0) o"
                 " FROM inv_calls WHERE run_id=? AND cand_key=?", (run_id, cand_key),
             ).fetchone()  # fmt: skip
             if mine["n"] >= b.max_llm_calls:
-                return "denied:llm_calls"
+                return "denied:llm_calls", attempt
             if mine["i"] + est_in > b.max_input_tokens:
-                return "denied:input_tokens"
+                return "denied:input_tokens", attempt
             if mine["o"] + request.max_tokens > b.max_output_tokens:
-                return "denied:output_tokens"
-            run = c.execute(
-                "SELECT COALESCE(SUM(COALESCE(in_tok, est_in) + COALESCE(out_tok, max_out)),0) t,"
-                " COALESCE(SUM(COALESCE(cost_micro, 0)),0) k FROM inv_calls WHERE run_id=?", (run_id,),
-            ).fetchone()  # fmt: skip
-            if run["t"] + est_in + request.max_tokens > b.max_run_tokens:
-                return "denied:run_tokens"
-            if run["k"] + cost_micro_usd(request.model, est_in, request.max_tokens) > b.max_run_cost_micro_usd:
-                return "denied:run_cost"
+                return "denied:output_tokens", attempt
+            spent = c.execute(
+                "SELECT est_in, max_out, in_tok, out_tok, cost_micro FROM inv_calls WHERE run_id=?", (run_id,)
+            ).fetchall()
+            tokens = cost = 0
+            for r in spent:  # a call in flight counts at its worst case, in tokens and in money
+                i = r["in_tok"] if r["in_tok"] is not None else r["est_in"]
+                o = r["out_tok"] if r["out_tok"] is not None else r["max_out"]
+                tokens += i + o
+                cost += r["cost_micro"] if r["cost_micro"] is not None else cost_micro_usd(request.model, i, o)
+            if tokens + est_in + request.max_tokens > b.max_run_tokens:
+                return "denied:run_tokens", attempt
+            if cost + cost_micro_usd(request.model, est_in, request.max_tokens) > b.max_run_cost_micro_usd:
+                return "denied:run_cost", attempt
             c.execute(
                 "INSERT INTO inv_calls VALUES (?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL)",
                 (run_id, cand_key, request.key, attempt, est_in, request.max_tokens),
             )
-            return "ok"
+            return "ok", attempt
 
     def settle_call(
         self, run_id: str, cand_key: str, request_key: str, attempt: int, response: LLMResponse, replayed: bool
@@ -243,19 +253,16 @@ class InvestigationStore:
             e["text"], e["input_tokens"], e["output_tokens"], e["model"], e["stop_reason"], e.get("latency_ms", 0)
         )
 
-    def put_response(self, request: LLMRequest, response: LLMResponse) -> None:
+    def put_response(self, request: LLMRequest, response: LLMResponse, replace: bool = False) -> None:
+        """Keep an answer so a restarted worker never pays twice. ``replace``: the answer comes from the recording of a
+        replay, which is the authority for its own run (a stale answer left by another run must not win)."""
         rec = Recording()
         rec.add(request, response)
         with self._tx() as c:
             c.execute(
-                "INSERT OR IGNORE INTO inv_responses VALUES (?,?)",
+                f"INSERT OR {'REPLACE' if replace else 'IGNORE'} INTO inv_responses VALUES (?,?)",
                 (request.key, json.dumps(rec.entries[request.key], sort_keys=True)),
             )
-
-    def import_recording(self, recording: Recording) -> None:
-        with self._tx() as c:
-            for key, entry in recording.entries.items():
-                c.execute("INSERT OR IGNORE INTO inv_responses VALUES (?,?)", (key, json.dumps(entry, sort_keys=True)))
 
     def export_recording(self, keys: set[str] | None = None) -> Recording:
         with self._tx() as c:

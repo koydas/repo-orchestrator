@@ -13,7 +13,6 @@ from .budgets import BUDGET, MODEL, PRICE_TABLE_DATE, PRICES_USD_PER_MTOK, PROMP
 from .budgets import EFFORT as EFFORT_LEVEL
 from .decisions import effective
 from .domain import CandState
-from .provider import LLMResponse, response_digest
 from .store import InvestigationStore
 
 SECTION_SCHEMA = 1
@@ -57,6 +56,17 @@ def _row(cand: Mapping[str, Any], result: Mapping[str, Any], decisions: Sequence
     }  # fmt: skip
 
 
+def _pending_row(cand: Mapping[str, Any]) -> dict[str, Any]:
+    """A frozen candidate with no result yet (a run cut short): reported, never hidden, and never a pass."""
+    placeholder: dict[str, Any] = {
+        "state": CandState.INSUFFICIENT_EVIDENCE.value, "evidence_status": "unverified", "validation": "not_validated",
+        "reason": "no result is recorded yet: the run is unfinished (resume it with 'investigations resume')",
+        "cause": "not_investigated", "claim": "", "finding": None, "quotes": [], "values": {}, "intent": None,
+        "entailment": None, "observations": [], "requires_triage": False, "evidence_digest": "",
+    }  # fmt: skip
+    return _row(cand, placeholder, [])
+
+
 def section_status(rows: Sequence[Mapping[str, Any]]) -> str:
     if any(r["state"] == CandState.INSUFFICIENT_EVIDENCE for r in rows):
         return "incomplete"
@@ -74,15 +84,19 @@ def build_section(
     run_id = run["run_id"]
     results = store.results(run_id)
     all_decisions = {c["key"]: store.decisions(c["key"]) for c in run["candidates"]}
-    rows = [_row(c, results[c["key"]], all_decisions[c["key"]]) for c in run["candidates"] if c["key"] in results]
+    rows = [
+        _row(c, results[c["key"]], all_decisions[c["key"]]) if c["key"] in results else _pending_row(c)
+        for c in run["candidates"]
+    ]
     rows.sort(key=lambda r: (r["relationship_id"], r["subject"]))
-    used: set[str] = set()
-    for r in results.values():
-        used.update(r.get("response_keys", ()))
-    pairs = []
-    for key in sorted(used):
-        resp = store.get_response(key)
-        pairs.append([key, response_digest(key, resp) if isinstance(resp, LLMResponse) else None])
+    used = sorted(
+        {
+            (k, d)
+            for r in results.values()
+            for k, d in zip(r.get("response_keys", ()), r.get("response_digests", ()), strict=False)
+        }
+    )
+    pairs = [list(p) for p in used]
     applied = sorted(
         (r["key"], r["decision"]["action"], r["decision"]["reason"], r["decision"]["actor"], r["evidence_digest"])
         for r in rows
@@ -109,6 +123,7 @@ def build_section(
             "quotes_verified": sum(1 for q in quotes if q["status"] == "verified"),
             "quotes_unverified": sum(1 for q in quotes if q["status"] != "verified"),
             "observations": sum(len(r["observations"]) for r in rows),
+            "pending": len(run["candidates"]) - len(results),
             "awaiting_human": by_state[CandState.NEEDS_VALIDATION.value],
         },
         "candidates": rows,
