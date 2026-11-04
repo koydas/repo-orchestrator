@@ -2,7 +2,7 @@
 
 **Cross-repository coherence for independent GitHub repositories: model how they relate, detect where one repository's claims about another have become false, and explain the impact with evidence a human can check.**
 
-> **Status: M1 and M2 implemented, M3–M5 design only.** [M1](docs/m1/README.md) is a working, read-only, deterministic scan of six public repositories: declared relationships, six policies (P1–P6), pinned evidence, Markdown and JSON reports, a local SQLite run store, no LLM. [M2](docs/m2/README.md) adds the impact analysis of one pull request: which other repositories it can break, falsify or outdate, and whether it introduces, leaves untouched or resolves each finding (read-only, deterministic, no GitHub write). Everything else below (bounded investigation, remediation plans, optimization opportunities) is **intended**, not implemented. The throwaway [S0 spike](prototypes/langgraph-spike/README.md) validated LangGraph on synthetic data and stays isolated from M1 (outcome: all six experiments passed, with constraints; the framework decision is the owner's: [results](prototypes/langgraph-spike/docs/results.md), [ADR-0005](docs/adr/0005-langgraph-for-investigation-workflows-only.md), still Proposed). All ADRs, including [ADR-0011](docs/adr/0011-m1-outcome-contracts-and-reproducible-reports.md) and [ADR-0012](docs/adr/0012-static-report-dashboard.md) written for M1 and [ADR-0013](docs/adr/0013-m2-pr-impact-contracts.md) written for M2, are Proposed.
+> **Status: M1, M2 and M3 implemented, M4–M5 design only.** [M1](docs/m1/README.md) is a working, read-only, deterministic scan of six public repositories: declared relationships, six policies (P1–P6), pinned evidence, Markdown and JSON reports, a local SQLite run store, no LLM. [M2](docs/m2/README.md) adds the impact analysis of one pull request: which other repositories it can break, falsify or outdate, and whether it introduces, leaves untouched or resolves each finding (read-only, deterministic, no GitHub write). [M3](docs/m3/README.md) adds an opt-in bounded investigation (`scan --investigate`): a read-only Investigator proposes a verdict on the claims code cannot decide (H2) and the intent of undetermined outcomes (H1); code verifies every quote and decides, a human validates, and a run replays offline bit for bit. **No live model call was made to build or test it** (the [evaluation](docs/m3/evaluation.md) replays a scripted Investigator). Everything else below (remediation plans, optimization opportunities) is **intended**, not implemented. The throwaway [S0 spike](prototypes/langgraph-spike/README.md) validated LangGraph on synthetic data and stays isolated from M1 (outcome: all six experiments passed, with constraints; the framework decision is the owner's: [results](prototypes/langgraph-spike/docs/results.md), [ADR-0005](docs/adr/0005-langgraph-for-investigation-workflows-only.md), still Proposed). All ADRs, including [ADR-0011](docs/adr/0011-m1-outcome-contracts-and-reproducible-reports.md) and [ADR-0012](docs/adr/0012-static-report-dashboard.md) written for M1 and [ADR-0013](docs/adr/0013-m2-pr-impact-contracts.md) written for M2, are Proposed.
 
 ## The problem
 
@@ -15,7 +15,7 @@ This is not hypothetical. Reading six public `koydas` repositories at fixed comm
 - a data contract (`findings.json`, `schema_version` 1) produced in one repository and consumed in another, kept in sync only by two constants that no shared check compares;
 - a MetalLB address pool defined in one repository, with addresses claimed in two.
 
-## Quick start (M1, M2)
+## Quick start (M1, M2, M3)
 
 ```bash
 python -m venv .venv && . .venv/bin/activate && pip install -e '.[dev]'
@@ -23,9 +23,12 @@ repo-orchestrator scan                      # reads the six repositories at thei
 repo-orchestrator scan --revisions baseline --offline --cache-dir tests/fixtures/baseline --as-of 2026-11-02   # the pinned baseline, no network
 pytest                                      # unit tests + the offline M1 and M2 evaluations against committed fixtures
 repo-orchestrator analyze-pr koydas/ollama-chat#<n>   # M2: impact of one pull request (read-only; --offline replays a recorded one)
+pip install -e '.[investigation]'          # M3: the pinned LangGraph set (optional)
+repo-orchestrator scan --revisions baseline --offline --cache-dir tests/fixtures/baseline --as-of 2026-11-02 --investigate \
+  --replay tests/fixtures/investigation/scripted-baseline-recording.json   # M3, offline; live: ANTHROPIC_API_KEY instead of --replay
 ```
 
-Exit codes: 0 no finding · 1 findings · 2 incomplete evaluation · 3 configuration/runtime error ([usage](docs/m1/usage.md)); for `analyze-pr` 1 means an *introduced* finding, and a pre-existing finding never fails it ([usage](docs/m2/usage.md)). On the pinned baseline the scan reports exactly the two documented inconsistencies (D1, D2, with D2 attributed to `autonomous-dev-loop`'s own README), two policy questions (N2, H1) and no false finding on the negative controls ([evaluation](docs/m1/evaluation.md)).
+Exit codes: 0 no finding · 1 findings · 2 incomplete evaluation · 3 configuration/runtime error ([usage](docs/m1/usage.md)); for `analyze-pr` 1 means an *introduced* finding, and a pre-existing finding never fails it ([usage](docs/m2/usage.md)); with `--investigate` a fifth code, 4, means a human validation is pending and `insufficient_evidence` is exit 2, never a pass ([usage](docs/m3/usage.md)). On the pinned baseline the scan reports exactly the two documented inconsistencies (D1, D2, with D2 attributed to `autonomous-dev-loop`'s own README), two policy questions (N2, H1) and no false finding on the negative controls ([evaluation](docs/m1/evaluation.md)).
 
 ## Report dashboard (M1)
 
@@ -39,15 +42,16 @@ repo-orchestrator dashboard --reports reports --out _site   # then open _site/in
 
 ## What this project intends to do
 
-The table states the **intent**; the *Implemented* column says what exists today (M1 and M2).
+The table states the **intent**; the *Implemented* column says what exists today (M1, M2 and M3).
 
 | Capability | Intent | Implemented |
 |---|---|---|
 | Relationship model | Typed edges between repositories (runtime contract, deployment, shared resource, tooling adoption, documentary, conceptual), declared by humans, with optional proposals from observers | **Implemented** for declared edges (R1–R11); observers and proposals: no |
-| Coherence policies | A divergence is a finding only if a policy with a named authority says it matters; intentional divergence is recorded as an expiring exception | **Implemented**: P1–P6, precedence, exceptions, policy conflicts, policy questions; P7: no |
-| Deterministic checks first | Versions, tags, addresses, counts and references are compared in code; an LLM investigates only what code cannot decide | **Implemented** (no LLM exists in M1) |
-| Evidence | Every finding cites both repositories at pinned commits, with quotes verified in code; authentic evidence and a validated conclusion are separate statuses, so a verified quote never confirms a claim on its own | **Implemented** for deterministic checks (`verified`, `validated_by_check`) |
+| Coherence policies | A divergence is a finding only if a policy with a named authority says it matters; intentional divergence is recorded as an expiring exception | **Implemented**: P1–P6, precedence, exceptions, policy conflicts, policy questions; **P7 (M3)**: a reasoning-assisted policy for declared qualitative claims (H2) |
+| Deterministic checks first | Versions, tags, addresses, counts and references are compared in code; an LLM investigates only what code cannot decide | **Implemented**: M1 and M2 contain no LLM; M3 adds exactly one LLM-calling component (the Investigator), opt-in, whose proposals code verifies |
+| Evidence | Every finding cites both repositories at pinned commits, with quotes verified in code; authentic evidence and a validated conclusion are separate statuses, so a verified quote never confirms a claim on its own | **Implemented**: `verified` / `validated_by_check` for deterministic checks; M3 adds `supported` / `unverified` / `refuted`, `validated_by_human`, located exact-match quote verification and entailment checks |
 | PR impact | For a pull request, which other repositories it can break, falsify or outdate, and whether it introduces or resolves a finding | **Implemented (M2)**: `analyze-pr`, base and head snapshots, one hop, impact class by relationship type, `introduced` / `pre-existing` / `resolved` / `undetermined` by fingerprint; pre-existing never fails the gate; U1–U5 replayed as PRs ([evaluation](docs/m2/evaluation.md)) |
+| Bounded investigation | An LLM may propose; code decides. Read-only tools over pinned snapshots, every quote verified at its location, `needs_validation` for a human, budgets as code constants, offline replay | **Implemented (M3)**: [docs](docs/m3/README.md); `scan --investigate` only, H2 and H1 declared, LangGraph confined to one module |
 | Remediation plans | Ordered steps per repository with a prevention step; ADR conflicts reported as checked, candidate or not examined, and an unresolved conflict blocks approval; approved by a human, never merged by the system | Not implemented (M4). Findings carry fix sites and an investigation list |
 | Optimization opportunities | Improvements that are not violations (propagate a proven guardrail, consolidate a genuinely shared contract, remove duplicated maintenance), each with pinned benefit evidence, cost, risk and the coupling it creates, decided by a human; never "make it uniform" | Not implemented (M5) |
 
@@ -55,14 +59,14 @@ The table states the **intent**; the *Implemented* column says what exists today
 
 **Coherence is not uniformity.** The baseline also records divergences that must **not** be reported: ADR naming formats that differ across repositories with no consumer, `new-adr` procedures duplicated in five repositories because an accepted ADR says skills belong to each repository, a settings file that differs from a toolbox ADR's literal text for a documented reason.
 
-## Architecture (M1 and M2 implemented; the rest proposed)
+## Architecture (M1, M2 and M3 implemented; the rest proposed)
 
 ```mermaid
 flowchart LR
     repos[("GitHub repositories<br/>read-only, pinned SHAs")] --> col["Collector"]
     decl["Declarations (Git)<br/>relationships · contracts ·<br/>policies · exceptions"] --> grf["Relationship graph"]
     col --> grf --> eng["Policy engine<br/>deterministic checks"]
-    eng -- "undecidable candidates" --> inv["Investigator<br/>bounded LLM, read-only"]
+    eng -- "undecidable candidates (M3)" --> inv["Investigator (M3)<br/>bounded LLM, read-only"]
     inv -- "claims + quotes" --> eng
     grf --> imp["Impact analyzer"]
     eng --> imp
@@ -106,7 +110,7 @@ Grounded in the [baseline](docs/research/ecosystem-baseline.md). The first four 
 | S0 LangGraph validation spike | Isolated, throwaway: checkpoints, interrupts, fan-out, budget guard; before or alongside M1 | **Executed, in review**: experiments A–F pass (81 tests); recommends adopting LangGraph for M3 with constraints; ADR-0005 still Proposed ([results](prototypes/langgraph-spike/docs/results.md)) |
 | M1 Deterministic baseline | Six repositories, six deterministic policies, local report, evaluation set | **Implemented, in review**: [docs](docs/m1/README.md), offline evaluation green, live read-only scan recorded ([evaluation](docs/m1/evaluation.md)) |
 | M2 PR impact | Cross-repository impact of a PR, base/head comparison | **Implemented, in review**: [docs](docs/m2/README.md), offline evaluation green ([results](docs/m2/evaluation.md)) |
-| M3 Bounded investigation | LangGraph-backed Investigator, quote verification, claim validation, human interrupts | Not started |
+| M3 Bounded investigation | LangGraph-backed Investigator, quote verification, claim validation, human interrupts | **Implemented, in review**: [docs](docs/m3/README.md), offline evaluation green on recorded responses ([results](docs/m3/evaluation.md)); no live model call was made |
 | M4 Remediation plans | Ordered plans, three-tier ADR compatibility, regression detection | Not started |
 | M5 Optimization opportunities | Opportunity lifecycle, benefit/cost/risk assessment, human decision | Not started |
 
@@ -120,13 +124,14 @@ Deferred, each behind its own ADR: scheduled scans, PR comments, coordinated iss
 | [Architecture](docs/architecture.md) | Components, boundaries, data flow, orchestration, security, complexity budget |
 | [Domain model](docs/domain-model.md) | Entities, relationship types, invariants, finding lifecycle, uncertainty model |
 | [Coherence model](docs/coherence-model.md) | Meaningful inconsistency, scopes, precedence, exceptions, prioritization, evidence, MVP policies |
-| [Workflows](docs/workflows.md) | Baseline scan (W1, implemented), PR analysis (W2, implemented), LangGraph workflow, failure handling, human intervention |
+| [Workflows](docs/workflows.md) | Baseline scan (W1, implemented), PR analysis (W2, implemented), bounded investigation (W3, implemented), LangGraph workflow (implemented), failure handling, human intervention |
 | [MVP](docs/mvp.md) | Scope, milestones, deferred capabilities, evaluation design |
 | [S0 spike](prototypes/langgraph-spike/README.md) | LangGraph validation on synthetic data: architecture, experiments A–F, results, recommendation |
 | [Ecosystem baseline](docs/research/ecosystem-baseline.md) | Verified relationships and inconsistencies, hypotheses, open questions, with revisions |
 | [M1](docs/m1/README.md) | What is implemented: usage, declarations, policies, report format, evaluation, limitations |
 | [Report dashboard](docs/m1/dashboard.md) | Static, read-only viewer for the reports (Overview, Reports, Report detail) and its GitHub Pages deployment |
 | [M2](docs/m2/README.md) | What is implemented for PR analysis: usage, impact model, report format, evaluation, limitations |
+| [M3](docs/m3/README.md) | What is implemented for the bounded investigation: usage, report format, budgets, evaluation, limitations |
 | [ADRs](docs/adr/README.md) | Sixteen Proposed decisions |
 | [Claude Code](docs/claude-code.md) | `ai-dev-tools` toolbox, repository rules (`CLAUDE.md`) and skills |
 

@@ -1,7 +1,8 @@
-name: M1-M2 deterministic analysis
+name: M1-M3 analysis and bounded investigation
 
-# Production CI for the M1 and M2 package (src/, declarations/, tests/). Fully offline: the evaluations run on committed,
-# pinned fixtures (tests/fixtures/baseline for snapshots, tests/fixtures/pr for pull-request records). The S0 spike keeps
+# Production CI for the M1, M2 and M3 package (src/, declarations/, tests/). Fully offline: the evaluations run on committed,
+# pinned fixtures (tests/fixtures/baseline for snapshots, tests/fixtures/pr for pull-request records) and the M3 investigation
+# is replayed from a committed recording of a scripted Investigator: no model is ever called by the default gate. The S0 spike keeps
 # its own workflow (spike-langgraph.yml) and is not run here. Live checks are manual workflow_dispatch steps, read-only.
 on:
   pull_request:
@@ -32,6 +33,10 @@ on:
         description: "Also run a live, read-only analysis of one pull request, owner/repo#number (not part of the default gate)"
         type: string
         default: ""
+      live_investigation:
+        description: "Also run a live, read-only scan WITH the bounded investigation: calls the model provider with the ANTHROPIC_API_KEY repository secret and costs money (not part of the default gate)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -50,7 +55,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,investigation]"
       - name: Static checks
         run: |
           ruff check src tests
@@ -61,6 +66,24 @@ jobs:
         run: pytest
       - name: "Offline PR evaluation (M2 - U1-U5 replayed as pull requests, missing-evidence cases, determinism)"
         run: pytest tests/test_pr_eval.py tests/test_pr_fixtures.py tests/test_pr_cli.py tests/test_delta.py tests/test_impact.py tests/test_pr_source.py
+      - name: "Offline M3 evaluation (recorded responses: H2, H1, quote verification, entailment, budgets, replay, kill and resume, injection)"
+        run: pytest tests/test_inv_core.py tests/test_inv_eval.py tests/test_inv_workflow.py tests/test_inv_provider.py tests/test_inv_cli.py tests/test_inv_framework.py
+      - name: Offline investigation (CLI smoke test, replay of the committed recording)
+        run: |
+          set +e
+          repo-orchestrator scan --revisions baseline --offline --cache-dir tests/fixtures/baseline \
+            --as-of 2026-11-02 --state-db "$RUNNER_TEMP/m3-state.sqlite" --output-dir "$RUNNER_TEMP/m3-report" \
+            --investigate --replay tests/fixtures/investigation/scripted-baseline-recording.json
+          code=$?
+          echo "exit code: $code (1 = the two documented baseline findings outrank the pending H2 validation)"
+          test "$code" -eq 1
+          python - <<'PY'
+          import json, os
+          body = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "m3-report", "report.json")))
+          inv = body["semantic"]["investigation"]
+          assert inv["summary"]["by_state"]["needs_validation"] == 1 and inv["summary"]["by_state"]["confirmed"] == 0, inv["summary"]
+          print("investigation:", inv["status"], inv["summary"]["by_state"])
+          PY
       - name: Offline baseline scan (CLI smoke test)
         run: |
           set +e
@@ -93,6 +116,10 @@ jobs:
         with:
           name: m2-pr-report-py${{ matrix.python-version }}
           path: ${{ runner.temp }}/m2-report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m3-investigation-report-py${{ matrix.python-version }}
+          path: ${{ runner.temp }}/m3-report
 
   live-scan:
     # Optional, read-only, on demand. An exit code of 0, 1 or 2 is a result; 3 is a failure.
@@ -146,3 +173,33 @@ jobs:
         with:
           name: m2-live-pr-report
           path: ${{ runner.temp }}/m2-live
+
+  live-investigation:
+    # Optional, read-only toward GitHub, on demand. It calls the model provider with a repository secret and costs money:
+    # never run by default. An exit code of 0, 1, 2 or 4 is a result; 3 is a failure. The key reaches the process only
+    # through the environment; the recording it saves (model answers, no key) is uploaded for offline replay.
+    if: github.event_name == 'workflow_dispatch' && inputs.live_investigation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e ".[investigation]"
+      - name: Live scan with the bounded investigation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          repo-orchestrator scan --state-db "$RUNNER_TEMP/m3-live-state.sqlite" --output-dir "$RUNNER_TEMP/m3-live" \
+            --investigate --record "$RUNNER_TEMP/m3-live/recording.json"
+          code=$?
+          echo "exit code: $code"
+          test "$code" -ne 3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m3-live-investigation
+          path: ${{ runner.temp }}/m3-live

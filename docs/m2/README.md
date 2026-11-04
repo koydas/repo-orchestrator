@@ -1,6 +1,6 @@
 # M2: PR impact analysis
 
-> **Status: implemented.** M2 adds C4 (impact analyzer) and W2 (cross-repository PR analysis) to the M1 package: given one pull request of one of the six declared repositories, it reports which other repositories the change can break, falsify or outdate, and whether it **introduces**, **leaves untouched** or **resolves** each finding. Read-only, deterministic, no LLM, no GitHub write. M3–M5 are **not** implemented ([MVP](../mvp.md)). Decision record: [ADR-0013](../adr/0013-m2-pr-impact-contracts.md) (Proposed).
+> **Status: implemented.** M2 adds C4 (impact analyzer) and W2 (cross-repository PR analysis) to the M1 package: given one pull request of one of the six declared repositories, it reports which other repositories the change can break, falsify or outdate, and whether it **introduces**, **leaves untouched** or **resolves** each finding. Read-only, deterministic, no LLM, no GitHub write; `analyze-pr` is unchanged by M3 (the investigation runs in `scan --investigate` only). M4–M5 are **not** implemented ([MVP](../mvp.md)). Decision record: [ADR-0013](../adr/0013-m2-pr-impact-contracts.md) (Proposed).
 
 | Page | Contents |
 |---|---|

@@ -112,13 +112,14 @@ def test_claude_md_authorizes_m1_to_m3_and_keeps_the_later_milestones_closed():
         assert clause in m3, clause
 
 
-def test_readme_milestone_table_marks_only_m1_and_m2_as_implemented():
+def test_readme_milestone_table_marks_only_m1_to_m3_as_implemented():
     rows = {
         m.group(1): m.group(2)
         for m in re.finditer(r"^\| (M[0-5]|S0)[^|]*\|[^|]*\|([^|]*)\|$", read(ROOT / "README.md"), re.M)
     }
-    assert "Implemented" in rows["M1"] and "Implemented" in rows["M2"]
-    for later in ("M3", "M4", "M5"):
+    for done in ("M1", "M2", "M3"):
+        assert "Implemented" in rows[done], done
+    for later in ("M4", "M5"):
         assert rows[later].strip() == "Not started", later
 
 

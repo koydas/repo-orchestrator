@@ -539,3 +539,65 @@ def test_the_dashboard_workflow_is_manual_read_only_and_keeps_history_on_pages()
     assert "--no-store" in wf and "repo-orchestrator dashboard" in wf and "deploy-pages" in wf
     assert "^[0-9a-f]{32}\\.json$" in wf  # the manifest is data: file names are validated before use
     assert "pull_request" not in wf
+
+
+# ---- M3: an additive `investigation` section must not break the dashboard, and must not read as an all-clear ----------
+
+
+def _investigated(base, **by):
+    states = {
+        "confirmed": 0,
+        "needs_validation": 0,
+        "insufficient_evidence": 0,
+        "dismissed": 0,
+        "policy_question": 0,
+        **by,
+    }
+    out = copy.deepcopy(base)
+    sem = out["semantic"]
+    sem.pop("result_digest")
+    sem["investigation"] = {"summary": {"by_state": states}, "candidates": []}
+    sem["result_digest"] = digest(sem)  # a real investigated report carries a digest that covers its section
+    return out
+
+
+def test_a_report_with_an_investigation_section_still_validates_and_renders(tmp_path, base):
+    raw = _investigated(base, needs_validation=1, insufficient_evidence=2)
+    validate_report(raw)
+    folder = tmp_path / "r"
+    folder.mkdir()
+    (folder / "report.json").write_text(json.dumps(raw))
+    out = tmp_path / "site"
+    build_dashboard(folder, out)
+    html = "\n".join(p.read_text() for p in out.rglob("*.html"))
+    assert "1 awaiting a human validation" in html and "2 with insufficient evidence" in html
+
+
+def test_an_undecided_investigation_never_shows_the_all_clear_state():
+    base_doc = doc(scan(), None)
+    base_doc["semantic"]["findings"] = []
+    base_doc["semantic"]["summary"]["by_status"]["inconsistent"] = 0
+    undecided = _investigated(base_doc, needs_validation=1)
+    from repo_orchestrator.dashboard import _status_line
+
+    r = Report("k", undecided["semantic"], undecided["execution"], ())
+    assert "left claims undecided" in _status_line(r)
+
+
+def test_a_malformed_investigation_section_is_rejected_by_name(base):
+    bad = copy.deepcopy(base)
+    sem = bad["semantic"]
+    sem.pop("result_digest")
+    sem["investigation"] = {"summary": {"by_state": {"confirmed": "many"}}}
+    sem["result_digest"] = digest(sem)
+    with pytest.raises(ReportError, match="investigation"):
+        validate_report(bad)
+
+
+def test_a_report_without_an_investigation_section_has_no_investigation_notice(tmp_path, base):
+    folder = tmp_path / "r"
+    folder.mkdir()
+    (folder / "report.json").write_text(json.dumps(base))
+    out = tmp_path / "site"
+    build_dashboard(folder, out)
+    assert "Investigation:" not in "\n".join(p.read_text() for p in out.rglob("*.html"))

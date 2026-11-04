@@ -70,7 +70,10 @@ def test_m1_and_m2_code_never_imports_the_investigation_package():
             assert "investigation" not in mod.split(".") and "investigation" not in names, (
                 f"{path.name} imports the investigation package at module level"
             )
-        if path.name != "cli.py":
+        if path.name not in {
+            "cli.py",
+            "dashboard.py",
+        }:  # the dashboard only reads the section's counts from report.json
             assert "investigation" not in path.read_text().replace("investigation.yaml", ""), path.name
 
 
