@@ -1,6 +1,6 @@
 # Report dashboard
 
-> **Status: implemented.** A static, read-only viewer for the `report.json` files that `scan` writes. It evaluates nothing, adds no service and no dependency. Decisions: [ADR-0012](../adr/0012-static-report-dashboard.md), [ADR-0014](../adr/0014-finding-actions-as-human-submitted-drafts.md) (Proposed).
+> **Status: implemented.** A static, read-only viewer for the `report.json` files that `scan` writes. It evaluates nothing, adds no service and no dependency. Decisions: [ADR-0012](../adr/0012-static-report-dashboard.md), [ADR-0014](../adr/0014-finding-actions-as-human-submitted-drafts.md), [ADR-0018](../adr/0018-dashboard-shell-from-the-shared-site-kit.md) (all Proposed).
 
 ![Visual mockup of the dashboard: overview and report detail, dark theme](assets/dashboard-mockup.webp)
 

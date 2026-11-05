@@ -85,6 +85,7 @@ def test_the_readme_counts_the_adrs_correctly():
         15: "Fifteen",
         16: "Sixteen",
         17: "Seventeen",
+        18: "Eighteen",
     }
     assert f"| {words[n]} Proposed decisions |" in read(ROOT / "README.md")
 
