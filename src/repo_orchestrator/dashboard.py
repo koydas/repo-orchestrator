@@ -35,13 +35,13 @@ RECENT = 5
 # fmt: off
 SK_VERSION = "1.0.0"
 SK_PROFILE = "python"
-SK_HASH = "deb7f9a8c25963bcf8d6c6e90207b5849f33ecc7a4c52c918038f98bae33eb30"
+SK_HASH = "75931092b289b2ebeb3aa7938a6874695d098f4f710e3eba73ec4d91e65a9ff6"
 SK_FILE_HASHES = {
     "footer.html": "2b771e74f12ee5bf2dc81322c9b3c6ff5da55f92e70502d8bdada7bf0647507c",
     "header.html": "3c7fd5f6db128821f2ca86b970158af978d23b5b594a5dca25619ff7e354b890",
     "nav.json": "7813ba47ace04034368b78d63a6998577a95542de1f731fb368c57fea6ff39c1",
     "pagehead.html": "7b053354d6ba3409b37bee62e86141511814a84974fba2e78b2560d32b4124f0",
-    "render.py": "bb320c2e813ec702481e240c78ba65e8f923014ad9d77e4d6464c6759822f499",
+    "render.py": "433c2ec58bda5a143a1f446392100bb2f31e83c11791782018c2d14584faae8f",
     "shell.css": "123ca70bdd80b681336bf7c9e006c2472758a51e21837ee9a19415a4c4f8bb7b",
     "tokens.css": "fff6958ee4f9be2dc8d79967e8089f48a73c126cd9aee00833e5e378d61dfd75",
 }
@@ -75,7 +75,9 @@ def _sk_expand(template: str, variables: dict[str, str], sites: list[dict[str, s
 
 def _sk_context(current: str) -> tuple[dict[str, str], list[dict[str, str]]]:
     sites = SK_NAV["sites"]
-    site = next(s for s in sites if s["id"] == current)
+    site = next((s for s in sites if s["id"] == current), None)
+    if site is None:
+        raise KeyError(f"site-kit: unknown site {current!r}")
     variables = {
         "version": SK_VERSION,
         "site_id": site["id"],

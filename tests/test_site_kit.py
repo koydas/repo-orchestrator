@@ -99,3 +99,9 @@ def test_an_empty_build_has_the_shell_too(tmp_path: Path):
     dashboard.build_dashboard(tmp_path / "in", out)
     html = page(out, "index.html")
     assert 'class="sk-bar"' in html and 'class="sk-pagehead"' in html and html.count("<h1") == 1
+
+
+def test_an_unknown_site_is_rejected_by_the_header_and_the_footer():
+    for render in (dashboard.sk_header, dashboard.sk_footer):
+        with pytest.raises(KeyError, match="unknown site"):
+            render("nope")
