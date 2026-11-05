@@ -17,6 +17,7 @@ from repo_orchestrator.collector.overlay import replace_text
 from repo_orchestrator.dashboard import (
     BRANCH_PREFIX,
     LOOP_DASHBOARD_URL,
+    SK_NAV,
     TOOLS_DASHBOARD_URL,
     Report,
     ReportError,
@@ -333,10 +334,14 @@ def test_hrefs_are_only_relative_or_github_or_the_sibling_dashboards(tmp_path, b
     report = hostile(base)
     out, _ = built(tmp_path, a=report, b=policy)
     allowed = ("https://github.com/", LOOP_DASHBOARD_URL, TOOLS_DASHBOARD_URL)
+    sites = {s["url"] for s in SK_NAV["sites"]}  # the shared shell (site-kit) links the five sites, exactly these URLs
     for path in out.rglob("*.html"):
         for href in re.findall(r'href="([^"]*)"', path.read_text(encoding="utf-8")):
             assert not href.lower().startswith(("javascript:", "data:", "vbscript:")), (path.name, href)
-            assert href.startswith(allowed) or not re.match(r"^[a-z][a-z0-9+.-]*:|^//", href), (path.name, href)
+            assert href.startswith(allowed) or href in sites or not re.match(r"^[a-z][a-z0-9+.-]*:|^//", href), (
+                path.name,
+                href,
+            )
 
 
 def test_pages_carry_no_script_and_no_external_asset(tmp_path, base):

@@ -25,6 +25,7 @@ Format: `NNNN-kebab-title.md`, sections Context / Decision / Rationale / Alterna
 | [ADR-0015](./0015-m3-llm-boundary-budgets-and-replay.md) | M3 LLM boundary, code-constant budgets, and recorded-response replay | Proposed |
 | [ADR-0016](./0016-m3-reasoning-verification-and-validation.md) | M3 reasoning claims: quote verification, validation, entailment checks and exit codes | Proposed |
 | [ADR-0017](./0017-m3-investigation-state-and-langgraph-confinement.md) | M3 investigation state: LangGraph confined to one module, checkpoints, ledger and a separate decision namespace | Proposed |
+| [ADR-0018](./0018-dashboard-shell-from-the-shared-site-kit.md) | The dashboard shell is a vendored copy of the shared site kit | Proposed |
 
 ## Dependencies between records
 
@@ -66,4 +67,6 @@ flowchart LR
     A8 --> A17
     A15 --> A17
     A16 --> A17
+    A12 --> A18["0018 Shared site shell"]
+    A14 --> A18
 ```
